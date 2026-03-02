@@ -9,6 +9,7 @@
 const STORE_KEY = "tvet_seta_mvp_store_v1";
 // sessionStorage key for the active signed-in user id across hash-route navigation.
 const SESSION_KEY = "tvet_seta_mvp_session_user_id";
+const MOBILE_DASHBOARD_VIEW_KEY = "tvet_seta_mvp_mobile_dashboard_view";
 
 // Interest catalogue used by onboarding, career quiz, and bursary eligibility filters.
 const INTERESTS = [
@@ -790,6 +791,13 @@ function matchesOpportunityTypeFilter(opportunityType, filterKey) {
   if (filterKey === "Course") return opportunityType === "Course";
   if (filterKey === "Learnership/Internship") return isLearnershipType(opportunityType);
   return opportunityType === filterKey;
+}
+
+function getApplicationsTabTheme(filterKey) {
+  if (filterKey === "Bursary") return "theme-bursary";
+  if (filterKey === "Learnership/Internship") return "theme-learnership";
+  if (filterKey === "Course") return "theme-course";
+  return "theme-neutral";
 }
 
 function resolveOpportunitySector(opportunity) {
@@ -1937,12 +1945,575 @@ function getPageTitleForRoute(currentRoute) {
   return "National TVET & SETA MVP";
 }
 
+function getMobileDashboardView() {
+  try {
+    return sessionStorage.getItem(MOBILE_DASHBOARD_VIEW_KEY) || "dashboard";
+  } catch {
+    return "dashboard";
+  }
+}
+
+function setMobileDashboardView(view) {
+  try {
+    sessionStorage.setItem(MOBILE_DASHBOARD_VIEW_KEY, view || "dashboard");
+  } catch {
+  }
+}
+
+function getStatusBadgeClass(status) {
+  if (status === "Submitted") return "badgeBlue";
+  if (status === "Under Review") return "badgePurple";
+  if (status === "Accepted") return "badgeGreen";
+  if (status === "Rejected") return "badgeOrange";
+  if (status === "Open") return "badgeBlue";
+  return "badgePurple";
+}
+
+function getOpportunityCategoryClass(type) {
+  if (type === "Bursary") return "is-bursary";
+  if (type === "Course") return "is-course";
+  if (isLearnershipType(type)) return "is-learnership";
+  return "is-course";
+}
+
+function getOpportunityTypeBadgeClass(type) {
+  return `chip-category ${getOpportunityCategoryClass(type)}`;
+}
+
+function getOpportunityCardTypeClass(type) {
+  return `card-accent-top ${getOpportunityCategoryClass(type)}`;
+}
+
+function getOpportunityLifecycleState(application) {
+  if (!application) {
+    return {
+      statusLabel: "Open",
+      statusClass: "statusPill statusOpen",
+      cardVariantClass: "",
+      isInProgress: false,
+      isSubmitted: false,
+      isClosed: false,
+      isComplete: false
+    };
+  }
+
+  if (application.status === "Under Review") {
+    return {
+      statusLabel: "Submitted",
+      statusClass: "statusPill statusSubmitted",
+      cardVariantClass: "card-in-progress",
+      isInProgress: true,
+      isSubmitted: true,
+      isClosed: false,
+      isComplete: false
+    };
+  }
+
+  if (application.status === "Submitted") {
+    return {
+      statusLabel: "Submitted",
+      statusClass: "statusPill statusSubmitted",
+      cardVariantClass: "card-submitted",
+      isInProgress: false,
+      isSubmitted: true,
+      isClosed: false,
+      isComplete: false
+    };
+  }
+
+  if (application.status === "Accepted") {
+    return {
+      statusLabel: "Complete",
+      statusClass: "statusPill statusComplete",
+      cardVariantClass: "card-submitted",
+      isInProgress: false,
+      isSubmitted: true,
+      isClosed: false,
+      isComplete: true
+    };
+  }
+
+  return {
+    statusLabel: "Closed",
+    statusClass: "statusPill statusClosed",
+    cardVariantClass: "card-submitted card-closed",
+    isInProgress: false,
+    isSubmitted: true,
+    isClosed: true,
+    isComplete: false
+  };
+}
+
+function getOpportunityPrimaryAction(opportunityId, application, recommended, lifecycle) {
+  if (application) {
+    if (lifecycle.isInProgress) {
+      return { label: "Continue application", href: "#/student/dashboard" };
+    }
+    return { label: "View application", href: "#/student/dashboard" };
+  }
+
+  if (recommended) {
+    return { label: "Apply", href: `#/student/apply/${opportunityId}` };
+  }
+
+  return { label: "View details", href: `#/student/opportunity/${opportunityId}` };
+}
+
+function isSubmittedApplicationStatus(status) {
+  return status === "Submitted" || status === "Under Review" || status === "Accepted" || status === "Rejected";
+}
+
+function getApplicationProgressBlueprint(opportunityType) {
+  if (opportunityType === "Course") {
+    return [
+      {
+        id: "profile",
+        title: "Profile completed",
+        description: "Basic learner profile details are saved."
+      },
+      {
+        id: "requirements",
+        title: "Meet entry requirements",
+        description: "Your current profile is ready for entry requirement checks."
+      },
+      {
+        id: "submit",
+        title: "Submit application",
+        description: "Review the details and submit your course application."
+      }
+    ];
+  }
+
+  return [
+    {
+      id: "profile",
+      title: "Profile completed",
+      description: "Personal and study profile details are captured."
+    },
+    {
+      id: "documents",
+      title: "Required documents uploaded",
+      description: "Required ID and academic documents are available."
+    },
+    {
+      id: "form",
+      title: "Application form completed",
+      description: "Application details are complete for this opportunity."
+    },
+    {
+      id: "review",
+      title: "Review & submit",
+      description: "Final check before sending your application."
+    }
+  ];
+}
+
+function buildApplicationProgressState(user, opportunity, application = null) {
+  const safeOpportunity = opportunity || {};
+  const profile = getUserProfile(user) || {};
+
+  const profileName = String(profile.fullName || user?.name || "").trim();
+  const profileProvince = String(profile.province || "").trim();
+  const profileAge = String(profile.age || "").trim();
+  const profileEducation = String(profile.educationLevel || "").trim();
+  const profileEmail = String(user?.email || profile.email || "").trim();
+  const profileInterests = Array.isArray(profile.interests) ? profile.interests.filter(Boolean) : [];
+
+  const profileCoreComplete = Boolean(profileName && profileProvince && profileEmail);
+  const profileDetailsComplete = Boolean(profileCoreComplete && profileAge && profileEducation && profileInterests.length);
+
+  const checklist = getDocumentChecklist(user.id, safeOpportunity.type || "");
+  const submitted = Boolean(application && isSubmittedApplicationStatus(application.status));
+  const docsComplete = submitted
+    ? true
+    : application
+      ? typeof application.docsComplete === "boolean"
+        ? application.docsComplete
+        : !Boolean(application.docsIncomplete)
+      : checklist.complete;
+
+  const formComplete = Boolean(submitted || application || profileDetailsComplete);
+  const meetsEntryRequirements = Boolean(submitted || application || profileDetailsComplete);
+
+  const completionById = {
+    profile: profileCoreComplete,
+    documents: docsComplete,
+    form: formComplete,
+    review: submitted,
+    requirements: meetsEntryRequirements,
+    submit: submitted
+  };
+
+  const resolveStepAction = (stepId) => {
+    if (stepId === "profile") {
+      return { kind: "link", label: "Complete profile", href: "#/student/dashboard" };
+    }
+    if (stepId === "documents") {
+      return { kind: "link", label: "Upload documents", href: "#/student/documents" };
+    }
+    if (stepId === "form") {
+      return { kind: "link", label: "Continue application", href: `#/student/apply/${safeOpportunity.id}` };
+    }
+    if (stepId === "requirements") {
+      return { kind: "link", label: "Review requirements", href: `#/student/opportunity/${safeOpportunity.id}` };
+    }
+    if (stepId === "review" || stepId === "submit") {
+      return { kind: "submit", label: "Review & submit" };
+    }
+    return null;
+  };
+
+  const blueprint = getApplicationProgressBlueprint(safeOpportunity.type || "");
+  const steps = [];
+  let chainOpen = true;
+  let activeAssigned = false;
+
+  blueprint.forEach((step) => {
+    const complete = Boolean(completionById[step.id]);
+    let state = "locked";
+
+    if (chainOpen && complete) {
+      state = "completed";
+    } else if (chainOpen && !activeAssigned) {
+      state = "active";
+      activeAssigned = true;
+      chainOpen = false;
+    } else {
+      chainOpen = false;
+    }
+
+    steps.push({
+      ...step,
+      complete,
+      state,
+      action: state === "active" ? resolveStepAction(step.id) : null
+    });
+  });
+
+  const completedCount = steps.filter((step) => step.state === "completed").length;
+  const totalSteps = steps.length;
+  const progressPercent = totalSteps ? Math.round((completedCount / totalSteps) * 100) : 0;
+  const activeStep = steps.find((step) => step.state === "active") || null;
+
+  let summaryAction = activeStep?.action || null;
+  if (!summaryAction && application) {
+    summaryAction = { kind: "link", label: "View application", href: "#/student/dashboard" };
+  }
+  if (!summaryAction && safeOpportunity.id) {
+    summaryAction = { kind: "link", label: "Continue application", href: `#/student/apply/${safeOpportunity.id}` };
+  }
+
+  return {
+    steps,
+    totalSteps,
+    completedCount,
+    progressPercent,
+    activeStep,
+    summaryAction,
+    categoryClass: getOpportunityCategoryClass(safeOpportunity.type || "Course")
+  };
+}
+
+function renderApplicationProgressStepper(progressState, formId = "form") {
+  if (!progressState || !Array.isArray(progressState.steps) || !progressState.steps.length) return "";
+
+  const summaryActionHtml = (() => {
+    if (!progressState.summaryAction) return "";
+    if (progressState.summaryAction.kind === "submit") {
+      return `<button class="btn btnPrimary" type="submit" form="${escapeHtml(formId)}">${escapeHtml(progressState.summaryAction.label)}</button>`;
+    }
+    return `<a class="btn btnPrimary" href="${progressState.summaryAction.href}">${escapeHtml(progressState.summaryAction.label)}</a>`;
+  })();
+
+  return `<div class="grid applicationProgressBlock">
+    <div class="card applicationProgressSummary ${progressState.categoryClass}">
+      <div class="row" style="justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Application progress</div>
+          <h3 style="margin-top:6px;">${progressState.completedCount} of ${progressState.totalSteps} steps completed</h3>
+        </div>
+        <span class="statusPill statusSubmitted">${progressState.progressPercent}%</span>
+      </div>
+      <div class="applicationProgressBar" aria-hidden="true">
+        <div class="applicationProgressBarFill" style="width:${progressState.progressPercent}%;"></div>
+      </div>
+      <div class="mutedText" style="font-size:13px; margin-top:8px;">${progressState.activeStep ? `Current step: ${escapeHtml(progressState.activeStep.title)}` : "All steps completed."}</div>
+      ${summaryActionHtml ? `<div class="applicationSummaryAction" style="margin-top:12px;">${summaryActionHtml}</div>` : ""}
+    </div>
+
+    <div class="card applicationProgressStepper card-accent-top ${progressState.categoryClass}">
+      <div class="applicationSteps" role="list" aria-label="Application progress journey">
+        ${progressState.steps
+          .map((step, index) => {
+            const stepStateLabel = step.state === "completed" ? "Completed" : step.state === "active" ? "Current" : "Locked";
+            const actionHtml = (() => {
+              if (!step.action || step.state !== "active") return "";
+              if (step.action.kind === "submit") {
+                return `<button class="btn btnPrimary" type="submit" form="${escapeHtml(formId)}">${escapeHtml(step.action.label)}</button>`;
+              }
+              return `<a class="btn btnPrimary" href="${step.action.href}">${escapeHtml(step.action.label)}</a>`;
+            })();
+
+            return `<div class="applicationStep is-${step.state}" role="listitem" aria-label="${escapeHtml(step.title)} - ${stepStateLabel}">
+              <div class="applicationStepRail" aria-hidden="true">
+                <span class="applicationStepCircle">${step.state === "completed" ? "✓" : index + 1}</span>
+                ${index < progressState.steps.length - 1 ? `<span class="applicationStepConnector"></span>` : ""}
+              </div>
+              <div class="applicationStepBody">
+                <div class="applicationStepHeader">
+                  <h4>${escapeHtml(step.title)}</h4>
+                  <span class="applicationStepState">${stepStateLabel}</span>
+                </div>
+                <p class="applicationStepDescription">${escapeHtml(step.description)}</p>
+                ${actionHtml ? `<div class="applicationStepAction">${actionHtml}</div>` : ""}
+              </div>
+            </div>`;
+          })
+          .join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+function getOpportunityProgressSummary(user, opportunity, application) {
+  const progressState = buildApplicationProgressState(user, opportunity, application);
+  return {
+    completed: progressState.completedCount,
+    total: progressState.totalSteps,
+    label: `${progressState.completedCount} of ${progressState.totalSteps} completed`
+  };
+}
+
+function renderQuizStepNavigator(totalSteps, currentStepIndex) {
+  const steps = Array.from({ length: totalSteps }, (_, index) => {
+    const isCompleted = index < currentStepIndex;
+    const isCurrent = index === currentStepIndex;
+    const stateClass = isCompleted ? "is-completed" : isCurrent ? "is-current" : "is-upcoming";
+    const stateLabel = isCurrent ? "current" : isCompleted ? "completed" : "upcoming";
+
+    return `<div class="quizStepItem ${stateClass}" role="listitem" aria-label="Step ${index + 1} of ${totalSteps} - ${stateLabel}" ${isCurrent ? 'aria-current="step" data-quiz-step-current="true"' : ""}>
+      <span class="quizStepCircle">${isCompleted ? "✓" : index + 1}</span>
+    </div>`;
+  }).join("");
+
+  return `<div class="quizStepNavigator" aria-label="Quiz progress">
+    <div class="quizStepLabel">Step ${currentStepIndex + 1} of ${totalSteps}</div>
+    <div class="quizStepScroller" role="list">
+      ${steps}
+    </div>
+  </div>`;
+}
+
+function createInlineProfileEditorDraft(profile, user = null) {
+  const safeProfile = profile && typeof profile === "object" ? profile : {};
+  return {
+    fullName: String(safeProfile.fullName || user?.name || "").trim(),
+    age: String(safeProfile.age || "").trim(),
+    province: String(safeProfile.province || "").trim(),
+    educationLevel: String(safeProfile.educationLevel || "").trim(),
+    interests: Array.isArray(safeProfile.interests)
+      ? safeProfile.interests.filter((interest) => INTERESTS.includes(interest))
+      : []
+  };
+}
+
+function renderInlineProfileEditor(options = {}) {
+  const {
+    mode = "application-review",
+    open = false,
+    draft = createInlineProfileEditorDraft({}),
+    error = "",
+    notice = ""
+  } = options;
+
+  return `<div class="inlineProfileEditorOverlay ${open ? "open" : ""}" id="inlineProfileEditorOverlay" ${open ? "" : "hidden"} aria-hidden="${open ? "false" : "true"}">
+    <section class="inlineProfileEditorSheet" id="inlineProfileEditorDialog" role="dialog" aria-modal="true" aria-labelledby="inlineProfileEditorTitle" aria-describedby="inlineProfileEditorAssist inlineProfileEditorImpact" tabindex="-1" data-inline-profile-editor-mode="${escapeHtml(mode)}">
+      <div class="row" style="justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h3 id="inlineProfileEditorTitle" style="margin:0;">Edit profile</h3>
+          <div class="mutedText" id="inlineProfileEditorAssist" style="font-size:12px; margin-top:4px;">Update info without leaving this application review.</div>
+        </div>
+        <button type="button" class="btn btnGhost inlineProfileEditorClose" id="inlineProfileCloseBtn" aria-label="Close edit profile dialog">Close</button>
+      </div>
+
+      <form id="inlineProfileEditorForm" style="margin-top:12px;">
+        <div class="inlineProfileEditorSection">
+          <div class="inlineProfileEditorSectionTitle">Personal</div>
+          <div class="field">
+            <label for="inlineProfileFullName"><b>Full name (optional)</b></label>
+            <input class="input" id="inlineProfileFullName" data-editor-field="fullName" name="fullName" value="${escapeHtml(draft.fullName || "")}" placeholder="Enter full name" autocomplete="name" />
+          </div>
+          <div class="grid cols-2">
+            <div class="field">
+              <label for="inlineProfileAge"><b>Age *</b></label>
+              <input class="input" id="inlineProfileAge" data-editor-field="age" name="age" value="${escapeHtml(draft.age || "")}" inputmode="numeric" type="number" min="14" max="100" step="1" />
+            </div>
+            <div class="field">
+              <label for="inlineProfileProvince"><b>Province *</b></label>
+              <select class="input select" id="inlineProfileProvince" data-editor-field="province" name="province">
+                <option value="">Select province</option>
+                ${PROVINCES.map((province) => `<option value="${province}" ${draft.province === province ? "selected" : ""}>${province}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="inlineProfileEditorSection" style="margin-top:12px;">
+          <div class="inlineProfileEditorSectionTitle">Education</div>
+          <div class="field">
+            <label for="inlineProfileEducation"><b>Education level *</b></label>
+            <input class="input" id="inlineProfileEducation" data-editor-field="educationLevel" name="educationLevel" value="${escapeHtml(draft.educationLevel || "")}" placeholder="e.g. Matric, NCV Level 4, N6" autocomplete="organization-title" />
+          </div>
+        </div>
+
+        <div class="inlineProfileEditorSection" style="margin-top:12px;">
+          <div class="inlineProfileEditorSectionTitle">Preferences</div>
+          <div class="inlineProfileInterestsGrid" role="group" aria-label="Interests">
+            ${INTERESTS.map((interest, index) => {
+              const checked = draft.interests.includes(interest) ? "checked" : "";
+              const inputId = `inlineProfileInterest-${index}`;
+              return `<label class="inlineInterestChip" for="${inputId}">
+                <input type="checkbox" id="${inputId}" value="${escapeHtml(interest)}" ${checked} />
+                <span>${escapeHtml(interest)}</span>
+              </label>`;
+            }).join("")}
+          </div>
+        </div>
+
+        <div class="mutedText inlineImpactNotice" id="inlineProfileEditorImpact" style="margin-top:12px;">Updates may change required documents for this application.</div>
+        <div id="inlineProfileEditorError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(error || "")}</div>
+        <div id="inlineProfileEditorNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;">${escapeHtml(notice || "")}</div>
+
+        <div class="row inlineProfileEditorActions" style="margin-top:12px; justify-content:space-between;">
+          <a class="btn btnGhost" href="#/student/dashboard" data-inline-profile-open-settings="true">Open full profile settings</a>
+          <div class="row" style="gap:8px;">
+            <button type="button" class="btn btnGhost" id="inlineProfileCancelBtn">Cancel</button>
+            <button type="submit" class="btn btnPrimary" id="inlineProfileSaveBtn">Save profile</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>`;
+}
+
+function activateDialogFocusTrap(dialog, onRequestClose, initialFocusElement) {
+  if (!dialog) return () => {};
+
+  const previouslyFocused = document.activeElement;
+  const focusSelector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  const getFocusableElements = () =>
+    Array.from(dialog.querySelectorAll(focusSelector)).filter((element) => !element.hasAttribute("hidden"));
+
+  const handleKeydown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (typeof onRequestClose === "function") onRequestClose();
+      return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const focusable = getFocusableElements();
+    if (!focusable.length) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  document.addEventListener("keydown", handleKeydown);
+
+  requestAnimationFrame(() => {
+    const focusable = getFocusableElements();
+    const target =
+      initialFocusElement && typeof initialFocusElement.focus === "function"
+        ? initialFocusElement
+        : focusable[0] || dialog;
+    target.focus();
+  });
+
+  return () => {
+    document.removeEventListener("keydown", handleKeydown);
+    if (previouslyFocused && typeof previouslyFocused.focus === "function") {
+      previouslyFocused.focus();
+    }
+  };
+}
+
+function getStudentMobileNavItems(currentRoute) {
+  const normalized = resolveStudentNavRoute(currentRoute);
+  const dashboardView = getMobileDashboardView();
+  const isOpportunities =
+    normalized === "/student/bursaries" ||
+    normalized === "/student/learnerships" ||
+    normalized === "/student/courses" ||
+    currentRoute.startsWith("/student/opportunity/");
+  const isApplications =
+    currentRoute.startsWith("/student/apply/") ||
+    (normalized === "/student/dashboard" && dashboardView === "applications");
+  const isProfile = normalized === "/student/dashboard" && dashboardView === "profile";
+  const isDocuments = normalized === "/student/documents";
+  const isDashboard = normalized === "/student/dashboard" && !isApplications && !isProfile;
+
+  return [
+    {
+      label: "Dashboard",
+      href: "/student/dashboard",
+      icon: "⌂",
+      view: "dashboard",
+      active: isDashboard
+    },
+    {
+      label: "Opportunities",
+      href: "/student/bursaries",
+      icon: "◎",
+      active: isOpportunities
+    },
+    {
+      label: "Applications",
+      href: "/student/dashboard",
+      icon: "▣",
+      view: "applications",
+      active: isApplications
+    },
+    {
+      label: "Documents",
+      href: "/student/documents",
+      icon: "▤",
+      active: isDocuments
+    },
+    {
+      label: "Profile",
+      href: "/student/dashboard",
+      icon: "◉",
+      view: "profile",
+      active: isProfile
+    }
+  ];
+}
+
 function shell(role, contentNode) {
   const user = currentUser();
   const sidebarItems = getSidebarItems(role);
   const pageTitle = getPageTitleForRoute(route);
   const displayName = getUserDisplayName(user);
   const profile = getUserProfile(user) || {};
+  const firstName = getUserNameParts(user || {}).firstName || (displayName || "Student").split(" ")[0] || "Student";
 
   const sidebar = el(`<aside class="sidebar">
     <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:#555;">NATIONAL TVET & SETA MVP</div>
@@ -1996,7 +2567,25 @@ function shell(role, contentNode) {
     navigate("/");
   };
 
+  const mobileHeader =
+    role === "student"
+      ? el(`<header class="mobileTopHeader">
+          <div class="row" style="gap:10px; align-items:center; flex-wrap:nowrap; width:auto;">
+            ${user ? renderUserAvatar(user, "avatarMd") : `<span class="sessionDot"></span>`}
+            <div>
+              <div class="mutedText" style="font-size:11px; text-transform:uppercase; letter-spacing:.05em;">Student</div>
+              <div style="font-size:18px; font-weight:800; line-height:1.1;">Hi ${escapeHtml(firstName || "Student")}</div>
+            </div>
+          </div>
+          <button type="button" class="mobileNotifyBtn" aria-label="Notifications">◔</button>
+        </header>`)
+      : null;
+
   const main = document.createElement("div");
+  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""}`.trim();
+  if (mobileHeader) {
+    main.appendChild(mobileHeader);
+  }
   main.appendChild(topbar);
 
   const contentWrap = el(`<main class="content"></main>`);
@@ -2007,6 +2596,52 @@ function shell(role, contentNode) {
   app.className = "appShell";
   app.appendChild(sidebar);
   app.appendChild(main);
+
+  if (role === "student") {
+    const mobileItems = getStudentMobileNavItems(route);
+    const bottomNav = el(`<nav class="mobileBottomNav" aria-label="Mobile navigation">
+      ${mobileItems
+        .map(
+          (item) => `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}" ${
+            item.view ? `data-mobile-view="${item.view}"` : ""
+          }>
+            <span class="mobileBottomNavItemIcon">${item.icon}</span>
+            <span>${item.label}</span>
+          </a>`
+        )
+        .join("")}
+    </nav>`);
+
+    bottomNav.querySelectorAll("a.mobileBottomNavItem").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const view = link.getAttribute("data-mobile-view");
+        if (view) {
+          setMobileDashboardView(view);
+        } else {
+          setMobileDashboardView("dashboard");
+        }
+
+        const href = link.getAttribute("href") || "";
+        const targetRoute = href.replace("#", "") || "/";
+        if (targetRoute === route && targetRoute === "/student/dashboard") {
+          event.preventDefault();
+          const targetId =
+            view === "applications"
+              ? "dashboardApplicationsSection"
+              : view === "profile"
+                ? "dashboardProfileSection"
+                : "dashboardHeroSection";
+          const targetNode = document.getElementById(targetId);
+          if (targetNode) {
+            targetNode.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      });
+    });
+
+    app.appendChild(bottomNav);
+  }
+
   return app;
 }
 
@@ -2268,7 +2903,7 @@ function submitApplication(opportunityId, options = {}) {
 function pageHome() {
   const user = currentUser();
 
-  const node = el(`<div style="max-width:820px; margin:0 auto; padding:24px;">
+  const node = el(`<div class="grid" style="padding-inline:clamp(16px, 3vw, 40px); padding-block:24px;">
     <div class="card">
       <div class="cardHeader">
         <h1 style="margin:0; font-size:24px;">National TVET & SETA Digital Access Platform</h1>
@@ -2290,7 +2925,7 @@ function pageHome() {
 
 // Authentication page render + login/register form event wiring.
 function pageLogin() {
-  const node = el(`<div style="max-width:900px; margin:0 auto; padding:24px;">
+  const node = el(`<div class="grid" style="padding-inline:clamp(16px, 3vw, 40px); padding-block:24px;">
     <div class="card">
       <div class="cardHeader">
         <h1 style="margin:0; font-size:24px;">National TVET & SETA Digital Access Platform</h1>
@@ -2409,7 +3044,7 @@ function pageStudentOnboarding() {
     interests: []
   };
 
-  const node = el(`<div class="grid" style="max-width:860px;">
+  const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Learner Onboarding</h1>
       <p class="mutedText" style="margin:8px 0 0;">Capture learner profile to personalise opportunity discovery.</p>
@@ -2512,6 +3147,14 @@ function closingDateSortValue(value) {
   return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
 }
 
+function daysUntilDate(value) {
+  if (!value || value === "Rolling") return null;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  const diff = timestamp - Date.now();
+  return Math.ceil(diff / 86400000);
+}
+
 function renderRequiredDocumentsChecklist(studentId, opportunityType, showManageLink = true) {
   const checklist = getDocumentChecklist(studentId, opportunityType);
   const rows = [
@@ -2536,21 +3179,36 @@ function renderRequiredDocumentsChecklist(studentId, opportunityType, showManage
       <div style="font-weight:700;">Required documents checklist</div>
       <span class="badge ${checklist.complete ? "badgeGreen" : "badgeOrange"}">${checklist.complete ? "Documents Complete" : "Documents Incomplete"}</span>
     </div>
-    <table class="table" style="margin-top:10px;">
-      <thead>
-        <tr><th>Requirement</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        ${rows
-          .map(
-            (row) => `<tr>
-          <td>${escapeHtml(row.label)} ${row.required ? "<span class=\"mutedText\" style=\"font-size:12px;\">(Required)</span>" : "<span class=\"mutedText\" style=\"font-size:12px;\">(Optional)</span>"}</td>
-          <td>${row.uploaded ? "Yes" : "No"}</td>
-        </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
+
+    <div class="desktopOnly" style="margin-top:10px;">
+      <table class="table">
+        <thead>
+          <tr><th>Requirement</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `<tr>
+            <td>${escapeHtml(row.label)} ${row.required ? "<span class=\"mutedText\" style=\"font-size:12px;\">(Required)</span>" : "<span class=\"mutedText\" style=\"font-size:12px;\">(Optional)</span>"}</td>
+            <td>${row.uploaded ? "Yes" : "No"}</td>
+          </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mobileList mobileOnly" style="margin-top:10px;">
+      ${rows
+        .map(
+          (row) => `<div class="mobileListCard">
+            <div style="font-weight:700;">${escapeHtml(row.label)}</div>
+            <div class="mutedText" style="font-size:12px;">${row.required ? "Required" : "Optional"}</div>
+            <div><span class="badge ${row.uploaded ? "badgeGreen" : "badgeOrange"}">${row.uploaded ? "Uploaded" : "Missing"}</span></div>
+          </div>`
+        )
+        .join("")}
+    </div>
     ${
       showManageLink
         ? `<div class="row" style="margin-top:10px;">
@@ -2585,32 +3243,29 @@ function pageStudentListing(listingKey) {
       <p class="mutedText" style="margin:8px 0 0;">${escapeHtml(config.subtitle)}</p>
     </div>
 
-    <div class="card">
-      <div class="grid cols-2">
-        <div class="field">
-          <label><b>Search</b></label>
+    <div class="card filterPanel">
+      <div class="filterRow">
+        <div class="filterControl">
+          <span>Search</span>
           <input class="input" id="searchInput" placeholder="Search by title, institution, or sector" />
         </div>
-        <div class="field">
-          <label><b>Province</b></label>
+        <div class="filterControl">
+          <span>Province</span>
           <select class="input select" id="provinceFilter">
             <option value="">All provinces</option>
             ${PROVINCES.map((province) => `<option value="${province}">${province}</option>`).join("")}
             <option value="National">National</option>
           </select>
         </div>
-      </div>
-
-      <div class="grid cols-2">
-        <div class="field">
-          <label><b>Sector</b></label>
+        <div class="filterControl">
+          <span>Sector</span>
           <select class="input select" id="sectorFilter">
             <option value="">All sectors</option>
             ${sectors.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(sector)}</option>`).join("")}
           </select>
         </div>
-        <div class="field">
-          <label><b>Sort</b></label>
+        <div class="filterControl">
+          <span>Sort</span>
           <select class="input select" id="sortFilter">
             <option value="recommended">Recommended first</option>
             <option value="closing">Closing soon</option>
@@ -2620,7 +3275,7 @@ function pageStudentListing(listingKey) {
       </div>
     </div>
 
-    <div class="grid cols-3" id="listingWrap"></div>
+    <div class="listingGrid" id="listingWrap"></div>
   </div>`);
 
   function renderListingItems() {
@@ -2628,6 +3283,9 @@ function pageStudentListing(listingKey) {
     const province = node.querySelector("#provinceFilter").value;
     const sector = node.querySelector("#sectorFilter").value;
     const sort = node.querySelector("#sortFilter").value;
+    const applicationsByOpportunity = new Map(
+      studentApplications(user.id).map((application) => [application.opportunityId, application])
+    );
 
     let filtered = scopedOpportunities.filter((opportunity) => {
       const searchable = [
@@ -2688,28 +3346,60 @@ function pageStudentListing(listingKey) {
 
     listingWrap.innerHTML = filtered
       .map((opportunity) => {
+        const application = applicationsByOpportunity.get(opportunity.id) || null;
         const recommended = recommendedIds.has(opportunity.id);
-        return `<div class="card" style="padding:0;">
-          <div style="padding:16px; border-bottom:1px solid #bbb; background:#eee;">
-            <div class="placeholder"></div>
+        const docsComplete = application
+          ? typeof application.docsComplete === "boolean"
+            ? application.docsComplete
+            : !Boolean(application.docsIncomplete)
+          : getDocumentChecklist(user.id, opportunity.type).complete;
+        const lifecycle = getOpportunityLifecycleState(application);
+        const action = getOpportunityPrimaryAction(opportunity.id, application, recommended, lifecycle);
+        const daysUntilClosing = daysUntilDate(opportunity.closingDate);
+        const closingSoon = Number.isFinite(daysUntilClosing) && daysUntilClosing >= 0 && daysUntilClosing < 14;
+        const submittedDate = application ? formatDate(application.createdAt) : "Not started";
+        const progressSummary = getOpportunityProgressSummary(user, opportunity, application);
+        const cardClasses = [
+          "opportunityCard",
+          getOpportunityCardTypeClass(opportunity.type),
+          lifecycle.cardVariantClass,
+          recommended && !application ? "card-priority" : ""
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        return `<article class="${cardClasses}">
+          <div class="opportunityCardLayout">
+            <div class="opportunityCardMain">
+              <div class="row" style="justify-content:space-between; align-items:flex-start;">
+                <span class="badge ${getOpportunityTypeBadgeClass(opportunity.type)}">${escapeHtml(opportunity.type)}</span>
+                ${recommended && !application ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
+              </div>
+
+              <h3 class="opportunityTitle">${escapeHtml(opportunity.title)}</h3>
+              <p class="opportunityOrg">${escapeHtml(opportunity.institution)}</p>
+
+              <div class="opportunityMetaStack">
+                <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(opportunity.type)}</b></div>
+                <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(opportunity.closingDate)}</b></div>
+                <div class="opportunityMetaRow"><span>Submitted</span><b>${escapeHtml(submittedDate)}</b></div>
+              </div>
+              <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
+
+              ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
+              ${
+                lifecycle.isInProgress
+                  ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${docsComplete ? "82%" : "58%"};"></div></div>`
+                  : ""
+              }
+            </div>
+
+            <div class="opportunityCardActions">
+              <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
+              <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
+            </div>
           </div>
-          <div style="padding:16px; display:grid; gap:10px;">
-            <div class="row" style="justify-content:space-between; align-items:flex-start;">
-              <span class="badge ${opportunity.type === "Bursary" ? "badgePurple" : opportunity.type === "Course" ? "badgeBlue" : "badgeBlue"}">${escapeHtml(opportunity.type)}</span>
-              ${recommended ? `<span class="badge badgeBlue">Recommended</span>` : ""}
-            </div>
-            <div>
-              <div style="font-weight:700;">${escapeHtml(opportunity.title)}</div>
-              <div class="mutedText">${escapeHtml(opportunity.institution)}</div>
-              <div class="mutedText">${escapeHtml(opportunity.location)}</div>
-            </div>
-            <div>Sector: <b>${escapeHtml(resolveOpportunitySector(opportunity))}</b></div>
-            <div class="mutedText">Closing: ${formatDateLabel(opportunity.closingDate)}</div>
-            <div>
-              <a class="btn btnPrimary" href="#/student/opportunity/${opportunity.id}">View details</a>
-            </div>
-          </div>
-        </div>`;
+        </article>`;
       })
       .join("");
   }
@@ -2760,7 +3450,7 @@ function pageStudentOpportunityDetails(id) {
   const recommended =
     user.profile && isOpportunityRecommended(opportunity, user.profile.interests || []);
 
-  const node = el(`<div class="grid" style="max-width:900px;">
+  const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">${escapeHtml(opportunity.title)}</h1>
       <p class="mutedText" style="margin:8px 0 0;">${escapeHtml(opportunity.institution)}</p>
@@ -2823,21 +3513,38 @@ function renderChecklistTable(studentId) {
       <div style="font-weight:700;">Documents checklist</div>
       <span class="badge ${checklist.complete ? "badgeGreen" : "badgeOrange"}">${checklist.complete ? "Documents Complete" : "Documents Incomplete"}</span>
     </div>
-    <table class="table" style="margin-top:10px;">
-      <thead>
-        <tr><th>Category</th><th>Uploaded</th></tr>
-      </thead>
-      <tbody>
-        ${categories
-          .map((category) => `<tr>
-            <td>${escapeHtml(category)} ${
-              category === "Proof of Income" ? `<span class="mutedText" style="font-size:12px;">(Optional for bursaries)</span>` : ""
-            }</td>
-            <td>${checklist.byCategory.find((item) => item.category === category)?.uploaded ? "Yes" : "No"}</td>
-          </tr>`)
-          .join("")}
-      </tbody>
-    </table>
+
+    <div class="desktopOnly" style="margin-top:10px;">
+      <table class="table">
+        <thead>
+          <tr><th>Category</th><th>Uploaded</th></tr>
+        </thead>
+        <tbody>
+          ${categories
+            .map((category) => `<tr>
+              <td>${escapeHtml(category)} ${
+                category === "Proof of Income" ? `<span class="mutedText" style="font-size:12px;">(Optional for bursaries)</span>` : ""
+              }</td>
+              <td>${checklist.byCategory.find((item) => item.category === category)?.uploaded ? "Yes" : "No"}</td>
+            </tr>`)
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mobileList mobileOnly" style="margin-top:10px;">
+      ${categories
+        .map((category) => {
+          const uploaded = checklist.byCategory.find((item) => item.category === category)?.uploaded;
+          return `<div class="mobileListCard">
+            <div style="font-weight:700;">${escapeHtml(category)}</div>
+            ${category === "Proof of Income" ? `<div class="mutedText" style="font-size:12px;">Optional for bursaries</div>` : ""}
+            <div><span class="badge ${uploaded ? "badgeGreen" : "badgeOrange"}">${uploaded ? "Uploaded" : "Missing"}</span></div>
+          </div>`;
+        })
+        .join("")}
+    </div>
+
     <div class="row" style="margin-top:10px;">
       <a class="btn btnGhost" href="#/student/documents">Upload / manage documents</a>
     </div>
@@ -2850,11 +3557,21 @@ function pageStudentDocuments() {
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
   const documents = getStudentDocuments(user.id);
+  const profile = getUserProfile(user) || {};
+  const displayName = getUserDisplayName(user);
 
-  const node = el(`<div class="grid" style="max-width:980px;">
+  const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Documents</h1>
       <p class="mutedText" style="margin:8px 0 0;">Upload supporting documents for your applications (demo metadata only).</p>
+    </div>
+
+    <div class="card profileSummaryCard">
+      ${renderUserAvatar(user, "avatarLg")}
+      <div style="min-width:0;">
+        <div style="font-weight:800; font-size:18px; line-height:1.2;">${escapeHtml(displayName)}</div>
+        <div class="mutedText" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(user.email || profile.email || "")}</div>
+      </div>
     </div>
 
     ${renderChecklistTable(user.id)}
@@ -2884,38 +3601,62 @@ function pageStudentDocuments() {
     <div class="card">
       <div style="font-weight:700;">Uploaded documents</div>
       ${documents.length
-        ? `<table class="table" style="margin-top:10px;">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Filename</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Preview</th>
-                <th>Uploaded</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
+        ? `<div>
+            <div class="desktopOnly" style="margin-top:10px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Filename</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Preview</th>
+                    <th>Uploaded</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${documents
+                    .map(
+                      (document) => `<tr>
+                      <td>${escapeHtml(document.category)}</td>
+                      <td>${escapeHtml(document.filename)}</td>
+                      <td>${escapeHtml(document.fileType || inferFileType(document))}</td>
+                      <td>${formatBytes(document.size || 0)}</td>
+                      <td>${
+                        document.previewDataUrl
+                          ? `<img src="${document.previewDataUrl}" alt="preview" style="width:70px; height:50px; object-fit:cover; border:1px solid #999;" />`
+                          : "-"
+                      }</td>
+                      <td>${formatDate(document.uploadedAt)}</td>
+                      <td><button type="button" class="btn btnGhost" data-remove-doc="${document.id}" style="padding:6px 10px;">Remove</button></td>
+                    </tr>`
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+            <div class="mobileList mobileOnly" style="margin-top:10px;">
               ${documents
                 .map(
-                  (document) => `<tr>
-                  <td>${escapeHtml(document.category)}</td>
-                  <td>${escapeHtml(document.filename)}</td>
-                  <td>${escapeHtml(document.fileType || inferFileType(document))}</td>
-                  <td>${formatBytes(document.size || 0)}</td>
-                  <td>${
-                    document.previewDataUrl
-                      ? `<img src="${document.previewDataUrl}" alt="preview" style="width:70px; height:50px; object-fit:cover; border:1px solid #999;" />`
-                      : "-"
-                  }</td>
-                  <td>${formatDate(document.uploadedAt)}</td>
-                  <td><button type="button" class="btn btnGhost" data-remove-doc="${document.id}" style="padding:6px 10px;">Remove</button></td>
-                </tr>`
+                  (document) => `<div class="mobileListCard">
+                    <div style="font-weight:700;">${escapeHtml(document.category)}</div>
+                    <div>${escapeHtml(document.filename)}</div>
+                    <div class="mutedText" style="font-size:12px;">${escapeHtml(document.fileType || inferFileType(document))} • ${formatBytes(document.size || 0)}</div>
+                    <div class="mutedText" style="font-size:12px;">Uploaded: ${formatDate(document.uploadedAt)}</div>
+                    ${
+                      document.previewDataUrl
+                        ? `<img src="${document.previewDataUrl}" alt="preview" style="width:100%; max-width:140px; height:88px; object-fit:cover; border:1px solid #999; border-radius:10px;" />`
+                        : ""
+                    }
+                    <div class="row" style="margin-top:6px;">
+                      <button type="button" class="btn btnGhost" data-remove-doc="${document.id}">Remove</button>
+                    </div>
+                  </div>`
                 )
                 .join("")}
-            </tbody>
-          </table>`
+            </div>
+          </div>`
         : `<div class="mutedText" style="margin-top:10px;">No documents uploaded yet.</div>`}
     </div>
   </div>`);
@@ -2982,36 +3723,45 @@ function pageStudentApply(courseId) {
   const opportunity = getOpportunity(courseId);
   if (!opportunity) return shell("student", el(`<div class="card">Opportunity not found.</div>`));
 
-  const profile = user.profile;
-  const checklist = getDocumentChecklist(user.id, opportunity.type);
+  let checklist = getDocumentChecklist(user.id, opportunity.type);
+  let existingApplication = studentApplications(user.id).find((application) => application.opportunityId === opportunity.id) || null;
+  let progressState = buildApplicationProgressState(user, opportunity, existingApplication);
 
-  const node = el(`<div class="grid" style="max-width:860px;">
+  let editorOpen = false;
+  let editorError = "";
+  let editorNotice = "";
+  let profileImpactNoticeVisible = false;
+  let profileDraft = createInlineProfileEditorDraft(getUserProfile(user) || {}, user);
+  let focusTrapCleanup = () => {};
+  let toastTimer = null;
+  let toastHideTimer = null;
+  let lastEditorTrigger = null;
+
+  const node = el(`<div class="grid applicationReviewPage">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Application Form</h1>
       <p class="mutedText" style="margin:8px 0 0;">Submitting application for: ${escapeHtml(opportunity.title)} (${escapeHtml(opportunity.type)})</p>
     </div>
 
+    <div id="applyStepperMount"></div>
+
     <div class="card">
       <form id="form">
-        ${readonlyField("Full name", profile.fullName)}
-        ${readonlyField("Age", profile.age)}
-        ${readonlyField("Province", profile.province)}
-        ${readonlyField("Education level", profile.educationLevel)}
-        ${readonlyField("Interests", profile.interests.join(", "))}
+        <div class="card profileReviewCard card-accent-top is-guidance">
+          <div class="row profileReviewHeader">
+            <div>
+              <h3 style="margin:0;">Profile summary</h3>
+              <div class="mutedText" style="font-size:13px; margin-top:4px;">Keep profile details accurate before you submit.</div>
+            </div>
+            <button type="button" class="btn btnGhost profileEditTrigger" id="editProfileBtn" title="Update info">Edit profile</button>
+          </div>
 
-        ${renderRequiredDocumentsChecklist(user.id, opportunity.type)}
+          <div id="profileFieldsMount"></div>
+          <div class="mutedText profileImpactNotice" id="profileImpactNotice" ${profileImpactNoticeVisible ? "" : "hidden"}>Updates may change required documents for this application.</div>
+        </div>
 
-        ${
-          checklist.complete
-            ? ``
-            : `<div class="card" style="margin-top:10px; padding:12px; background:#f7f7f7;">
-                <b>Documents incomplete</b>
-                <div class="mutedText" style="margin-top:6px;">You can still submit this demo application. Upload missing documents in the documents section.</div>
-                <div class="row" style="margin-top:10px;">
-                  <a class="btn btnGhost" href="#/student/documents">Go to documents</a>
-                </div>
-              </div>`
-        }
+        <div id="requiredDocsMount"></div>
+        <div id="docsIncompleteMount"></div>
 
         <div id="error" class="mutedText" style="margin-top:10px;"></div>
 
@@ -3021,7 +3771,272 @@ function pageStudentApply(courseId) {
         </div>
       </form>
     </div>
+
+    <div id="inlineProfileEditorMount"></div>
+    <div id="inlineProfileToast" class="inlineProfileToast" role="status" aria-live="polite" hidden></div>
+    <div id="inlineProfileDialogAnnouncer" class="srOnly" aria-live="assertive"></div>
   </div>`);
+
+  const getActiveUser = () => {
+    const active = currentUser();
+    return active && active.role === "student" ? active : user;
+  };
+
+  const arraysMatch = (first, second) => {
+    const normalizedFirst = Array.isArray(first) ? [...first].sort() : [];
+    const normalizedSecond = Array.isArray(second) ? [...second].sort() : [];
+    if (normalizedFirst.length !== normalizedSecond.length) return false;
+    return normalizedFirst.every((value, index) => value === normalizedSecond[index]);
+  };
+
+  const renderProfileField = (label, value, fieldKey) => `<div class="field profileReadonlyField">
+    <div class="readonlyFieldHead">
+      <label><b>${escapeHtml(label)}</b></label>
+      <button type="button" class="inlineFieldEdit" data-open-inline-profile-editor="true" data-profile-field="${escapeHtml(fieldKey)}" title="Edit ${escapeHtml(label)}">Edit</button>
+    </div>
+    <input class="input" value="${escapeHtml(value || "Not set")}" readonly style="background:#f2f2f2;" />
+  </div>`;
+
+  const renderIncompleteDocsNotice = () =>
+    checklist.complete
+      ? ""
+      : `<div class="card" style="margin-top:10px; padding:12px; background:#f7f7f7;">
+          <b>Documents incomplete</b>
+          <div class="mutedText" style="margin-top:6px;">You can still submit this demo application. Upload missing documents in the documents section.</div>
+          <div class="row" style="margin-top:10px;">
+            <a class="btn btnGhost" href="#/student/documents">Go to documents</a>
+          </div>
+        </div>`;
+
+  const destroyFocusTrap = () => {
+    if (typeof focusTrapCleanup === "function") {
+      focusTrapCleanup();
+    }
+    focusTrapCleanup = () => {};
+  };
+
+  function showProfileToast(message) {
+    const toast = node.querySelector("#inlineProfileToast");
+    if (!toast) return;
+
+    if (toastTimer) clearTimeout(toastTimer);
+    if (toastHideTimer) clearTimeout(toastHideTimer);
+
+    toast.textContent = message;
+    toast.hidden = false;
+    requestAnimationFrame(() => toast.classList.add("show"));
+
+    toastTimer = window.setTimeout(() => {
+      toast.classList.remove("show");
+      toastHideTimer = window.setTimeout(() => {
+        toast.hidden = true;
+      }, 180);
+    }, 2200);
+  }
+
+  function refreshApplyReviewPanels() {
+    const activeUser = getActiveUser();
+    const activeProfile = createInlineProfileEditorDraft(getUserProfile(activeUser) || {}, activeUser);
+    if (!activeProfile.fullName) {
+      activeProfile.fullName = getUserDisplayName(activeUser);
+    }
+
+    checklist = getDocumentChecklist(activeUser.id, opportunity.type);
+    existingApplication = studentApplications(activeUser.id).find((application) => application.opportunityId === opportunity.id) || null;
+    progressState = buildApplicationProgressState(activeUser, opportunity, existingApplication);
+
+    const profileFieldsMount = node.querySelector("#profileFieldsMount");
+    if (profileFieldsMount) {
+      profileFieldsMount.innerHTML = [
+        renderProfileField("Full name", activeProfile.fullName, "fullName"),
+        renderProfileField("Age", activeProfile.age, "age"),
+        renderProfileField("Province", activeProfile.province, "province"),
+        renderProfileField("Education level", activeProfile.educationLevel, "educationLevel"),
+        renderProfileField("Interests", activeProfile.interests.join(", "), "interests")
+      ].join("\n");
+
+      profileFieldsMount.querySelectorAll("[data-open-inline-profile-editor]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          openEditor(event.currentTarget);
+        });
+      });
+    }
+
+    const stepperMount = node.querySelector("#applyStepperMount");
+    if (stepperMount) {
+      stepperMount.innerHTML = renderApplicationProgressStepper(progressState, "form");
+    }
+
+    const docsMount = node.querySelector("#requiredDocsMount");
+    if (docsMount) {
+      docsMount.innerHTML = renderRequiredDocumentsChecklist(activeUser.id, opportunity.type);
+    }
+
+    const docsIncompleteMount = node.querySelector("#docsIncompleteMount");
+    if (docsIncompleteMount) {
+      docsIncompleteMount.innerHTML = renderIncompleteDocsNotice();
+    }
+
+    const impactNotice = node.querySelector("#profileImpactNotice");
+    if (impactNotice) {
+      impactNotice.hidden = !profileImpactNoticeVisible;
+    }
+  }
+
+  function closeEditor() {
+    editorOpen = false;
+    editorError = "";
+    editorNotice = "";
+    renderInlineEditor();
+
+    if (lastEditorTrigger && typeof lastEditorTrigger.focus === "function") {
+      requestAnimationFrame(() => {
+        lastEditorTrigger.focus();
+      });
+    }
+  }
+
+  function openEditor(triggerElement = null) {
+    const activeUser = getActiveUser();
+    editorDraft = createInlineProfileEditorDraft(getUserProfile(activeUser) || {}, activeUser);
+    if (!editorDraft.fullName) {
+      editorDraft.fullName = getUserDisplayName(activeUser);
+    }
+
+    editorError = "";
+    editorNotice = "";
+    editorOpen = true;
+    lastEditorTrigger = triggerElement || document.activeElement;
+    renderInlineEditor();
+
+    const announcer = node.querySelector("#inlineProfileDialogAnnouncer");
+    if (announcer) {
+      announcer.textContent = "Edit profile dialog opened";
+    }
+  }
+
+  function readEditorDraftFromForm(form) {
+    const fullName = String(form.querySelector("#inlineProfileFullName")?.value || "").trim();
+    const age = String(form.querySelector("#inlineProfileAge")?.value || "").trim();
+    const province = String(form.querySelector("#inlineProfileProvince")?.value || "").trim();
+    const educationLevel = String(form.querySelector("#inlineProfileEducation")?.value || "").trim();
+    const interests = Array.from(form.querySelectorAll('.inlineProfileInterestsGrid input[type="checkbox"]:checked'))
+      .map((checkbox) => String(checkbox.value || "").trim())
+      .filter(Boolean);
+
+    return {
+      fullName,
+      age,
+      province,
+      educationLevel,
+      interests
+    };
+  }
+
+  function validateEditorDraft(draft) {
+    if (!draft.age || !draft.province || !draft.educationLevel || !draft.interests.length) {
+      return "Age, province, education level, and at least one interest are required. Clearing these fields may affect eligibility.";
+    }
+
+    const ageNumber = Number(draft.age);
+    if (!Number.isFinite(ageNumber) || ageNumber < 14 || ageNumber > 100) {
+      return "Enter a valid age between 14 and 100.";
+    }
+
+    return "";
+  }
+
+  function handleEditorSave(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const nextDraft = readEditorDraftFromForm(form);
+    editorDraft = nextDraft;
+
+    const validationError = validateEditorDraft(nextDraft);
+    if (validationError) {
+      editorError = validationError;
+      editorNotice = "";
+      renderInlineEditor();
+      return;
+    }
+
+    const activeUser = getActiveUser();
+    const existingProfile = getUserProfile(activeUser) || {};
+    const previousDraft = createInlineProfileEditorDraft(existingProfile, activeUser);
+
+    const criticalFieldsChanged =
+      String(previousDraft.age || "") !== String(nextDraft.age || "") ||
+      String(previousDraft.province || "") !== String(nextDraft.province || "") ||
+      String(previousDraft.educationLevel || "") !== String(nextDraft.educationLevel || "") ||
+      !arraysMatch(previousDraft.interests || [], nextDraft.interests || []);
+
+    const scrollTop = window.scrollY;
+
+    saveProfile({
+      ...existingProfile,
+      fullName: nextDraft.fullName || existingProfile.fullName || activeUser.name || "",
+      age: nextDraft.age,
+      province: nextDraft.province,
+      educationLevel: nextDraft.educationLevel,
+      interests: nextDraft.interests
+    });
+
+    profileImpactNoticeVisible = criticalFieldsChanged;
+    editorOpen = false;
+    editorError = "";
+    editorNotice = "";
+
+    renderInlineEditor();
+    refreshApplyReviewPanels();
+    showProfileToast("Profile updated");
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollTop, behavior: "auto" });
+    });
+  }
+
+  function renderInlineEditor() {
+    const editorMount = node.querySelector("#inlineProfileEditorMount");
+    if (!editorMount) return;
+
+    destroyFocusTrap();
+
+    editorMount.innerHTML = renderInlineProfileEditor({
+      mode: "application-review",
+      open: editorOpen,
+      draft: editorDraft,
+      error: editorError,
+      notice: editorNotice
+    });
+
+    if (!editorOpen) return;
+
+    const overlay = editorMount.querySelector("#inlineProfileEditorOverlay");
+    const dialog = editorMount.querySelector("#inlineProfileEditorDialog");
+    const closeButton = editorMount.querySelector("#inlineProfileCloseBtn");
+    const cancelButton = editorMount.querySelector("#inlineProfileCancelBtn");
+    const form = editorMount.querySelector("#inlineProfileEditorForm");
+    const initialFocus = editorMount.querySelector("#inlineProfileFullName") || editorMount.querySelector("#inlineProfileAge");
+
+    if (overlay) {
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          closeEditor();
+        }
+      });
+    }
+
+    if (closeButton) closeButton.addEventListener("click", closeEditor);
+    if (cancelButton) cancelButton.addEventListener("click", closeEditor);
+    if (form) form.addEventListener("submit", handleEditorSave);
+
+    focusTrapCleanup = activateDialogFocusTrap(dialog, closeEditor, initialFocus || dialog);
+  }
+
+  node.querySelector("#editProfileBtn")?.addEventListener("click", (event) => {
+    openEditor(event.currentTarget);
+  });
 
   node.querySelector("#form").onsubmit = (event) => {
     event.preventDefault();
@@ -3031,15 +4046,20 @@ function pageStudentApply(courseId) {
       docsIncomplete: !checklist.complete
     });
     const error = node.querySelector("#error");
-    error.textContent = "";
+    if (error) error.textContent = "";
 
     if (!result.ok) {
-      error.textContent = result.error || "Unable to submit application.";
+      if (error) {
+        error.textContent = result.error || "Unable to submit application.";
+      }
       return;
     }
 
     navigate("/student/dashboard");
   };
+
+  refreshApplyReviewPanels();
+  renderInlineEditor();
 
   return shell("student", node);
 }
@@ -3063,6 +4083,7 @@ function pageStudentDashboard() {
   let draftSettings = { ...savedSettings };
   let settingsError = "";
   let settingsNotice = "";
+  let initialScrollComplete = false;
 
   function getDashboardRows(studentId) {
     const applications = studentApplications(studentId);
@@ -3085,7 +4106,7 @@ function pageStudentDashboard() {
     });
   }
 
-  function renderApplicationsTable(rows) {
+  function renderApplicationsSection(rows, recommendedSet) {
     const tableWrap = root.querySelector("#applicationTableWrap");
     if (!tableWrap) return;
 
@@ -3096,26 +4117,97 @@ function pageStudentDashboard() {
       return;
     }
 
-    tableWrap.innerHTML = `<table class="table">
-      <thead>
-        <tr><th>Opportunity</th><th>Submitted</th><th>Status</th><th>Documents Complete</th></tr>
-      </thead>
-      <tbody>
-        ${filteredRows
-          .map(
-            (row) => `<tr>
-            <td>
-              <div><b>${escapeHtml(row.opportunityTitle)}</b></div>
-              <div class="mutedText" style="font-size:12px;">${escapeHtml(row.opportunityType)} • ${escapeHtml(row.institution)}</div>
-            </td>
-            <td>${formatDate(row.createdAt)}</td>
-            <td><span class="badge ${row.status === "Submitted" ? "badgeBlue" : row.status === "Under Review" ? "badgePurple" : row.status === "Accepted" ? "badgeGreen" : "badgeOrange"}">${escapeHtml(row.status)}</span></td>
-            <td><span class="badge ${row.docsComplete ? "badgeGreen" : "badgeOrange"}">${row.docsComplete ? "Yes" : "No"}</span></td>
-          </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>`;
+    tableWrap.innerHTML = `<div class="mobileApplicationsRail" style="margin-top:4px;">
+      ${filteredRows
+        .map((row) => {
+          const lifecycle = getOpportunityLifecycleState(row);
+          const action = getOpportunityPrimaryAction(row.opportunityId, row, false, lifecycle);
+          const closingDate = getOpportunity(row.opportunityId)?.closingDate || "";
+          const closingSoon = (() => {
+            const days = daysUntilDate(closingDate);
+            return Number.isFinite(days) && days >= 0 && days < 14;
+          })();
+          const linkedOpportunity = getOpportunity(row.opportunityId) || {
+            id: row.opportunityId,
+            type: row.opportunityType,
+            title: row.opportunityTitle,
+            institution: row.institution,
+            requirements: []
+          };
+          const progressSummary = getOpportunityProgressSummary(user, linkedOpportunity, row);
+          const cardClasses = [
+            "mobileApplicationCard",
+            getOpportunityCardTypeClass(row.opportunityType),
+            lifecycle.cardVariantClass,
+            recommendedSet && recommendedSet.has(row.opportunityId) ? "card-priority" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return `<article class="${cardClasses}">
+            <div class="opportunityCardLayout">
+              <div class="opportunityCardMain">
+                <div class="row" style="justify-content:space-between; align-items:flex-start;">
+                  <span class="badge ${getOpportunityTypeBadgeClass(row.opportunityType)}">${escapeHtml(row.opportunityType)}</span>
+                  ${recommendedSet && recommendedSet.has(row.opportunityId) ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
+                </div>
+
+                <h3 class="opportunityTitle">${escapeHtml(row.opportunityTitle)}</h3>
+                <p class="opportunityOrg">${escapeHtml(row.institution)}</p>
+
+                <div class="opportunityMetaStack">
+                  <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(row.opportunityType)}</b></div>
+                  <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(closingDate)}</b></div>
+                  <div class="opportunityMetaRow"><span>Submitted</span><b>${formatDate(row.createdAt)}</b></div>
+                </div>
+                <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
+
+                ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
+                ${
+                  lifecycle.isInProgress
+                    ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${row.docsComplete ? "84%" : "62%"};"></div></div>`
+                    : ""
+                }
+              </div>
+
+              <div class="opportunityCardActions">
+                <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
+                <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
+              </div>
+            </div>
+          </article>`;
+        })
+        .join("")}
+    </div>`;
+  }
+
+  function getRecommendedForDashboard(studentId) {
+    const recommendedIds = recommendedIdsForStudent(studentId);
+    let items = opportunities.filter((opportunity) => recommendedIds.has(opportunity.id)).slice(0, 4);
+
+    if (!items.length) {
+      items = opportunities.slice(0, 4);
+    }
+
+    return items;
+  }
+
+  function maybeScrollToDashboardView() {
+    if (initialScrollComplete) return;
+    initialScrollComplete = true;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+
+    const view = getMobileDashboardView();
+    const targetId =
+      view === "applications"
+        ? "dashboardApplicationsSection"
+        : view === "profile"
+          ? "dashboardProfileSection"
+          : "dashboardHeroSection";
+    const target = root.querySelector(`#${targetId}`);
+    if (target) {
+      requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
   }
 
   function renderDashboardContent() {
@@ -3125,123 +4217,202 @@ function pageStudentDashboard() {
     const guidanceRecord = getCareerGuidanceRecord(liveUser.id, liveUser);
     const hasSavedGuidance = Boolean(guidanceRecord?.result?.topCategory);
     const profilePhotoMeta = draftSettings.profilePhotoMeta;
+    const recommendations = getRecommendedForDashboard(liveUser.id);
+    const applicationsThemeClass = getApplicationsTabTheme(activeTab);
+    const profileChecks = [
+      Boolean((draftSettings.firstName || "").trim()),
+      Boolean((draftSettings.surname || "").trim()),
+      Boolean((draftSettings.email || "").trim()),
+      Boolean((draftSettings.password || "").trim()),
+      Boolean(draftSettings.profilePhotoDataUrl || getUserPhotoDataUrl(liveUser))
+    ];
+    const profileCompletedCount = profileChecks.filter(Boolean).length;
+    const profileTotalCount = profileChecks.length;
+    const profileCompleteness = profileTotalCount ? Math.round((profileCompletedCount / profileTotalCount) * 100) : 0;
 
     root.innerHTML = `
-      <div class="dashboardTopGrid">
-        <div class="card dashboardWelcomeCard">
-          <div class="row" style="justify-content:space-between; align-items:flex-start;">
-            <div class="row" style="align-items:center;">
-              ${renderUserAvatar(
-                { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || getUserPhotoDataUrl(liveUser) } },
-                "avatarLg"
-              )}
-              <div>
-                <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Welcome back</div>
-                <h2 style="margin:4px 0 0;">${escapeHtml(displayName)}</h2>
-                <div class="mutedText" style="font-size:13px; margin-top:4px;">Manage your applications and next steps in one place.</div>
-              </div>
-            </div>
-            <div class="row">
-              <a class="btn btnPrimary" href="#/student/career-guidance">Career Guidance</a>
-              <a class="btn btnGhost" href="#/student/bursaries">Browse Opportunities</a>
+      <div class="card dashboardQuickHeader" id="dashboardHeroSection">
+        <div class="row" style="justify-content:space-between; align-items:center; width:100%;">
+          <div class="row" style="align-items:center; flex-wrap:nowrap; min-width:0;">
+            ${renderUserAvatar(
+              { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || getUserPhotoDataUrl(liveUser) } },
+              "avatarLg"
+            )}
+            <div style="min-width:0;">
+              <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Welcome back</div>
+              <h2 style="margin:4px 0 0; line-height:1.1;">${escapeHtml(displayName)}</h2>
+              <div class="mutedText" style="font-size:13px; margin-top:4px;">Keep your applications moving with the next best action.</div>
             </div>
           </div>
-        </div>
-
-        <div class="card dashboardCareerCard">
-          <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Career Guidance</div>
-          <div style="font-weight:800; font-size:20px; margin-top:8px;">
-            ${
-              hasSavedGuidance
-                ? `Top category: ${escapeHtml(guidanceRecord.result.topCategory)}`
-                : "Take the career match quiz"
-            }
-          </div>
-          <div class="mutedText" style="margin-top:6px;">
-            ${
-              hasSavedGuidance
-                ? "Continue from your saved pathway and track your recommended actions."
-                : "Answer 10 quick questions to generate your career pathway."
-            }
-          </div>
-          <div class="row" style="margin-top:12px;">
-            <a class="btn btnPrimary" href="#/student/career-guidance">${hasSavedGuidance ? "Continue" : "Start quiz"}</a>
+          <div class="dashboardQuickHeaderActions">
+            <a class="btn btnPrimary" href="#/student/career-guidance">Career Guidance</a>
+            <a class="btn btnGhost" href="#/student/bursaries">Browse Opportunities</a>
           </div>
         </div>
       </div>
 
-      <div class="dashboardMainGrid" style="margin-top:16px;">
-        <div class="card">
-          <div class="tabs" id="applicationTabs">
-            <button class="tab ${activeTab === "all" ? "active" : ""}" data-tab="all" type="button">All Applications</button>
-            <button class="tab ${activeTab === "Bursary" ? "active" : ""}" data-tab="Bursary" type="button">Bursaries</button>
-            <button class="tab ${activeTab === "Learnership/Internship" ? "active" : ""}" data-tab="Learnership/Internship" type="button">Learnerships/Internships</button>
-            <button class="tab ${activeTab === "Course" ? "active" : ""}" data-tab="Course" type="button">Courses</button>
+      <div class="dashboardLayoutGrid" style="margin-top:16px;">
+        <div class="dashboardPrimaryCol col-span-8">
+          <div class="card dashboardCareerCard">
+            <div class="dashboardSectionMeta">Recommended for you</div>
+            <h3 class="dashboardSectionTitle" style="margin-top:6px;">Continue / Recommended</h3>
+            <div class="recommendedStack" style="margin-top:10px;">
+              ${(() => {
+                const applicationByOpportunity = new Map(rows.map((row) => [row.opportunityId, row]));
+                return recommendations
+                  .map((item) => {
+                    const application = applicationByOpportunity.get(item.id) || null;
+                    const lifecycle = getOpportunityLifecycleState(application);
+                    const action = getOpportunityPrimaryAction(item.id, application, true, lifecycle);
+                    const daysUntilClosing = daysUntilDate(item.closingDate);
+                    const closingSoon = Number.isFinite(daysUntilClosing) && daysUntilClosing >= 0 && daysUntilClosing < 14;
+                    const progressSummary = getOpportunityProgressSummary(liveUser, item, application);
+                    const cardClasses = [
+                      "recommendedCard",
+                      getOpportunityCardTypeClass(item.type),
+                      lifecycle.cardVariantClass,
+                      !application ? "card-priority" : ""
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    return `<article class="${cardClasses}">
+                      <div class="opportunityCardLayout">
+                        <div class="opportunityCardMain">
+                          <div class="row" style="justify-content:space-between; align-items:flex-start;">
+                            <span class="badge ${getOpportunityTypeBadgeClass(item.type)}">${escapeHtml(item.type)}</span>
+                            ${!application ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
+                          </div>
+                          <h3 class="opportunityTitle">${escapeHtml(item.title)}</h3>
+                          <p class="opportunityOrg">${escapeHtml(item.institution)}</p>
+                          <div class="opportunityMetaStack">
+                            <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(item.type)}</b></div>
+                            <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(item.closingDate)}</b></div>
+                            <div class="opportunityMetaRow"><span>Submitted</span><b>${application ? formatDate(application.createdAt) : "Not started"}</b></div>
+                          </div>
+                          <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
+                          ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
+                          ${
+                            lifecycle.isInProgress
+                              ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${application?.docsComplete ? "82%" : "58%"};"></div></div>`
+                              : ""
+                          }
+                        </div>
+                        <div class="opportunityCardActions">
+                          <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
+                          <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
+                        </div>
+                      </div>
+                    </article>`;
+                  })
+                  .join("");
+              })()}
+            </div>
+            <div class="mutedText" style="margin-top:10px; font-size:12px;">
+              ${
+                hasSavedGuidance
+                  ? `Top quiz category: ${escapeHtml(guidanceRecord.result.topCategory)}`
+                  : "Complete your career quiz for sharper recommendations."
+              }
+            </div>
           </div>
-          <div id="applicationTableWrap" style="margin-top:12px;"></div>
+
+          <div class="card applicationsSection ${applicationsThemeClass}" id="dashboardApplicationsSection">
+            <div class="dashboardSectionMeta">My Applications</div>
+            <h3 class="dashboardSectionTitle" style="margin-top:6px;">Track and continue</h3>
+            <div class="tabs applicationTabs ${applicationsThemeClass}" id="applicationTabs" style="margin-top:12px;">
+              <button class="tab ${activeTab === "all" ? "active" : ""}" data-tab="all" type="button">All</button>
+              <button class="tab ${activeTab === "Bursary" ? "active" : ""}" data-tab="Bursary" type="button">Bursaries</button>
+              <button class="tab ${activeTab === "Learnership/Internship" ? "active" : ""}" data-tab="Learnership/Internship" type="button">Learnerships</button>
+              <button class="tab ${activeTab === "Course" ? "active" : ""}" data-tab="Course" type="button">Courses</button>
+            </div>
+            <div id="applicationTableWrap" style="margin-top:12px;"></div>
+          </div>
         </div>
 
-        <div class="grid">
-          ${renderRequiredDocumentsChecklist(liveUser.id, "", true)}
+        <div class="dashboardSupportCol col-span-4">
+          <div id="dashboardDocumentsSection">
+            ${renderRequiredDocumentsChecklist(liveUser.id, "", true)}
+          </div>
 
-          <div class="card">
-            <div class="row" style="justify-content:space-between;">
-              <div>
-                <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Settings / Profile</div>
-                <h3 style="margin-top:4px;">Update your account details</h3>
-              </div>
+          <div class="card compactProfileCard" id="dashboardProfileSection">
+            <div class="profileSummaryCard">
               ${renderUserAvatar(
                 { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || "" } },
                 "avatarLg"
               )}
+              <div style="min-width:0;">
+                <div class="dashboardSectionMeta">Profile</div>
+                <h3 style="margin-top:4px;">${escapeHtml(displayName)}</h3>
+                <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(liveUser.email || "")}</div>
+              </div>
             </div>
 
-            <form id="studentSettingsForm" style="margin-top:10px;">
-              <div class="grid cols-2">
-                <div class="field">
-                  <label><b>First name</b></label>
-                  <input class="input" id="settingFirstName" value="${escapeHtml(draftSettings.firstName || "")}" />
+            <div class="row" style="justify-content:space-between; margin-top:12px;">
+              <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Profile completeness</div>
+              <div style="font-weight:700;">${profileCompleteness}%</div>
+            </div>
+            <div class="applicationProgressBar profileCompletenessBar" style="margin-top:8px;">
+              <div class="applicationProgressBarFill" style="width:${profileCompleteness}%;"></div>
+            </div>
+            <div class="mutedText" style="font-size:12px; margin-top:8px;">${profileCompletedCount} of ${profileTotalCount} profile items completed.</div>
+
+            <details class="profileQuickEdit" style="margin-top:12px;" open>
+              <summary>Quick edit profile</summary>
+              <form id="studentSettingsForm" style="margin-top:12px;">
+                <div class="grid cols-2">
+                  <div class="field">
+                    <label><b>First name</b></label>
+                    <input class="input" id="settingFirstName" value="${escapeHtml(draftSettings.firstName || "")}" />
+                  </div>
+                  <div class="field">
+                    <label><b>Surname</b></label>
+                    <input class="input" id="settingSurname" value="${escapeHtml(draftSettings.surname || "")}" />
+                  </div>
                 </div>
+
                 <div class="field">
-                  <label><b>Surname</b></label>
-                  <input class="input" id="settingSurname" value="${escapeHtml(draftSettings.surname || "")}" />
+                  <label><b>Email</b></label>
+                  <input class="input" id="settingEmail" type="email" value="${escapeHtml(draftSettings.email || "")}" />
                 </div>
-              </div>
 
-              <div class="field">
-                <label><b>Email</b></label>
-                <input class="input" id="settingEmail" type="email" value="${escapeHtml(draftSettings.email || "")}" />
-              </div>
+                <div class="field">
+                  <label><b>Password</b></label>
+                  <input class="input" id="settingPassword" type="password" value="${escapeHtml(draftSettings.password || "")}" />
+                </div>
 
-              <div class="field">
-                <label><b>Password</b></label>
-                <input class="input" id="settingPassword" type="password" value="${escapeHtml(draftSettings.password || "")}" />
-              </div>
+                <div class="field">
+                  <label><b>Profile photo (png/jpg/jpeg)</b></label>
+                  <input class="input" id="settingPhoto" type="file" accept=".png,.jpg,.jpeg" />
+                  ${
+                    profilePhotoMeta
+                      ? `<div class="mutedText" style="font-size:12px;">${escapeHtml(profilePhotoMeta.fileName || profilePhotoMeta.filename || "photo")} • ${escapeHtml(profilePhotoMeta.fileType || "")} • ${formatBytes(profilePhotoMeta.fileSize || profilePhotoMeta.size || 0)} • ${formatDate(profilePhotoMeta.uploadedAt)}</div>`
+                      : `<div class="mutedText" style="font-size:12px;">No profile photo uploaded.</div>`
+                  }
+                </div>
 
-              <div class="field">
-                <label><b>Profile photo (png/jpg/jpeg)</b></label>
-                <input class="input" id="settingPhoto" type="file" accept=".png,.jpg,.jpeg" />
-                ${
-                  profilePhotoMeta
-                    ? `<div class="mutedText" style="font-size:12px;">${escapeHtml(profilePhotoMeta.fileName || profilePhotoMeta.filename || "photo")} • ${escapeHtml(profilePhotoMeta.fileType || "")} • ${formatBytes(profilePhotoMeta.fileSize || profilePhotoMeta.size || 0)} • ${formatDate(profilePhotoMeta.uploadedAt)}</div>`
-                    : `<div class="mutedText" style="font-size:12px;">No profile photo uploaded.</div>`
-                }
-              </div>
+                <div class="row" style="margin-top:12px;">
+                  <button type="submit" class="btn btnPrimary">Save changes</button>
+                  <button type="button" class="btn btnGhost" id="settingsCancelBtn">Cancel</button>
+                </div>
 
-              <div class="row" style="margin-top:12px;">
-                <button type="submit" class="btn btnPrimary">Save changes</button>
-                <button type="button" class="btn btnGhost" id="settingsCancelBtn">Cancel</button>
-                <button type="button" class="btn btnDanger" id="settingsRemovePhotoBtn">Remove photo</button>
-              </div>
-              <div id="settingsError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(settingsError)}</div>
-              <div id="settingsNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;">${escapeHtml(settingsNotice)}</div>
-            </form>
+                <details class="dangerZone" style="margin-top:12px;">
+                  <summary>Danger zone</summary>
+                  <div class="row" style="margin-top:10px;">
+                    <button type="button" class="btn btnDanger" id="settingsRemovePhotoBtn">Remove photo</button>
+                  </div>
+                </details>
+
+                <div id="settingsError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(settingsError)}</div>
+                <div id="settingsNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;">${escapeHtml(settingsNotice)}</div>
+              </form>
+            </details>
           </div>
         </div>
       </div>
     `;
 
-    renderApplicationsTable(rows);
+    const recommendedSet = recommendedIdsForStudent(liveUser.id);
+    renderApplicationsSection(rows, recommendedSet);
 
     root.querySelectorAll("#applicationTabs button[data-tab]").forEach((tab) => {
       tab.addEventListener("click", () => {
@@ -3340,6 +4511,8 @@ function pageStudentDashboard() {
         renderDashboardContent();
       }
     });
+
+    maybeScrollToDashboardView();
   }
 
   renderDashboardContent();
@@ -3370,7 +4543,7 @@ function pageStudentCareerGuidance() {
     docError: ""
   };
 
-  const node = el(`<div class="grid" style="max-width:1220px;">
+  const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Career Guidance</h1>
       <p class="mutedText" style="margin:8px 0 0;">Take a quick career match quiz and generate a practical pathway based on your profile.</p>
@@ -3420,23 +4593,59 @@ function pageStudentCareerGuidance() {
     return `<div class="card">
       <div style="font-weight:700;">${escapeHtml(title)}</div>
       <div class="careerOpportunitiesGrid" style="margin-top:12px;">
-        ${items
-          .map(
-            (item) => `<div class="careerOpportunityCard">
-              <div class="row" style="justify-content:space-between;">
-                <span class="badge ${item.type === "Bursary" ? "badgePurple" : item.type === "Course" ? "badgeBlue" : "badgeOrange"}">${escapeHtml(item.type)}</span>
-                <span class="mutedText" style="font-size:12px;">${escapeHtml(item.location)}</span>
-              </div>
-              <div style="font-weight:700; margin-top:8px;">${escapeHtml(item.title)}</div>
-              <div class="mutedText" style="font-size:13px; margin-top:2px;">${escapeHtml(item.institution)}</div>
-              <div class="mutedText" style="font-size:12px; margin-top:6px;">Closing: ${formatDateLabel(item.closingDate)}</div>
-              <div class="row" style="margin-top:12px;">
-                <a class="btn btnGhost" href="#/student/opportunity/${item.id}">View details</a>
-                <a class="btn btnPrimary" href="#/student/apply/${item.id}">Apply</a>
-              </div>
-            </div>`
-          )
-          .join("")}
+        ${(() => {
+          const applicationsByOpportunity = new Map(
+            studentApplications(user.id).map((application) => [application.opportunityId, application])
+          );
+          return items
+            .map((item) => {
+              const application = applicationsByOpportunity.get(item.id) || null;
+              const lifecycle = getOpportunityLifecycleState(application);
+              const action = getOpportunityPrimaryAction(item.id, application, true, lifecycle);
+              const days = daysUntilDate(item.closingDate);
+              const closingSoon = Number.isFinite(days) && days >= 0 && days < 14;
+              const progressSummary = getOpportunityProgressSummary(user, item, application);
+              const cardClasses = [
+                "careerOpportunityCard",
+                "opportunityCard",
+                getOpportunityCardTypeClass(item.type),
+                lifecycle.cardVariantClass,
+                !application ? "card-priority" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              return `<article class="${cardClasses}">
+                <div class="opportunityCardLayout">
+                  <div class="opportunityCardMain">
+                    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+                      <span class="badge ${getOpportunityTypeBadgeClass(item.type)}">${escapeHtml(item.type)}</span>
+                      ${!application ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
+                    </div>
+                    <h3 class="opportunityTitle">${escapeHtml(item.title)}</h3>
+                    <p class="opportunityOrg">${escapeHtml(item.institution)}</p>
+                    <div class="opportunityMetaStack">
+                      <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(item.type)}</b></div>
+                      <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(item.closingDate)}</b></div>
+                      <div class="opportunityMetaRow"><span>Submitted</span><b>${application ? formatDate(application.createdAt) : "Not started"}</b></div>
+                    </div>
+                    <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
+                    ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
+                    ${
+                      lifecycle.isInProgress
+                        ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${application?.docsComplete ? "82%" : "58%"};"></div></div>`
+                        : ""
+                    }
+                  </div>
+                  <div class="opportunityCardActions">
+                    <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
+                    <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
+                  </div>
+                </div>
+              </article>`;
+            })
+            .join("");
+        })()}
       </div>
     </div>`;
   }
@@ -3550,7 +4759,6 @@ function pageStudentCareerGuidance() {
   function renderQuiz() {
     const question = CAREER_QUIZ_QUESTIONS[state.step];
     const totalSteps = CAREER_QUIZ_QUESTIONS.length;
-    const progress = Math.round(((state.step + 1) / totalSteps) * 100);
     const value = state.answers[question.id];
 
     const optionsHtml = question.options
@@ -3566,14 +4774,11 @@ function pageStudentCareerGuidance() {
       })
       .join("");
 
-    root.innerHTML = `<div class="card careerWizardCard">
+    root.innerHTML = `<div class="card careerWizardCard card-accent-top is-guidance">
       <div class="row" style="justify-content:space-between;">
         <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Career Match Quiz</div>
-        <div class="badge badgePurple">Step ${state.step + 1} of ${totalSteps}</div>
       </div>
-      <div class="careerProgressTrack" style="margin-top:10px;">
-        <div class="careerProgressFill" style="width:${progress}%;"></div>
-      </div>
+      ${renderQuizStepNavigator(totalSteps, state.step)}
 
       <div style="margin-top:16px;">
         <h2>${escapeHtml(question.label)}</h2>
@@ -3596,6 +4801,11 @@ function pageStudentCareerGuidance() {
         </div>
       </div>
     </div>`;
+
+    const currentStepIndicator = root.querySelector('[data-quiz-step-current="true"]');
+    if (currentStepIndicator) {
+      currentStepIndicator.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    }
 
     root.querySelectorAll("button[data-career-option]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -3980,12 +5190,241 @@ function pageAdminCorporate() {
   return shell("admin", node);
 }
 
+// Reusable admin drawer status list keeps semantic labels while preserving existing status values.
+function getApplicantDrawerStatusOptions() {
+  return [
+    { value: "Submitted", label: "Submitted" },
+    { value: "Under Review", label: "In review" },
+    { value: "Rejected", label: "Rejected" },
+    { value: "Accepted", label: "Funded" }
+  ];
+}
+
+function getApplicantStatusLabel(status) {
+  if (status === "Under Review") return "In review";
+  if (status === "Accepted") return "Funded";
+  return status || "Submitted";
+}
+
+// Applicant drawer document requirements align with checklist logic used across student/admin views.
+function getApplicantDocumentRows(opportunityType, studentDocuments = []) {
+  const documents = Array.isArray(studentDocuments) ? studentDocuments : [];
+  const findByCategory = (category) => documents.find((document) => document.category === category) || null;
+
+  const academicDocument =
+    ACADEMIC_DOC_CATEGORIES.map((category) => findByCategory(category)).find(Boolean) || null;
+
+  const rows = [
+    {
+      key: "id-copy",
+      label: "ID Copy",
+      required: true,
+      document: findByCategory("ID Copy")
+    },
+    {
+      key: "academic",
+      label: "Academic Document (Matric/Report OR Transcript)",
+      required: true,
+      document: academicDocument
+    }
+  ];
+
+  if (opportunityType === "Bursary") {
+    rows.push({
+      key: "proof-income",
+      label: "Proof of Income",
+      required: false,
+      document: findByCategory("Proof of Income")
+    });
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    submitted: Boolean(row.document)
+  }));
+}
+
+// Reusable ApplicantDetailDrawer component for admin review workflows.
+function renderApplicantDetailDrawer(options = {}) {
+  const {
+    open = false,
+    applicantId = "",
+    context = null
+  } = options;
+
+  if (!open || !context || !context.row) {
+    return `<div class="adminApplicantDrawerOverlay" id="applicantDrawerOverlay" hidden aria-hidden="true"></div>`;
+  }
+
+  const { row, profile, documentRows } = context;
+  const safeProfile = profile && typeof profile === "object" ? profile : {};
+  const statusLabel = getApplicantStatusLabel(row.application.status);
+  const statusBadgeClass =
+    row.application.status === "Rejected"
+      ? "badge badgeOrange"
+      : row.application.status === "Accepted"
+        ? "badge badgeGreen"
+        : "badge badgeBlue";
+  const appliedDate = formatDate(row.application.createdAt);
+  const interests = Array.isArray(safeProfile.interests) && safeProfile.interests.length
+    ? safeProfile.interests.join(", ")
+    : "No interests captured";
+  const timelineEntries = [
+    { label: "Applied", value: appliedDate },
+    { label: "Current status", value: statusLabel },
+    { label: "Shortlisted", value: row.meta.shortlisted ? "Yes" : "No" },
+    { label: "Interviewed", value: row.meta.interviewed ? "Yes" : "No" },
+    { label: "Funded", value: row.meta.funded ? "Yes" : "No" },
+    { label: "Graduated", value: row.meta.graduated ? "Yes" : "No" }
+  ];
+
+  if (row.meta.fundedAt) {
+    timelineEntries.push({ label: "Funded date", value: formatDate(row.meta.fundedAt) });
+  }
+
+  const statusOptions = getApplicantDrawerStatusOptions();
+  const tagButton = (key, label, active) =>
+    `<button type="button" class="tab adminDrawerActionBtn ${active ? "active" : ""}" data-drawer-tag-appid="${row.application.id}" data-drawer-tag-key="${key}" data-drawer-tag-active="${active ? "1" : "0"}">${label}</button>`;
+
+  return `<div class="adminApplicantDrawerOverlay open" id="applicantDrawerOverlay" aria-hidden="false">
+    <section class="adminApplicantDrawerPanel" id="applicantDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="applicantDrawerTitle" tabindex="-1" data-applicant-id="${escapeHtml(applicantId)}">
+      <header class="adminApplicantDrawerHeader">
+        <div class="adminApplicantHeaderIdentity">
+          ${renderUserAvatar(row.student, "avatarMd")}
+          <div style="min-width:0;">
+            <h3 id="applicantDrawerTitle">${escapeHtml(getUserDisplayName(row.student))}</h3>
+            <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(row.student?.email || "-")}</div>
+            <div class="mutedText" style="font-size:12px; margin-top:2px;">Applied: ${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</div>
+          </div>
+        </div>
+        <div class="adminApplicantHeaderActions">
+          <span class="${statusBadgeClass}">${escapeHtml(statusLabel)}</span>
+          <button type="button" class="btn btnGhost adminApplicantDrawerClose" id="closeApplicantDrawerBtn" aria-label="Close applicant details">Close</button>
+        </div>
+      </header>
+
+      <div class="adminApplicantDrawerBody">
+        <section class="card adminApplicantSection">
+          <div class="adminApplicantSectionTitle">Applicant summary</div>
+          <div class="adminApplicantInfoGrid">
+            <div><span>Age</span><b>${escapeHtml(safeProfile.age || "-")}</b></div>
+            <div><span>Province</span><b>${escapeHtml(safeProfile.province || "-")}</b></div>
+            <div><span>Education level</span><b>${escapeHtml(safeProfile.educationLevel || "-")}</b></div>
+            <div><span>Interests</span><b>${escapeHtml(interests)}</b></div>
+          </div>
+          <div class="adminApplicantScoreRow">
+            <div>
+              <div class="mutedText" style="font-size:12px;">AI score</div>
+              <div class="adminApplicantScoreValue">${row.score.score}</div>
+            </div>
+            <ul class="adminApplicantInsightList">
+              ${row.score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
+            </ul>
+          </div>
+        </section>
+
+        <section class="card adminApplicantSection">
+          <div class="adminApplicantSectionTitle">Documents</div>
+          <div class="adminApplicantDocList">
+            ${documentRows
+              .map((item) => {
+                const doc = item.document;
+                const statusText = item.submitted ? "✅ Submitted" : "❌ Missing";
+                const statusClass = item.submitted ? "is-submitted" : "is-missing";
+                return `<article class="adminApplicantDocRow">
+                  <div>
+                    <div class="adminApplicantDocName">${escapeHtml(item.label)} ${item.required ? `<span class="mutedText" style="font-size:11px;">(Required)</span>` : `<span class="mutedText" style="font-size:11px;">(Optional)</span>`}</div>
+                    <div class="mutedText" style="font-size:12px; margin-top:3px;">${doc ? escapeHtml(doc.filename || doc.category) : "No file uploaded"}</div>
+                  </div>
+                  <div class="adminApplicantDocActions">
+                    <span class="adminApplicantDocStatus ${statusClass}">${statusText}</span>
+                    <button type="button" class="btn btnGhost adminApplicantMiniBtn" data-drawer-doc-preview="${doc ? doc.id : ""}" ${doc ? "" : "disabled"}>Preview</button>
+                    <button type="button" class="btn btnGhost adminApplicantMiniBtn" data-drawer-doc-download="${doc ? doc.id : ""}" ${doc ? "" : "disabled"}>Download</button>
+                  </div>
+                </article>`;
+              })
+              .join("")}
+          </div>
+        </section>
+
+        <section class="card adminApplicantSection">
+          <div class="adminApplicantSectionTitle">Application info</div>
+          <div class="adminApplicantInfoGrid">
+            <div><span>Opportunity</span><b>${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</b></div>
+            <div><span>Submission date</span><b>${escapeHtml(appliedDate)}</b></div>
+            <div><span>Status</span><b>${escapeHtml(statusLabel)}</b></div>
+            <div><span>Eligibility result</span><b>${row.eligibility.pass ? "Pass" : "Fail"}</b></div>
+          </div>
+          <div class="adminApplicantNotes">
+            <label class="adminApplicantNotesLabel" for="drawerNotesField"><b>Notes</b></label>
+            <textarea id="drawerNotesField" class="adminApplicantNotesField" rows="4" placeholder="Add internal notes for this application...">${escapeHtml(row.eligibility.reasons[0] || "")}</textarea>
+          </div>
+        </section>
+
+        <section class="card adminApplicantSection">
+          <div class="adminApplicantSectionTitle">Eligibility + AI insights</div>
+          <div class="row" style="justify-content:space-between; align-items:flex-start;">
+            <span class="badge ${row.eligibility.pass ? "badgeGreen" : "badgeOrange"}">${row.eligibility.pass ? "Eligibility: Pass" : "Eligibility: Fail"}</span>
+            <span class="badge badgeBlue">AI score: ${row.score.score}</span>
+          </div>
+          <ul class="adminApplicantInsightList" style="margin-top:8px;">
+            ${row.eligibility.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
+            ${row.score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
+          </ul>
+        </section>
+
+        <section class="card adminApplicantSection">
+          <div class="adminApplicantSectionTitle">Application timeline</div>
+          <div class="adminApplicantTimeline">
+            ${timelineEntries
+              .map(
+                (entry) => `<div class="adminApplicantTimelineRow">
+                  <span>${escapeHtml(entry.label)}</span>
+                  <b>${escapeHtml(entry.value)}</b>
+                </div>`
+              )
+              .join("")}
+          </div>
+        </section>
+      </div>
+
+      <footer class="adminApplicantDrawerFooter">
+        <div class="adminApplicantFooterActions">
+          ${tagButton("shortlisted", "Tag shortlisted", row.meta.shortlisted)}
+          ${tagButton("interviewed", "Tag interviewed", row.meta.interviewed)}
+          ${tagButton("funded", "Tag funded", row.meta.funded)}
+          ${tagButton("graduated", "Mark graduated", row.meta.graduated)}
+        </div>
+        <div class="adminApplicantFooterStatus">
+          <label for="drawerStatusSelect"><b>Change status</b></label>
+          <select class="input select" id="drawerStatusSelect" data-drawer-status-appid="${row.application.id}">
+            ${statusOptions
+              .map(
+                (option) => `<option value="${option.value}" ${row.application.status === option.value ? "selected" : ""}>${option.label}</option>`
+              )
+              .join("")}
+          </select>
+        </div>
+        <div class="adminApplicantFooterBottom">
+          <button type="button" class="btn btnGhost" data-close-applicant-drawer="true">Close</button>
+        </div>
+      </footer>
+    </section>
+  </div>`;
+}
+
 // Admin bursary management page render (config, candidate review table, exports, tagging).
 function pageAdminBursaries() {
   const user = requireRole("admin");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
   const config = store.bursaryConfig;
+  let drawerOpen = false;
+  let drawerApplicationId = "";
+  let drawerFocusCleanup = () => {};
+  let drawerPageScrollY = 0;
+  let drawerBodyOverflowBefore = "";
+  let drawerBodyLocked = false;
 
   const node = el(`<div class="grid">
     <div class="cardHeader">
@@ -4087,7 +5526,33 @@ function pageAdminBursaries() {
         </div>
       </div>
     </div>
+
+    <div id="applicantDrawerMount"></div>
   </div>`);
+
+  function clearDrawerFocusTrap() {
+    if (typeof drawerFocusCleanup === "function") {
+      drawerFocusCleanup();
+    }
+    drawerFocusCleanup = () => {};
+  }
+
+  function lockDrawerBackgroundScroll() {
+    if (drawerBodyLocked) return;
+    drawerPageScrollY = window.scrollY;
+    drawerBodyOverflowBefore = document.body.style.overflow || "";
+    document.body.style.overflow = "hidden";
+    drawerBodyLocked = true;
+  }
+
+  function unlockDrawerBackgroundScroll() {
+    if (!drawerBodyLocked) return;
+    document.body.style.overflow = drawerBodyOverflowBefore;
+    drawerBodyLocked = false;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: drawerPageScrollY, behavior: "auto" });
+    });
+  }
 
   function getFilteredRows() {
     const query = (node.querySelector("#filterQuery").value || "").trim().toLowerCase();
@@ -4109,6 +5574,169 @@ function pageAdminBursaries() {
 
       return text.includes(query);
     });
+  }
+
+  function getDrawerContext(applicationId) {
+    if (!applicationId) return null;
+
+    const activeTypeFilter = node.querySelector("#typeFilter")?.value || "Bursary";
+    let row = buildApplicationRows(activeTypeFilter).find((entry) => entry.application.id === applicationId) || null;
+
+    if (!row) {
+      row = buildApplicationRows("all").find((entry) => entry.application.id === applicationId) || null;
+    }
+
+    if (!row) return null;
+
+    const profile = getUserProfile(row.student) || {};
+    const documents = getStudentDocuments(row.application.studentId);
+    const documentRows = getApplicantDocumentRows(row.opportunityType, documents);
+
+    return {
+      row,
+      profile,
+      documents,
+      documentRows
+    };
+  }
+
+  function triggerDrawerDocumentDownload(docMeta) {
+    if (!docMeta) return;
+
+    const filename = String(docMeta.filename || `${docMeta.category || "document"}.txt`);
+
+    if (docMeta.previewDataUrl) {
+      const anchor = document.createElement("a");
+      anchor.href = docMeta.previewDataUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      return;
+    }
+
+    const fallbackContent = [
+      `Demo document placeholder for ${filename}`,
+      `Category: ${docMeta.category || "Unknown"}`,
+      `Uploaded: ${formatDate(docMeta.uploadedAt || new Date().toISOString())}`,
+      "Original binary file is not stored in this demo build."
+    ].join("\n");
+
+    const blob = new Blob([fallbackContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${filename.replace(/\.[^.]+$/, "") || "document"}-metadata.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
+  function openDrawerDocumentPreview(docMeta) {
+    if (!docMeta) return;
+
+    if (docMeta.previewDataUrl) {
+      window.open(docMeta.previewDataUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    triggerDrawerDocumentDownload(docMeta);
+  }
+
+  function closeApplicantDrawer() {
+    drawerOpen = false;
+    drawerApplicationId = "";
+    unlockDrawerBackgroundScroll();
+    renderApplicantDrawer();
+  }
+
+  function openApplicantDrawer(applicationId) {
+    if (!applicationId) return;
+    drawerOpen = true;
+    drawerApplicationId = applicationId;
+    lockDrawerBackgroundScroll();
+    renderApplicantDrawer();
+  }
+
+  function renderApplicantDrawer() {
+    const mount = node.querySelector("#applicantDrawerMount");
+    if (!mount) return;
+
+    clearDrawerFocusTrap();
+
+    const context = drawerOpen ? getDrawerContext(drawerApplicationId) : null;
+    const canRender = drawerOpen && Boolean(context);
+
+    if (drawerOpen && !context) {
+      drawerOpen = false;
+      drawerApplicationId = "";
+      unlockDrawerBackgroundScroll();
+    }
+
+    mount.innerHTML = renderApplicantDetailDrawer({
+      open: canRender,
+      applicantId: drawerApplicationId,
+      context
+    });
+
+    if (!canRender) return;
+
+    const overlay = mount.querySelector("#applicantDrawerOverlay");
+    const panel = mount.querySelector("#applicantDrawerPanel");
+    const closeButton = mount.querySelector("#closeApplicantDrawerBtn");
+
+    if (overlay) {
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) closeApplicantDrawer();
+      });
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener("click", closeApplicantDrawer);
+    }
+
+    mount.querySelectorAll("[data-close-applicant-drawer]").forEach((button) => {
+      button.addEventListener("click", closeApplicantDrawer);
+    });
+
+    mount.querySelectorAll("button[data-drawer-doc-preview]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const documentId = button.getAttribute("data-drawer-doc-preview");
+        const docMeta = context.documents.find((item) => item.id === documentId);
+        openDrawerDocumentPreview(docMeta);
+      });
+    });
+
+    mount.querySelectorAll("button[data-drawer-doc-download]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const documentId = button.getAttribute("data-drawer-doc-download");
+        const docMeta = context.documents.find((item) => item.id === documentId);
+        triggerDrawerDocumentDownload(docMeta);
+      });
+    });
+
+    mount.querySelectorAll("button[data-drawer-tag-appid]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const appId = button.getAttribute("data-drawer-tag-appid");
+        const key = button.getAttribute("data-drawer-tag-key");
+        const active = button.getAttribute("data-drawer-tag-active") === "1";
+        updateApplicationMeta(appId, { [key]: !active });
+        renderCandidateTable();
+        renderApplicantDrawer();
+      });
+    });
+
+    mount.querySelectorAll("select[data-drawer-status-appid]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const appId = select.getAttribute("data-drawer-status-appid");
+        updateStatus(appId, select.value);
+        renderCandidateTable();
+        renderApplicantDrawer();
+      });
+    });
+
+    drawerFocusCleanup = activateDialogFocusTrap(panel, closeApplicantDrawer, closeButton || panel);
   }
 
   function renderCandidateTable() {
@@ -4147,7 +5775,7 @@ function pageAdminBursaries() {
                 const tagButton = (key, label, active) =>
                   `<button type="button" class="tab ${active ? "active" : ""}" data-tag-appid="${appId}" data-tag-key="${key}" data-tag-active="${active ? "1" : "0"}">${label}</button>`;
 
-                return `<tr>
+                return `<tr class="adminApplicantRowClickable" tabindex="0" data-view-appid="${appId}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
                   <td>
                     <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
                       ${renderUserAvatar(row.student, "avatarSm")}
@@ -4157,6 +5785,9 @@ function pageAdminBursaries() {
                       </div>
                     </div>
                     <div style="margin-top:6px; font-size:12px;">${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</div>
+                    <div class="row" style="margin-top:8px;">
+                      <button type="button" class="btn btnGhost adminApplicantViewBtn" data-view-appid="${appId}">View applicant</button>
+                    </div>
                   </td>
                   <td><span class="badge ${row.opportunityType === "Bursary" ? "badgePurple" : row.opportunityType === "Course" ? "badgeBlue" : "badgeBlue"}">${escapeHtml(row.opportunityType)}</span></td>
                   <td>
@@ -4205,7 +5836,8 @@ function pageAdminBursaries() {
         const key = button.getAttribute("data-tag-key");
         const active = button.getAttribute("data-tag-active") === "1";
         updateApplicationMeta(appId, { [key]: !active });
-        render();
+        renderCandidateTable();
+        renderApplicantDrawer();
       });
     });
 
@@ -4213,7 +5845,28 @@ function pageAdminBursaries() {
       select.addEventListener("change", () => {
         const appId = select.getAttribute("data-status-appid");
         updateStatus(appId, select.value);
-        render();
+        renderCandidateTable();
+        renderApplicantDrawer();
+      });
+    });
+
+    wrap.querySelectorAll("button[data-view-appid]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openApplicantDrawer(button.getAttribute("data-view-appid"));
+      });
+    });
+
+    wrap.querySelectorAll("tr.adminApplicantRowClickable").forEach((rowElement) => {
+      rowElement.addEventListener("click", (event) => {
+        if (event.target.closest("button, a, select, input, label")) return;
+        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
+      });
+
+      rowElement.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
       });
     });
   }
@@ -4240,8 +5893,16 @@ function pageAdminBursaries() {
     render();
   };
 
-  node.querySelector("#filterQuery").addEventListener("input", renderCandidateTable);
-  node.querySelector("#typeFilter").addEventListener("change", renderCandidateTable);
+  node.querySelector("#filterQuery").addEventListener("input", () => {
+    renderCandidateTable();
+    renderApplicantDrawer();
+  });
+
+  node.querySelector("#typeFilter").addEventListener("change", () => {
+    renderCandidateTable();
+    renderApplicantDrawer();
+  });
+
   node.querySelector("#btnSeedApplications").addEventListener("click", () => {
     seedDemoApplicationsIfEmpty();
     render();
@@ -4278,6 +5939,7 @@ function pageAdminBursaries() {
   });
 
   renderCandidateTable();
+  renderApplicantDrawer();
 
   return shell("admin", node);
 }
@@ -4914,4 +6576,3 @@ function downloadCsv(filename, rows) {
 /** ---------- Boot ---------- **/
 // Initial app mount on first script load.
 render();
-
