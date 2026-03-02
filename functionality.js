@@ -4914,3 +4914,4 @@ function downloadCsv(filename, rows) {
 /** ---------- Boot ---------- **/
 // Initial app mount on first script load.
 render();
+
