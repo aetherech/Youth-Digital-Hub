@@ -10,6 +10,10 @@ const STORE_KEY = "tvet_seta_mvp_store_v1";
 // sessionStorage key for the active signed-in user id across hash-route navigation.
 const SESSION_KEY = "tvet_seta_mvp_session_user_id";
 const MOBILE_DASHBOARD_VIEW_KEY = "tvet_seta_mvp_mobile_dashboard_view";
+const APP_VERSION = "2026-03-02-01";
+const STORAGE_VERSION_KEY = "tvet_seta_storage_version";
+const DEBUG = true;
+const APP_STORAGE_PREFIXES = ["tvet_", "student_", "admin_", "applications_", "documents_", "guidance_"];
 
 // Interest catalogue used by onboarding, career quiz, and bursary eligibility filters.
 const INTERESTS = [
@@ -34,7 +38,23 @@ const INTERESTS = [
   "Public Service & Government",
   "Science & Research"
 ];
-const STATUSES = ["Submitted", "Under Review", "Accepted", "Rejected"];
+const APPLICATION_STATUSES = ["draft", "submitted", "in_review", "shortlisted", "rejected", "funded", "completed"];
+const LEGACY_STATUS_TO_APPLICATION_STATUS = {
+  "Submitted": "submitted",
+  "Under Review": "in_review",
+  "Accepted": "funded",
+  "Rejected": "rejected"
+};
+const APPLICATION_STATUS_LABELS = {
+  draft: "Draft",
+  submitted: "Submitted",
+  in_review: "In review",
+  shortlisted: "Shortlisted",
+  rejected: "Rejected",
+  funded: "Funded",
+  completed: "Completed"
+};
+const STATUSES = APPLICATION_STATUSES;
 const PROVINCES = [
   "Eastern Cape",
   "Free State",
@@ -62,6 +82,8 @@ const ALLOWED_FILE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "pdf"]);
 const LIFECYCLE_PROGRESS = ["On Track", "At Risk", "Critical"];
 const PLACEMENT_STATUSES = ["Not placed", "Interviewing", "Placed"];
 const OPPORTUNITY_TYPES = ["Bursary", "Learnership", "Internship", "Course"];
+const OPPORTUNITY_STORE_BUCKETS = ["courses", "bursaries", "learnerships"];
+const OPPORTUNITY_REQUIRED_DOCUMENT_OPTIONS = ["ID Copy", "Academic Transcript", "Proof of Address", "CV"];
 const CAREER_CATEGORIES = ["IT", "Engineering", "Business", "Trades", "Science"];
 const CAREER_GUIDANCE_DOC_CATEGORIES = [
   "ID Copy",
@@ -491,6 +513,244 @@ const opportunities = [
   }
 ];
 
+function defaultOpportunityStore() {
+  return {
+    courses: [],
+    bursaries: [],
+    learnerships: []
+  };
+}
+
+function opportunityTypeToBucket(type) {
+  const normalized = String(type || "").trim().toLowerCase();
+  if (normalized === "bursary") return "bursaries";
+  if (normalized === "course") return "courses";
+  return "learnerships";
+}
+
+function defaultTypeForOpportunityBucket(bucket) {
+  if (bucket === "bursaries") return "Bursary";
+  if (bucket === "courses") return "Course";
+  return "Learnership";
+}
+
+function normalizeOpportunityClosingDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^rolling$/i.test(raw)) return "Rolling";
+  const parsed = new Date(raw).getTime();
+  return Number.isFinite(parsed) ? raw : "Rolling";
+}
+
+function normalizeOpportunityTags(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((tag) => String(tag || "").trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizeOpportunityRequiredDocuments(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || "").trim())
+    .filter((item) => OPPORTUNITY_REQUIRED_DOCUMENT_OPTIONS.includes(item));
+}
+
+function normalizeOpportunityRecord(rawOpportunity, bucketHint = "") {
+  if (!rawOpportunity || typeof rawOpportunity !== "object") return null;
+
+  const bucket = OPPORTUNITY_STORE_BUCKETS.includes(bucketHint)
+    ? bucketHint
+    : opportunityTypeToBucket(rawOpportunity.type || "");
+  const typeCandidate = String(rawOpportunity.type || "").trim();
+  const type = OPPORTUNITY_TYPES.includes(typeCandidate)
+    ? typeCandidate
+    : defaultTypeForOpportunityBucket(bucket);
+
+  const title = String(rawOpportunity.title || "").trim();
+  if (!title) return null;
+
+  const provider = String(rawOpportunity.provider || rawOpportunity.institution || "").trim() || "Not specified";
+  const province = String(rawOpportunity.province || rawOpportunity.location || "").trim() || "National";
+  const sector = String(rawOpportunity.sector || "").trim() || "General";
+  const closingDate = normalizeOpportunityClosingDate(rawOpportunity.closingDate);
+  const tags = normalizeOpportunityTags(rawOpportunity.tags);
+  const requiredDocuments = normalizeOpportunityRequiredDocuments(rawOpportunity.requiredDocuments);
+  const requirements = Array.isArray(rawOpportunity.requirements)
+    ? rawOpportunity.requirements.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  return {
+    id: String(rawOpportunity.id || uid("opp")).trim(),
+    type,
+    title,
+    provider,
+    institution: provider,
+    province,
+    location: province,
+    sector,
+    closingDate,
+    tags,
+    requiredDocuments,
+    requirements,
+    description: String(rawOpportunity.description || "").trim() || "No description provided.",
+    stipendOrValue: String(rawOpportunity.stipendOrValue || rawOpportunity.value || "-")
+  };
+}
+
+function normalizeOpportunityStore(rawStore) {
+  const defaults = defaultOpportunityStore();
+  const source = rawStore && typeof rawStore === "object" ? rawStore : {};
+  const normalized = {
+    courses: [],
+    bursaries: [],
+    learnerships: []
+  };
+
+  OPPORTUNITY_STORE_BUCKETS.forEach((bucket) => {
+    const list = Array.isArray(source[bucket]) ? source[bucket] : defaults[bucket];
+    normalized[bucket] = list
+      .map((item) => normalizeOpportunityRecord(item, bucket))
+      .filter(Boolean);
+  });
+
+  const seenIds = new Set();
+  OPPORTUNITY_STORE_BUCKETS.forEach((bucket) => {
+    normalized[bucket] = normalized[bucket].map((item) => {
+      let id = String(item.id || "").trim();
+      if (!id || seenIds.has(id)) {
+        id = uid("opp");
+      }
+      seenIds.add(id);
+      return {
+        ...item,
+        id
+      };
+    });
+  });
+
+  return normalized;
+}
+
+function flattenOpportunityStore(opportunityStore) {
+  const source = opportunityStore && typeof opportunityStore === "object" ? opportunityStore : defaultOpportunityStore();
+  return OPPORTUNITY_STORE_BUCKETS.flatMap((bucket) => (Array.isArray(source[bucket]) ? source[bucket] : []));
+}
+
+function ensureOpportunityStore() {
+  store.opportunities = normalizeOpportunityStore(store.opportunities);
+  return store.opportunities;
+}
+
+function getOpportunityCatalogue() {
+  const stored = flattenOpportunityStore(store?.opportunities);
+  return stored.length ? stored : opportunities;
+}
+
+function upsertOpportunityRecord(rawOpportunity, options = {}) {
+  const opportunity = normalizeOpportunityRecord(rawOpportunity, options.bucket || "");
+  if (!opportunity) {
+    return { ok: false, error: "Opportunity title is required." };
+  }
+
+  const opportunityStore = ensureOpportunityStore();
+  const targetBucket = opportunityTypeToBucket(opportunity.type);
+  let updated = false;
+
+  OPPORTUNITY_STORE_BUCKETS.forEach((bucket) => {
+    const index = opportunityStore[bucket].findIndex((item) => item.id === opportunity.id);
+    if (index !== -1) {
+      opportunityStore[bucket].splice(index, 1);
+      updated = true;
+    }
+  });
+
+  opportunityStore[targetBucket].unshift(opportunity);
+
+  if (options.save !== false) {
+    saveStore(store);
+  }
+
+  return { ok: true, updated, opportunity };
+}
+
+function deleteOpportunityRecord(opportunityId, options = {}) {
+  const id = String(opportunityId || "").trim();
+  if (!id) return false;
+
+  const opportunityStore = ensureOpportunityStore();
+  let removed = false;
+
+  OPPORTUNITY_STORE_BUCKETS.forEach((bucket) => {
+    const before = opportunityStore[bucket].length;
+    opportunityStore[bucket] = opportunityStore[bucket].filter((item) => item.id !== id);
+    if (opportunityStore[bucket].length !== before) {
+      removed = true;
+    }
+  });
+
+  if (removed && options.save !== false) {
+    saveStore(store);
+  }
+
+  return removed;
+}
+
+function importOpportunitiesFromArray(records, options = {}) {
+  if (!Array.isArray(records)) {
+    return { ok: false, error: "Imported data must be a JSON array." };
+  }
+
+  const opportunityStore = ensureOpportunityStore();
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  records.forEach((record) => {
+    const normalized = normalizeOpportunityRecord(record, "");
+    if (!normalized) {
+      skipped += 1;
+      return;
+    }
+
+    const targetBucket = opportunityTypeToBucket(normalized.type);
+    let hadExisting = false;
+
+    OPPORTUNITY_STORE_BUCKETS.forEach((bucket) => {
+      const index = opportunityStore[bucket].findIndex((item) => item.id === normalized.id);
+      if (index !== -1) {
+        opportunityStore[bucket].splice(index, 1);
+        hadExisting = true;
+      }
+    });
+
+    opportunityStore[targetBucket].unshift(normalized);
+    if (hadExisting) updated += 1;
+    else inserted += 1;
+  });
+
+  if (options.save !== false) {
+    saveStore(store);
+  }
+
+  return {
+    ok: true,
+    inserted,
+    updated,
+    skipped,
+    total: records.length
+  };
+}
+
 // Unique id helper for new records generated during runtime interactions.
 function uid(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -512,6 +772,7 @@ function defaultBursaryConfig() {
 function createDefaultStore() {
   return {
     users: demoUsers.map((user) => normalizeUserRecord({ ...user })),
+    opportunities: defaultOpportunityStore(),
     applications: [],
     documents: [],
     appMeta: {},
@@ -532,58 +793,85 @@ function normalizeStore(data) {
     data?.careerGuidanceDocuments && typeof data.careerGuidanceDocuments === "object"
       ? data.careerGuidanceDocuments
       : {};
+  const normalizedOpportunities = normalizeOpportunityStore(data?.opportunities);
+  const normalizedOpportunityList = flattenOpportunityStore(normalizedOpportunities);
 
   const normalized = {
+
     users:
       Array.isArray(data?.users) && data.users.length
         ? data.users.map((user) => normalizeUserRecord(user))
         : defaults.users,
+    opportunities: normalizedOpportunities,
     applications: Array.isArray(data?.applications)
       ? data.applications
           .map((app) => {
             if (!app || !app.studentId || !app.opportunityId) return null;
+const opportunity = normalizedOpportunityList.find((item) => item.id === app.opportunityId) || opportunities.find((item) => item.id === app.opportunityId) || null;
+const legacyMeta = legacyAppMeta[app.id] || {};
+const tags = {
+  shortlisted: Boolean(app?.tags?.shortlisted ?? legacyMeta.shortlisted),
+  interviewed: Boolean(app?.tags?.interviewed ?? legacyMeta.interviewed),
+  funded: Boolean(app?.tags?.funded ?? legacyMeta.funded),
+  graduated: Boolean(app?.tags?.graduated ?? legacyMeta.graduated)
+};
 
-            const opportunity = getOpportunity(app.opportunityId);
-            const legacyMeta = legacyAppMeta[app.id] || {};
-            const tags = {
-              shortlisted: Boolean(app?.tags?.shortlisted ?? legacyMeta.shortlisted),
-              interviewed: Boolean(app?.tags?.interviewed ?? legacyMeta.interviewed),
-              funded: Boolean(app?.tags?.funded ?? legacyMeta.funded),
-              graduated: Boolean(app?.tags?.graduated ?? legacyMeta.graduated)
-            };
+const docsComplete =
+  typeof app.docsComplete === "boolean"
+    ? app.docsComplete
+    : typeof app.docsIncomplete === "boolean"
+    ? !app.docsIncomplete
+    : false;
 
-            const docsComplete =
-              typeof app.docsComplete === "boolean"
-                ? app.docsComplete
-                : typeof app.docsIncomplete === "boolean"
-                ? !app.docsIncomplete
-                : false;
+const createdAt = app.createdAt || new Date().toISOString();
+const inferredStatus = tags.funded
+  ? "funded"
+  : normalizeApplicationStatus(app.status, "draft");
+const status = normalizeApplicationStatus(inferredStatus, "draft");
+const submittedAt =
+  app.submittedAt != null
+    ? toTimestamp(app.submittedAt, toTimestamp(createdAt))
+    : status === "draft"
+    ? null
+    : toTimestamp(createdAt);
+const updatedAt =
+  app.updatedAt != null
+    ? toTimestamp(app.updatedAt, submittedAt || toTimestamp(createdAt))
+    : submittedAt || toTimestamp(createdAt);
+const qualityScore = clampScore(app.qualityScore != null ? app.qualityScore : app.score);
+const qualityReasons = Array.isArray(app.qualityReasons)
+  ? app.qualityReasons
+      .filter((reason) => String(reason || "").trim())
+      .map((reason) => String(reason))
+      .slice(0, 4)
+  : [];
+const timeline = normalizeApplicationTimeline(app.timeline, status, createdAt, updatedAt, submittedAt);
 
-            const scoreValue = Number(app.score);
-            const score = Number.isFinite(scoreValue)
-              ? Math.max(0, Math.min(100, Math.round(scoreValue)))
-              : undefined;
-
-            return {
-              ...app,
-              id: app.id || uid("app"),
-              opportunityType: OPPORTUNITY_TYPES.includes(app.opportunityType)
-                ? app.opportunityType
-                : opportunity?.type || "Course",
-              status: STATUSES.includes(app.status) ? app.status : "Submitted",
-              createdAt: app.createdAt || new Date().toISOString(),
-              tags,
-              docsComplete,
-              docsIncomplete:
-                typeof app.docsIncomplete === "boolean" ? app.docsIncomplete : !docsComplete,
-              score,
-              fundedAt: app.fundedAt || legacyMeta.fundedAt || "",
-              placementStatus: PLACEMENT_STATUSES.includes(app.placementStatus || legacyMeta.placementStatus)
-                ? app.placementStatus || legacyMeta.placementStatus
-                : "Not placed",
-              employer: app.employer || legacyMeta.employer || "",
-              placedAt: app.placedAt || legacyMeta.placedAt || ""
-            };
+return {
+  ...app,
+  id: app.id || uid("app"),
+  opportunityType: OPPORTUNITY_TYPES.includes(app.opportunityType)
+    ? app.opportunityType
+    : opportunity?.type || "Course",
+  status,
+  createdAt,
+  updatedAt,
+  submittedAt,
+  timeline,
+  tags,
+  docsComplete,
+  docsIncomplete:
+    typeof app.docsIncomplete === "boolean" ? app.docsIncomplete : !docsComplete,
+  qualityScore,
+  qualityReasons,
+  score: qualityScore,
+  fundedAt: app.fundedAt || legacyMeta.fundedAt || "",
+  placementStatus: PLACEMENT_STATUSES.includes(app.placementStatus || legacyMeta.placementStatus)
+    ? app.placementStatus || legacyMeta.placementStatus
+    : "Not placed",
+  employer: app.employer || legacyMeta.employer || "",
+  placedAt: app.placedAt || legacyMeta.placedAt || ""
+};
           })
           .filter(Boolean)
       : defaults.applications,
@@ -717,11 +1005,62 @@ function setSessionUserId(id) {
   else sessionStorage.removeItem(SESSION_KEY);
 }
 
+function isAppScopedStorageKey(key) {
+  return APP_STORAGE_PREFIXES.some((prefix) => String(key || "").startsWith(prefix));
+}
+
+function clearAppScopedStorageKeys() {
+  const keys = Object.keys(localStorage);
+  keys.forEach((key) => {
+    if (isAppScopedStorageKey(key)) {
+      localStorage.removeItem(key);
+    }
+  });
+}
+
+function runStorageVersionMigration() {
+  try {
+    const currentVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+    if (currentVersion === APP_VERSION) return;
+
+    clearAppScopedStorageKeys();
+    localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
+    console.log("App updated — demo data reset");
+  } catch (error) {
+    console.error("[storage-migration]", error);
+  }
+}
+
+function resetDemoData() {
+  if (!confirm("Reset demo data?")) return;
+
+  try {
+    clearAppScopedStorageKeys();
+  } catch (error) {
+    console.error("[reset-demo-data]", error);
+  }
+
+  setSessionUserId(null);
+  location.hash = "#/home";
+  location.reload();
+}
+
 /** ---------- App State ---------- **/
+runStorageVersionMigration();
 // Runtime in-memory app state backing all page renders and event handlers.
 let store = loadStore();
 let currentUserId = getSessionUserId();
-let route = location.hash.replace("#", "") || "/";
+function getRouteFromHash() {
+  const normalized = location.hash.replace("#", "").trim();
+  if (!normalized || normalized === "/") return "/home";
+  return normalized;
+}
+
+if (!location.hash || location.hash === "#" || location.hash === "#/") {
+  location.hash = "#/home";
+}
+
+let route = getRouteFromHash();
 
 // Cross-tab sync: refresh in-memory store when persisted state changes elsewhere.
 window.addEventListener("storage", (event) => {
@@ -736,7 +1075,7 @@ window.addEventListener("storage", (event) => {
 
 // Hash-router listener: re-render the matching page whenever URL hash changes.
 window.addEventListener("hashchange", () => {
-  route = location.hash.replace("#", "") || "/";
+  route = getRouteFromHash();
   render();
 });
 
@@ -763,8 +1102,8 @@ function requireRole(role) {
   if (!user) return null;
 
   if (user.role !== role) {
-    if (user.role === "admin") navigate("/admin/corporate");
-    else navigate(user.profile ? "/student/dashboard" : "/student/onboarding");
+    if (user.role === "admin") navigate("/admin/dashboard");
+    else navigate("/student/dashboard");
     return null;
   }
 
@@ -772,7 +1111,7 @@ function requireRole(role) {
 }
 
 function getOpportunity(id) {
-  return opportunities.find((opportunity) => opportunity.id === id) || null;
+  return getOpportunityCatalogue().find((opportunity) => opportunity.id === id) || null;
 }
 
 function routeForOpportunityType(type) {
@@ -802,6 +1141,81 @@ function getApplicationsTabTheme(filterKey) {
 
 function resolveOpportunitySector(opportunity) {
   return String(opportunity?.sector || opportunity?.category || "").trim();
+}
+
+function getUserById(userId) {
+  return store.users.find((user) => user.id === userId) || null;
+}
+
+function clampScore(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function toTimestamp(value, fallback = Date.now()) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = new Date(value);
+  const time = parsed.getTime();
+  return Number.isFinite(time) && time > 0 ? time : fallback;
+}
+
+function normalizeApplicationStatus(status, fallback = "draft") {
+  const rawStatus = String(status || "").trim();
+  if (APPLICATION_STATUSES.includes(rawStatus)) return rawStatus;
+  if (Object.prototype.hasOwnProperty.call(LEGACY_STATUS_TO_APPLICATION_STATUS, rawStatus)) {
+    return LEGACY_STATUS_TO_APPLICATION_STATUS[rawStatus];
+  }
+
+  const normalized = rawStatus.toLowerCase().replace(/[\s-]+/g, "_");
+  if (APPLICATION_STATUSES.includes(normalized)) return normalized;
+  if (normalized === "inreview") return "in_review";
+
+  return APPLICATION_STATUSES.includes(fallback) ? fallback : "draft";
+}
+
+function getApplicationStatusLabel(status) {
+  const normalized = normalizeApplicationStatus(status, "draft");
+  return APPLICATION_STATUS_LABELS[normalized] || APPLICATION_STATUS_LABELS.draft;
+}
+
+function getApplicationStatusBadgeClass(status) {
+  const normalized = normalizeApplicationStatus(status, "draft");
+  if (normalized === "submitted") return "badgeBlue";
+  if (normalized === "in_review") return "badgePurple";
+  if (normalized === "shortlisted") return "badgeGreen";
+  if (normalized === "rejected") return "badgeOrange";
+  if (normalized === "funded" || normalized === "completed") return "badgeGreen";
+  return "badge";
+}
+
+function normalizeApplicationTimeline(rawTimeline, status, createdAtIso, updatedAtEpoch, submittedAtEpoch) {
+  const source = Array.isArray(rawTimeline) ? rawTimeline : [];
+  const timeline = source
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      status: normalizeApplicationStatus(entry.status, "draft"),
+      at: toTimestamp(entry.at, updatedAtEpoch)
+    }));
+
+  if (!timeline.length) {
+    timeline.push({
+      status: "draft",
+      at: toTimestamp(createdAtIso, updatedAtEpoch)
+    });
+  }
+
+  const normalizedStatus = normalizeApplicationStatus(status, "draft");
+  if (!timeline.some((entry) => entry.status === normalizedStatus)) {
+    timeline.push({
+      status: normalizedStatus,
+      at: normalizedStatus === "draft" ? toTimestamp(createdAtIso, updatedAtEpoch) : submittedAtEpoch || updatedAtEpoch
+    });
+  }
+
+  timeline.sort((first, second) => first.at - second.at);
+  return timeline;
 }
 
 function getUserProfile(user) {
@@ -910,7 +1324,7 @@ function recommendedIdsForStudent(studentId) {
   const student = store.users.find((user) => user.id === studentId && user.role === "student");
   const interests = student?.profile?.interests || [];
   return new Set(
-    opportunities
+    getOpportunityCatalogue()
       .filter((opportunity) => isOpportunityRecommended(opportunity, interests))
       .map((opportunity) => opportunity.id)
   );
@@ -931,13 +1345,20 @@ function getStudentDocuments(studentId) {
 
 function addDocument(document) {
   store.documents.unshift(document);
+  if (document?.studentId) {
+    refreshStudentApplicationScores(document.studentId, { save: false });
+  }
   saveStore(store);
 }
 
 function removeDocument(documentId) {
+  const target = store.documents.find((document) => document.id === documentId) || null;
   const before = store.documents.length;
   store.documents = store.documents.filter((document) => document.id !== documentId);
   if (store.documents.length !== before) {
+    if (target?.studentId) {
+      refreshStudentApplicationScores(target.studentId, { save: false });
+    }
     saveStore(store);
   }
 }
@@ -1089,12 +1510,14 @@ function saveCareerGuidanceRecord(studentId, payload, user) {
     savedAt: payload.savedAt || new Date().toISOString()
   };
 
+  refreshStudentApplicationScores(studentId, { save: false });
   saveStore(store);
 }
 
 function resetCareerGuidanceRecord(studentId) {
   if (!store.careerGuidance || typeof store.careerGuidance !== "object") return;
   delete store.careerGuidance[studentId];
+  refreshStudentApplicationScores(studentId, { save: false });
   saveStore(store);
 }
 
@@ -1280,10 +1703,10 @@ function sortCareerRecommendations(opportunitiesList, province) {
 }
 
 function getCareerRecommendations(topCategory, province) {
-  const categoryMatches = opportunities.filter((opportunity) =>
+  const categoryMatches = getOpportunityCatalogue().filter((opportunity) =>
     opportunityMatchesCareerCategory(opportunity, topCategory)
   );
-  const recommendationPool = categoryMatches.length ? categoryMatches : opportunities;
+  const recommendationPool = categoryMatches.length ? categoryMatches : getOpportunityCatalogue();
   const ranked = sortCareerRecommendations(recommendationPool, province);
 
   const pick = (predicate) => ranked.filter(predicate).slice(0, 3);
@@ -1585,33 +2008,123 @@ function updateApplicationMeta(applicationId, patch) {
   const index = store.applications.findIndex((application) => application.id === applicationId);
   if (index !== -1) {
     const application = store.applications[index];
-    store.applications[index] = {
-      ...application,
-      opportunityType: OPPORTUNITY_TYPES.includes(application.opportunityType)
-        ? application.opportunityType
-        : getOpportunity(application.opportunityId)?.type || "Course",
-      tags: {
-        shortlisted: Boolean(meta.shortlisted),
-        interviewed: Boolean(meta.interviewed),
-        funded: Boolean(meta.funded),
-        graduated: Boolean(meta.graduated)
-      },
-      fundedAt: meta.fundedAt || "",
-      placementStatus: meta.placementStatus || "Not placed",
-      employer: meta.employer || "",
-      placedAt: meta.placedAt || ""
-    };
+const currentStatus = normalizeApplicationStatus(application.status, "draft");
+let nextStatus = currentStatus;
+if (meta.funded) {
+  nextStatus = "funded";
+} else if (meta.shortlisted && ["draft", "submitted", "in_review"].includes(currentStatus)) {
+  nextStatus = "shortlisted";
+} else if (!meta.shortlisted && currentStatus === "shortlisted") {
+  nextStatus = "in_review";
+}
+
+const now = Date.now();
+const submittedAt =
+  nextStatus === "draft"
+    ? null
+    : application.submittedAt != null
+    ? toTimestamp(application.submittedAt, now)
+    : now;
+
+store.applications[index] = {
+  ...application,
+  opportunityType: OPPORTUNITY_TYPES.includes(application.opportunityType)
+    ? application.opportunityType
+    : getOpportunity(application.opportunityId)?.type || "Course",
+  status: nextStatus,
+  updatedAt: now,
+  submittedAt,
+  timeline: normalizeApplicationTimeline(
+    application.timeline,
+    nextStatus,
+    application.createdAt || new Date().toISOString(),
+    now,
+    submittedAt
+  ),
+  tags: {
+    shortlisted: Boolean(meta.shortlisted),
+    interviewed: Boolean(meta.interviewed),
+    funded: Boolean(meta.funded),
+    graduated: Boolean(meta.graduated)
+  },
+  fundedAt: meta.fundedAt || "",
+  placementStatus: meta.placementStatus || "Not placed",
+  employer: meta.employer || "",
+  placedAt: meta.placedAt || ""
+};
   }
 
+  refreshApplicationScore(applicationId, { save: false, preserveUpdatedAt: true });
   saveStore(store);
 }
 
-function updateStatus(applicationId, status) {
-  if (!STATUSES.includes(status)) return;
+function setApplicationStatus(applicationId, newStatus, options = {}) {
   const index = store.applications.findIndex((application) => application.id === applicationId);
-  if (index === -1) return;
-  store.applications[index] = { ...store.applications[index], status };
-  saveStore(store);
+  if (index === -1) return null;
+
+  const nextStatus = normalizeApplicationStatus(newStatus, "draft");
+  if (!APPLICATION_STATUSES.includes(nextStatus)) return null;
+
+  const now = Date.now();
+  const current = store.applications[index];
+  const timeline = Array.isArray(current.timeline)
+    ? current.timeline
+        .filter((entry) => entry && typeof entry === "object")
+        .map((entry) => ({
+          status: normalizeApplicationStatus(entry.status, "draft"),
+          at: toTimestamp(entry.at, now)
+        }))
+    : [];
+
+  if (!timeline.length) {
+    timeline.push({ status: "draft", at: toTimestamp(current.createdAt, now) });
+  }
+
+  const submittedAt =
+    nextStatus === "draft"
+      ? null
+      : current.submittedAt != null
+      ? toTimestamp(current.submittedAt, now)
+      : now;
+
+  if (!timeline.some((entry) => entry.status === nextStatus)) {
+    timeline.push({ status: nextStatus, at: now });
+  } else {
+    const last = timeline[timeline.length - 1];
+    if (last && last.status !== nextStatus) {
+      timeline.push({ status: nextStatus, at: now });
+    }
+  }
+
+  timeline.sort((first, second) => first.at - second.at);
+
+  store.applications[index] = {
+    ...current,
+    status: nextStatus,
+    updatedAt: now,
+    submittedAt,
+    timeline
+  };
+
+  if (nextStatus === "shortlisted") {
+    updateApplicationMeta(applicationId, { shortlisted: true });
+  } else if (nextStatus === "funded" || nextStatus === "completed") {
+    updateApplicationMeta(applicationId, { funded: true });
+  }
+
+  if (options.refreshScore !== false) {
+    refreshApplicationScore(applicationId, { save: false });
+  }
+
+  if (options.save !== false) {
+    saveStore(store);
+  }
+
+  return store.applications[index];
+}
+
+function updateStatus(applicationId, status) {
+  setApplicationStatus(applicationId, status);
 }
 
 function defaultLifecycleEntry() {
@@ -1703,38 +2216,126 @@ function evaluateEligibility(student, eligibilityConfig) {
   return { pass, reasons };
 }
 
-function computeCandidateScore({ application, student, opportunity, checklist }, bursaryConfig) {
-  const seed = stableSeedFromString(`${student?.id || application.studentId}-${application.opportunityId}`);
-  let score = 45 + (seed % 31);
-  const reasons = [`Base profile score: ${score}`];
+function computeApplicationScore(application, user, opportunity) {
+  let score = 0;
+  const reasons = [];
 
-  if (checklist.complete) {
-    score += 12;
-    reasons.push("Document checklist complete (+12)");
+  const profile = user?.profile || {};
+  const profileChecks = [
+    ["age", Boolean(String(profile.age || "").trim())],
+    ["province", Boolean(String(profile.province || "").trim())],
+    ["educationLevel", Boolean(String(profile.educationLevel || "").trim())],
+    ["interests", Array.isArray(profile.interests) && profile.interests.length > 0]
+  ];
+  const passedProfile = profileChecks.filter(([, ok]) => ok).length;
+  score += Math.round((passedProfile / profileChecks.length) * 30);
+  if (passedProfile < profileChecks.length) {
+    reasons.push("Complete your profile details for a higher score.");
   }
 
-  const interests = student?.profile?.interests || [];
-  if (opportunity && isOpportunityRecommended(opportunity, interests)) {
+  const checklist = getDocumentChecklist(application?.studentId || user?.id || "", opportunity?.type || application?.opportunityType || "");
+  const requiredDocs = checklist.byCategory.filter((item) => item.required);
+  const requiredComplete = requiredDocs.filter((item) => item.uploaded).length;
+  const optionalUploaded = checklist.byCategory.filter((item) => !item.required && item.uploaded).length;
+  if (requiredDocs.length > 0) {
+    const requiredPoints = Math.round((requiredComplete / requiredDocs.length) * 36);
+    const optionalBonus = Math.min(4, optionalUploaded * 2);
+    score += requiredPoints + optionalBonus;
+  } else {
+    score += 24;
+  }
+  if (requiredComplete < requiredDocs.length) {
+    reasons.push("Upload all required documents to improve your score.");
+  }
+
+  const interests = (profile.interests || []).map((entry) => String(entry).toLowerCase());
+  const opportunityText = [
+    opportunity?.type || "",
+    opportunity?.sector || "",
+    opportunity?.category || "",
+    opportunity?.title || "",
+    opportunity?.description || ""
+  ]
+    .join(" ")
+    .toLowerCase();
+  const directMatch = interests.some((interest) => opportunityText.includes(interest));
+  const recommendationMatch = opportunity ? isOpportunityRecommended(opportunity, profile.interests || []) : false;
+  const fitMatch = directMatch || recommendationMatch;
+  score += fitMatch ? 20 : 8;
+  if (!fitMatch) {
+    reasons.push("Your interests don’t strongly match this opportunity (update interests if needed).");
+  }
+
+  const hasGuidance = Boolean(store?.careerGuidance?.[user?.id]?.result || store?.careerGuidance?.[user?.id]?.pathway);
+  if (hasGuidance) {
     score += 10;
-    reasons.push(`Interest aligns with ${resolveOpportunitySector(opportunity)} opportunity (+10)`);
+  } else {
+    reasons.push("Complete Career Guidance for a stronger recommendation score.");
   }
 
-  const targetProvince = bursaryConfig?.targetProvince || "";
-  if (targetProvince && student?.profile?.province === targetProvince) {
-    score += 8;
-    reasons.push(`Province aligns with target province (${targetProvince}) (+8)`);
+  score = clampScore(score);
+  return { score, reasons: reasons.slice(0, 4) };
+}
+
+function refreshApplicationScore(applicationId, options = {}) {
+  const index = store.applications.findIndex((application) => application.id === applicationId);
+  if (index === -1) return null;
+
+  const application = store.applications[index];
+  const user = getUserById(application.studentId);
+  const opportunity = getOpportunity(application.opportunityId);
+  const result = computeApplicationScore(application, user, opportunity);
+
+  store.applications[index] = {
+    ...application,
+    qualityScore: result.score,
+    qualityReasons: result.reasons,
+    score: result.score,
+    updatedAt: options.preserveUpdatedAt ? application.updatedAt || Date.now() : Date.now()
+  };
+
+  if (options.save !== false) {
+    saveStore(store);
   }
 
-  score = Math.max(0, Math.min(100, score));
+  return store.applications[index];
+}
 
-  while (reasons.length < 3) {
-    reasons.push("Profile can improve with additional supporting evidence.");
+function refreshStudentApplicationScores(studentId, options = {}) {
+  const indexes = [];
+  store.applications.forEach((application, index) => {
+    if (application.studentId === studentId) indexes.push(index);
+  });
+
+  if (!indexes.length) return false;
+
+  indexes.forEach((index) => {
+    const application = store.applications[index];
+    const user = getUserById(application.studentId);
+    const opportunity = getOpportunity(application.opportunityId);
+    const result = computeApplicationScore(application, user, opportunity);
+    store.applications[index] = {
+      ...application,
+      qualityScore: result.score,
+      qualityReasons: result.reasons,
+      score: result.score,
+      updatedAt: Date.now()
+    };
+  });
+
+  if (options.save !== false) {
+    saveStore(store);
   }
 
-  return { score, reasons: reasons.slice(0, 3) };
+  return true;
+}
+
+function computeCandidateScore({ application, student, opportunity }) {
+  return computeApplicationScore(application, student, opportunity);
 }
 
 // Composite row builder merges application + profile + eligibility + score + lifecycle for admin views.
+
 function buildApplicationRows(typeFilter = "all") {
   return [...store.applications]
     .sort((first, second) => second.createdAt.localeCompare(first.createdAt))
@@ -1754,14 +2355,14 @@ function buildApplicationRows(typeFilter = "all") {
       const meta = getApplicationMeta(application.id);
       const checklist = getDocumentChecklist(application.studentId, opportunityType);
       const eligibility = evaluateEligibility(student, store.bursaryConfig.eligibility);
-      const scoreModel = computeCandidateScore(
-        { application, student, opportunity, checklist },
-        store.bursaryConfig
-      );
-      const storedScore = Number(application.score);
-      const score = Number.isFinite(storedScore)
-        ? { score: Math.max(0, Math.min(100, Math.round(storedScore))), reasons: scoreModel.reasons }
-        : scoreModel;
+const scoreModel = computeApplicationScore(application, student, opportunity);
+const score = {
+  score: clampScore(application.qualityScore != null ? application.qualityScore : application.score),
+  reasons:
+    Array.isArray(application.qualityReasons) && application.qualityReasons.length
+      ? application.qualityReasons
+      : scoreModel.reasons
+};
       const lifecycle = peekLifecycleEntry(application.id);
 
       return {
@@ -1825,52 +2426,65 @@ function seedDemoApplicationsIfEmpty() {
   students.forEach((student, index) => ensureSeedStudentProfile(student, index));
 
   const seedOpportunities = [
-    ...opportunities.filter((opportunity) => opportunity.type === "Bursary").slice(0, 3),
-    ...opportunities.filter((opportunity) => isLearnershipType(opportunity.type)).slice(0, 2),
-    ...opportunities.filter((opportunity) => opportunity.type === "Course").slice(0, 2)
+    ...getOpportunityCatalogue().filter((opportunity) => opportunity.type === "Bursary").slice(0, 3),
+    ...getOpportunityCatalogue().filter((opportunity) => isLearnershipType(opportunity.type)).slice(0, 2),
+    ...getOpportunityCatalogue().filter((opportunity) => opportunity.type === "Course").slice(0, 2)
   ];
+const statusCycle = ["draft", "submitted", "in_review", "shortlisted", "funded"];
+const created = [];
 
-  const statusCycle = ["Submitted", "Under Review", "Accepted"];
-  const created = [];
+seedOpportunities.forEach((opportunity, index) => {
+  const student = students[index % students.length];
 
-  seedOpportunities.forEach((opportunity, index) => {
-    const student = students[index % students.length];
+  const checklist = getDocumentChecklist(student.id, opportunity.type);
+  const docsComplete = index % 2 === 0 ? checklist.complete : false;
+  const tags = {
+    shortlisted: index % 3 !== 0,
+    interviewed: index % 4 === 0,
+    funded: opportunity.type === "Bursary" ? index % 3 === 0 : index % 5 === 0,
+    graduated: false
+  };
 
-    const checklist = getDocumentChecklist(student.id, opportunity.type);
-    const docsComplete = index % 2 === 0 ? checklist.complete : false;
-    const tags = {
-      shortlisted: index % 3 !== 0,
-      interviewed: index % 4 === 0,
-      funded: opportunity.type === "Bursary" ? index % 3 === 0 : index % 5 === 0,
-      graduated: false
-    };
+  const createdAtIso = new Date(Date.now() - index * 86400000).toISOString();
+  const createdAtTs = toTimestamp(createdAtIso);
+  const seededStatus = tags.funded ? "funded" : statusCycle[index % statusCycle.length];
+  const submittedAt = seededStatus === "draft" ? null : createdAtTs + 3600000;
+  const timeline = [{ status: "draft", at: createdAtTs }];
+  if (seededStatus !== "draft") {
+    timeline.push({ status: seededStatus, at: submittedAt || createdAtTs });
+  }
 
-    const seededApplication = {
-      id: uid("app"),
-      studentId: student.id,
-      opportunityId: opportunity.id,
-      opportunityType: opportunity.type,
-      status: statusCycle[index % statusCycle.length],
-      createdAt: new Date(Date.now() - index * 86400000).toISOString(),
-      tags,
-      docsComplete,
-      docsIncomplete: !docsComplete,
-      score: 55 + ((stableSeedFromString(`${student.id}-${opportunity.id}`) + index) % 40),
-      fundedAt: "",
-      placementStatus: "Not placed",
-      employer: "",
-      placedAt: ""
-    };
+  const seededApplication = {
+    id: uid("app"),
+    studentId: student.id,
+    opportunityId: opportunity.id,
+    opportunityType: opportunity.type,
+    status: seededStatus,
+    createdAt: createdAtIso,
+    updatedAt: submittedAt || createdAtTs,
+    submittedAt,
+    timeline,
+    tags,
+    docsComplete,
+    docsIncomplete: !docsComplete,
+    qualityScore: 55 + ((stableSeedFromString(`${student.id}-${opportunity.id}`) + index) % 40),
+    qualityReasons: ["Complete your profile and required documents to improve ranking."],
+    score: 55 + ((stableSeedFromString(`${student.id}-${opportunity.id}`) + index) % 40),
+    fundedAt: "",
+    placementStatus: "Not placed",
+    employer: "",
+    placedAt: ""
+  };
 
-    if (tags.funded) {
-      seededApplication.fundedAt = new Date(Date.now() - (index + 5) * 86400000).toISOString();
-      if (index % 4 === 0) {
-        seededApplication.tags.graduated = true;
-      }
+  if (tags.funded) {
+    seededApplication.fundedAt = new Date(Date.now() - (index + 5) * 86400000).toISOString();
+    if (index % 4 === 0) {
+      seededApplication.tags.graduated = true;
     }
+  }
 
-    created.push(seededApplication);
-  });
+  created.push(seededApplication);
+});
 
   store.applications.unshift(...created);
   saveStore(store);
@@ -1904,6 +2518,7 @@ function getSidebarItems(role) {
 
   return [
     { label: "Corporate", href: "/admin/corporate" },
+    { label: "Opportunities", href: "/admin/opportunities" },
     { label: "Bursaries", href: "/admin/bursaries" },
     { label: "Lifecycle", href: "/admin/lifecycle" },
     { label: "Talent", href: "/admin/talent" },
@@ -1915,6 +2530,13 @@ function resolveStudentNavRoute(currentRoute) {
   if (currentRoute.startsWith("/student/opportunity/") || currentRoute.startsWith("/student/apply/")) {
     const opportunityId = currentRoute.split("/")[3];
     const opportunity = getOpportunity(opportunityId);
+    if (opportunity) return routeForOpportunityType(opportunity.type);
+  }
+
+  if (currentRoute.startsWith("/student/application/")) {
+    const applicationId = currentRoute.split("/")[3];
+    const application = getApplicationById(applicationId);
+    const opportunity = application ? getOpportunity(application.opportunityId) : null;
     if (opportunity) return routeForOpportunityType(opportunity.type);
   }
 
@@ -1937,7 +2559,9 @@ function getPageTitleForRoute(currentRoute) {
   if (currentRoute === "/student/courses") return "Courses";
   if (currentRoute.startsWith("/student/opportunity/")) return "Opportunity Details";
   if (currentRoute.startsWith("/student/apply/")) return "Application Form";
+  if (currentRoute.startsWith("/student/application/")) return "Application View";
   if (currentRoute === "/admin/corporate" || currentRoute === "/admin") return "Corporate Executive Dashboard";
+  if (currentRoute === "/admin/opportunities") return "Opportunity Management";
   if (currentRoute === "/admin/bursaries") return "Bursary Application Management";
   if (currentRoute === "/admin/lifecycle") return "Funded Student Lifecycle Tracking";
   if (currentRoute === "/admin/talent") return "Talent Pipeline & Workforce Planning";
@@ -1961,12 +2585,8 @@ function setMobileDashboardView(view) {
 }
 
 function getStatusBadgeClass(status) {
-  if (status === "Submitted") return "badgeBlue";
-  if (status === "Under Review") return "badgePurple";
-  if (status === "Accepted") return "badgeGreen";
-  if (status === "Rejected") return "badgeOrange";
   if (status === "Open") return "badgeBlue";
-  return "badgePurple";
+  return getApplicationStatusBadgeClass(status);
 }
 
 function getOpportunityCategoryClass(type) {
@@ -1997,21 +2617,23 @@ function getOpportunityLifecycleState(application) {
     };
   }
 
-  if (application.status === "Under Review") {
+  const status = normalizeApplicationStatus(application.status, "draft");
+
+  if (status === "draft") {
     return {
-      statusLabel: "Submitted",
-      statusClass: "statusPill statusSubmitted",
+      statusLabel: getApplicationStatusLabel(status),
+      statusClass: "statusPill statusClosed",
       cardVariantClass: "card-in-progress",
       isInProgress: true,
-      isSubmitted: true,
+      isSubmitted: false,
       isClosed: false,
       isComplete: false
     };
   }
 
-  if (application.status === "Submitted") {
+  if (status === "submitted") {
     return {
-      statusLabel: "Submitted",
+      statusLabel: getApplicationStatusLabel(status),
       statusClass: "statusPill statusSubmitted",
       cardVariantClass: "card-submitted",
       isInProgress: false,
@@ -2021,9 +2643,33 @@ function getOpportunityLifecycleState(application) {
     };
   }
 
-  if (application.status === "Accepted") {
+  if (status === "in_review") {
     return {
-      statusLabel: "Complete",
+      statusLabel: getApplicationStatusLabel(status),
+      statusClass: "statusPill statusSubmitted badgePurple",
+      cardVariantClass: "card-submitted card-in-progress",
+      isInProgress: true,
+      isSubmitted: true,
+      isClosed: false,
+      isComplete: false
+    };
+  }
+
+  if (status === "shortlisted") {
+    return {
+      statusLabel: getApplicationStatusLabel(status),
+      statusClass: "statusPill statusComplete",
+      cardVariantClass: "card-priority card-submitted",
+      isInProgress: false,
+      isSubmitted: true,
+      isClosed: false,
+      isComplete: false
+    };
+  }
+
+  if (status === "funded" || status === "completed") {
+    return {
+      statusLabel: getApplicationStatusLabel(status),
       statusClass: "statusPill statusComplete",
       cardVariantClass: "card-submitted",
       isInProgress: false,
@@ -2034,7 +2680,7 @@ function getOpportunityLifecycleState(application) {
   }
 
   return {
-    statusLabel: "Closed",
+    statusLabel: getApplicationStatusLabel("rejected"),
     statusClass: "statusPill statusClosed",
     cardVariantClass: "card-submitted card-closed",
     isInProgress: false,
@@ -2046,10 +2692,12 @@ function getOpportunityLifecycleState(application) {
 
 function getOpportunityPrimaryAction(opportunityId, application, recommended, lifecycle) {
   if (application) {
-    if (lifecycle.isInProgress) {
-      return { label: "Continue application", href: "#/student/dashboard" };
-    }
-    return { label: "View application", href: "#/student/dashboard" };
+    const status = normalizeApplicationStatus(application.status, "draft");
+    const canContinue = status === "draft";
+    return {
+      label: canContinue ? "Continue application" : "View application",
+      href: `#/student/application/${application.id}`
+    };
   }
 
   if (recommended) {
@@ -2060,8 +2708,9 @@ function getOpportunityPrimaryAction(opportunityId, application, recommended, li
 }
 
 function isSubmittedApplicationStatus(status) {
-  return status === "Submitted" || status === "Under Review" || status === "Accepted" || status === "Rejected";
+  return normalizeApplicationStatus(status, "draft") !== "draft";
 }
+
 
 function getApplicationProgressBlueprint(opportunityType) {
   if (opportunityType === "Course") {
@@ -2196,8 +2845,13 @@ function buildApplicationProgressState(user, opportunity, application = null) {
   const activeStep = steps.find((step) => step.state === "active") || null;
 
   let summaryAction = activeStep?.action || null;
-  if (!summaryAction && application) {
-    summaryAction = { kind: "link", label: "View application", href: "#/student/dashboard" };
+  if (!summaryAction && application?.id) {
+    const canContinue = normalizeApplicationStatus(application.status, "draft") === "draft";
+    summaryAction = {
+      kind: "link",
+      label: canContinue ? "Continue application" : "View application",
+      href: `#/student/application/${application.id}`
+    };
   }
   if (!summaryAction && safeOpportunity.id) {
     summaryAction = { kind: "link", label: "Continue application", href: `#/student/apply/${safeOpportunity.id}` };
@@ -2507,6 +3161,48 @@ function getStudentMobileNavItems(currentRoute) {
   ];
 }
 
+function getAdminMobileNavIcon(label, href) {
+  if (href === "/admin/corporate") return "◈";
+  if (href === "/admin/opportunities") return "▥";
+  if (href === "/admin/bursaries") return "◉";
+  if (href === "/admin/lifecycle") return "▣";
+  if (href === "/admin/talent") return "◎";
+  if (href === "/admin/analytics") return "◔";
+
+  const normalizedLabel = String(label || "").toLowerCase();
+  if (normalizedLabel.includes("corporate")) return "◈";
+  if (normalizedLabel.includes("opportunit")) return "▥";
+  if (normalizedLabel.includes("bursar")) return "◉";
+  if (normalizedLabel.includes("life")) return "▣";
+  if (normalizedLabel.includes("talent")) return "◎";
+  if (normalizedLabel.includes("analytic")) return "◔";
+  return "•";
+}
+
+function getAdminMobileNavItems(currentRoute) {
+  const items = getSidebarItems("admin").map((item) => ({
+    ...item,
+    icon: getAdminMobileNavIcon(item.label, item.href),
+    active: isRouteActive(currentRoute, item.href)
+  }));
+
+  const maxPrimaryItems = 5;
+  if (items.length <= maxPrimaryItems) {
+    return { primaryItems: items, overflowItems: [] };
+  }
+
+  const overflowItems = items.slice(maxPrimaryItems - 1);
+  const hasActiveOverflow = overflowItems.some((item) => item.active);
+
+  return {
+    primaryItems: [
+      ...items.slice(0, maxPrimaryItems - 1),
+      { label: "More", href: "#", icon: "⋯", active: hasActiveOverflow, isMore: true }
+    ],
+    overflowItems
+  };
+}
+
 function shell(role, contentNode) {
   const user = currentUser();
   const sidebarItems = getSidebarItems(role);
@@ -2553,6 +3249,7 @@ function shell(role, contentNode) {
         ${user ? `${escapeHtml(displayName)} (${user.role})` : "No active user"}
       </span>
       <button class="btn btnGhost" id="btnRole">Role switch</button>
+      <button class="btn btnGhost" id="btnResetDemoData">Reset demo data</button>
       <button class="btn btnPrimary" id="btnLogout">Logout</button>
     </div>
   </header>`);
@@ -2562,9 +3259,13 @@ function shell(role, contentNode) {
     navigate("/login");
   };
 
+  topbar.querySelector("#btnResetDemoData").onclick = () => {
+    resetDemoData();
+  };
+
   topbar.querySelector("#btnLogout").onclick = () => {
     logout();
-    navigate("/");
+    navigate("/home");
   };
 
   const mobileHeader =
@@ -2642,6 +3343,93 @@ function shell(role, contentNode) {
     app.appendChild(bottomNav);
   }
 
+  if (role === "admin") {
+    const { primaryItems, overflowItems } = getAdminMobileNavItems(route);
+    const bottomNav = el(`<nav class="mobileBottomNav mobileBottomNavAdmin" aria-label="Admin mobile navigation">
+      ${primaryItems
+        .map((item) => {
+          if (item.isMore) {
+            return `<button type="button" class="mobileBottomNavItem ${item.active ? "active" : ""}" id="adminMobileMoreBtn">
+              <span class="mobileBottomNavItemIcon">${item.icon}</span>
+              <span>${item.label}</span>
+            </button>`;
+          }
+
+          return `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}">
+            <span class="mobileBottomNavItemIcon">${item.icon}</span>
+            <span>${item.label}</span>
+          </a>`;
+        })
+        .join("")}
+    </nav>`);
+
+    app.appendChild(bottomNav);
+
+    if (overflowItems.length) {
+      const moreOverlay = el(`<div class="adminMobileMoreOverlay" id="adminMobileMoreOverlay" hidden aria-hidden="true">
+        <div class="adminMobileMoreSheet" role="dialog" aria-modal="true" aria-labelledby="adminMobileMoreTitle">
+          <div class="row" style="justify-content:space-between; align-items:center; width:auto;">
+            <b id="adminMobileMoreTitle">More sections</b>
+            <button type="button" class="btn btnGhost adminMobileMoreClose" data-admin-more-close="true">Close</button>
+          </div>
+          <div class="adminMobileMoreList">
+            ${overflowItems
+              .map(
+                (item) => `<a class="adminMobileMoreLink ${item.active ? "active" : ""}" href="#${item.href}">
+                  <span class="mobileBottomNavItemIcon">${item.icon}</span>
+                  <span>${item.label}</span>
+                </a>`
+              )
+              .join("")}
+          </div>
+        </div>
+      </div>`);
+
+      const openMore = () => {
+        moreOverlay.hidden = false;
+        moreOverlay.setAttribute("aria-hidden", "false");
+        requestAnimationFrame(() => {
+          moreOverlay.classList.add("open");
+          const closeButton = moreOverlay.querySelector("[data-admin-more-close]");
+          if (closeButton && typeof closeButton.focus === "function") closeButton.focus();
+        });
+      };
+
+      const closeMore = () => {
+        moreOverlay.classList.remove("open");
+        moreOverlay.setAttribute("aria-hidden", "true");
+        window.setTimeout(() => {
+          moreOverlay.hidden = true;
+        }, 130);
+      };
+
+      const moreButton = bottomNav.querySelector("#adminMobileMoreBtn");
+      if (moreButton) {
+        moreButton.addEventListener("click", openMore);
+      }
+
+      moreOverlay.addEventListener("click", (event) => {
+        if (event.target === moreOverlay || event.target.closest("[data-admin-more-close]")) {
+          closeMore();
+        }
+      });
+
+      moreOverlay.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeMore();
+          if (moreButton && typeof moreButton.focus === "function") moreButton.focus();
+        }
+      });
+
+      moreOverlay.querySelectorAll("a.adminMobileMoreLink").forEach((link) => {
+        link.addEventListener("click", closeMore);
+      });
+
+      app.appendChild(moreOverlay);
+    }
+  }
+
   return app;
 }
 
@@ -2654,16 +3442,22 @@ function metricTile(label, value, hint = "") {
 }
 
 /** ---------- Actions ---------- **/
-function login(email, password, role) {
+function login(email, password, role = "") {
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedRole = String(role || "").trim().toLowerCase();
   const user = store.users.find(
     (entry) =>
       entry.email.toLowerCase() === normalizedEmail &&
       entry.password === password &&
-      entry.role === role
+      (!normalizedRole || entry.role === normalizedRole)
   );
 
-  if (!user) return { ok: false, error: "Invalid credentials or incorrect role selected." };
+  if (!user) {
+    return {
+      ok: false,
+      error: normalizedRole ? "Invalid credentials or incorrect role selected." : "Invalid email or password."
+    };
+  }
 
   currentUserId = user.id;
   setSessionUserId(user.id);
@@ -2697,6 +3491,63 @@ function register(name, email, password, role) {
   setSessionUserId(user.id);
 
   return { ok: true, user };
+}
+
+function signupStudentAccount(payload = {}) {
+  const fullName = String(payload.fullName || "").trim();
+  const email = String(payload.email || "").trim();
+  const password = String(payload.password || "");
+  const province = String(payload.province || "").trim();
+  const educationLevel = String(payload.educationLevel || "").trim();
+
+  const result = register(fullName, email, password, "student");
+  if (!result.ok) return result;
+
+  saveProfile({
+    fullName,
+    age: "",
+    province,
+    educationLevel,
+    interests: [],
+    goals: ""
+  });
+
+  return result;
+}
+
+function resolveDemoCredentialsByRole(role) {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+
+  const demoMatch = store.users.find((entry) => {
+    if (entry.role !== normalizedRole) return false;
+    const id = String(entry.id || "").toLowerCase();
+    const email = String(entry.email || "").toLowerCase();
+    return id.includes("demo") || email.includes("demo");
+  });
+
+  if (demoMatch) {
+    return {
+      role: normalizedRole,
+      email: String(demoMatch.email || ""),
+      password: String(demoMatch.password || "")
+    };
+  }
+
+  const seeded = demoUsers.find((entry) => entry.role === normalizedRole);
+  if (seeded) {
+    return {
+      role: normalizedRole,
+      email: String(seeded.email || ""),
+      password: String(seeded.password || "")
+    };
+  }
+
+  const fallback = store.users.find((entry) => entry.role === normalizedRole);
+  return {
+    role: normalizedRole,
+    email: String(fallback?.email || ""),
+    password: String(fallback?.password || "")
+  };
 }
 
 function logout() {
@@ -2733,6 +3584,7 @@ function saveProfile(profile) {
       profilePhotoMeta: existingProfile.profilePhotoMeta || null
     }
   };
+  refreshStudentApplicationScores(user.id, { save: false });
   saveStore(store);
 }
 
@@ -2790,6 +3642,7 @@ function updateStudentSettings(studentId, settingsPayload) {
     }
   };
 
+  refreshStudentApplicationScores(studentId, { save: false });
   saveStore(store);
   return { ok: true, user: store.users[index] };
 }
@@ -2814,6 +3667,7 @@ function setStudentProfilePhoto(studentId, dataUrl, meta) {
     }
   };
 
+  refreshStudentApplicationScores(studentId, { save: false });
   saveStore(store);
 }
 
@@ -2850,26 +3704,42 @@ function submitApplication(opportunityId, options = {}) {
     typeof options.docsComplete === "boolean" ? options.docsComplete : checklist.complete;
   const docsIncomplete =
     typeof options.docsIncomplete === "boolean" ? options.docsIncomplete : !docsComplete;
-  const scoreModel = computeCandidateScore(
-    {
-      application: { studentId: user.id, opportunityId },
-      student: user,
-      opportunity,
-      checklist
-    },
-    store.bursaryConfig
-  );
 
+  const createdAt = new Date().toISOString();
+  const createdAtTs = toTimestamp(createdAt);
+  const submittedAt = Date.now();
+  const initialStatus = "submitted";
+
+  const seededApplication = {
+    studentId: user.id,
+    opportunityId,
+    opportunityType: opportunity.type,
+    status: initialStatus,
+    docsComplete,
+    docsIncomplete
+  };
+
+  const scoreModel = computeApplicationScore(seededApplication, user, opportunity);
   const scoreValue = Number(options.score);
-  const score = Number.isFinite(scoreValue) ? Math.max(0, Math.min(100, Math.round(scoreValue))) : scoreModel.score;
+  const qualityScore = Number.isFinite(scoreValue) ? clampScore(scoreValue) : scoreModel.score;
+  const qualityReasons =
+    Array.isArray(options.qualityReasons) && options.qualityReasons.length
+      ? options.qualityReasons.map((reason) => String(reason)).slice(0, 4)
+      : scoreModel.reasons;
 
   const application = {
     id: uid("app"),
     studentId: user.id,
     opportunityId,
     opportunityType: opportunity.type,
-    status: "Submitted",
-    createdAt: new Date().toISOString(),
+    status: initialStatus,
+    createdAt,
+    updatedAt: submittedAt,
+    submittedAt,
+    timeline: [
+      { status: "draft", at: createdAtTs },
+      { status: initialStatus, at: submittedAt }
+    ],
     tags: {
       shortlisted: false,
       interviewed: false,
@@ -2878,7 +3748,9 @@ function submitApplication(opportunityId, options = {}) {
     },
     docsComplete,
     docsIncomplete,
-    score,
+    qualityScore,
+    qualityReasons,
+    score: qualityScore,
     fundedAt: "",
     placementStatus: "Not placed",
     employer: "",
@@ -2898,140 +3770,756 @@ function submitApplication(opportunityId, options = {}) {
   return { ok: true };
 }
 
+
 /** ---------- Current Interfaces ---------- **/
-// Public landing page render function.
-function pageHome() {
-  const user = currentUser();
 
-  const node = el(`<div class="grid" style="padding-inline:clamp(16px, 3vw, 40px); padding-block:24px;">
-    <div class="card">
-      <div class="cardHeader">
-        <h1 style="margin:0; font-size:24px;">National TVET & SETA Digital Access Platform</h1>
-        <p class="mutedText" style="margin:10px 0 0;">Logic-first MVP demo (student applications + admin operations suite).</p>
-      </div>
-      <div style="margin-top:16px;">
-        <a class="btn btnPrimary" href="#/login">Go to login</a>
-      </div>
+function prefersReducedMotion() {
+  return Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+}
+
+function renderBubbleMenu(actions = []) {
+  return `<div class="ydhBubbleMenu" id="ydhBubbleMenu">
+    <button type="button" class="ydhBubbleToggle" id="ydhBubbleToggle" aria-expanded="false" aria-controls="ydhBubbleActions" aria-label="Open quick actions">+</button>
+    <div class="ydhBubbleActions" id="ydhBubbleActions" role="menu" aria-hidden="true">
+      ${actions
+        .map((action) => {
+          if (action.kind === "scroll") {
+            return `<button type="button" class="ydhBubbleAction" data-scroll-target="${escapeHtml(action.target || "")}" role="menuitem">${escapeHtml(action.label)}</button>`;
+          }
+          return `<a class="ydhBubbleAction" href="${escapeHtml(action.href || "#/home")}" role="menuitem">${escapeHtml(action.label)}</a>`;
+        })
+        .join("")}
     </div>
-  </div>`);
+  </div>`;
+}
 
-  if (user) {
-    if (user.role === "admin") navigate("/admin/corporate");
-    else navigate(user.profile ? "/student/dashboard" : "/student/onboarding");
+function renderAnimatedList(items = [], options = {}) {
+  const variantClass = options.variant ? ` ydhAnimatedList--${options.variant}` : "";
+  return `<div class="ydhAnimatedList${variantClass}">
+    ${items
+      .map(
+        (item, index) => `<div class="ydhAnimatedItem" data-reveal="true" style="--item-index:${index};">
+          <span class="ydhAnimatedBullet" aria-hidden="true"></span>
+          <span>${escapeHtml(item)}</span>
+        </div>`
+      )
+      .join("")}
+  </div>`;
+}
+
+function renderStepper(steps = [], activeStep = 1, options = {}) {
+  const extraClass = options.className ? ` ${options.className}` : "";
+  return `<ol class="ydhStepper${extraClass}">
+    ${steps
+      .map((label, index) => {
+        const isActive = index + 1 === activeStep;
+        const isDone = index + 1 < activeStep;
+        return `<li class="ydhStepperStep ${isActive ? "is-active" : ""} ${isDone ? "is-done" : ""}">
+          <span class="ydhStepperDot">${index + 1}</span>
+          <span class="ydhStepperLabel">${escapeHtml(label)}</span>
+        </li>`;
+      })
+      .join("")}
+  </ol>`;
+}
+
+function renderScrollStack(steps = []) {
+  return `<div class="ydhScrollStack">
+    ${steps
+      .map(
+        (step, index) => `<article class="ydhScrollCard" data-reveal="true" style="--stack-order:${index};">
+          <div class="ydhScrollIndex">${index + 1}</div>
+          <h3>${escapeHtml(step.title || "")}</h3>
+          <p>${escapeHtml(step.description || "")}</p>
+        </article>`
+      )
+      .join("")}
+  </div>`;
+}
+
+function renderReflectiveCards(cards = []) {
+  return `<div class="ydhReflectiveGrid">
+    ${cards
+      .map(
+        (card) => `<article class="ydhReflectiveCard" data-reflective-card="true">
+          <span class="ydhReflectiveType">${escapeHtml(card.type || "")}</span>
+          <h3>${escapeHtml(card.title || "")}</h3>
+          <p>${escapeHtml(card.provider || "")}</p>
+          <div class="ydhReflectiveMeta">${escapeHtml(card.province || "")}</div>
+        </article>`
+      )
+      .join("")}
+  </div>`;
+}
+
+function renderTiltedCards(cards = [], options = {}) {
+  const className = options.className ? ` ${options.className}` : "";
+  const actionLabel = options.actionLabel || "View";
+  const actionHref = options.actionHref || "#/login";
+  return `<div class="ydhTiltGrid${className}">
+    ${cards
+      .map(
+        (card) => `<article class="ydhTiltCard" data-tilt-card="true">
+          <span class="ydhTiltType">${escapeHtml(card.type || "")}</span>
+          <h3>${escapeHtml(card.title || "")}</h3>
+          <p>${escapeHtml(card.provider || "")}</p>
+          <div class="ydhTiltMeta">${escapeHtml(card.province || "")}</div>
+          <a class="btn btnGhost" href="${escapeHtml(card.href || actionHref)}">${escapeHtml(card.actionLabel || actionLabel)}</a>
+        </article>`
+      )
+      .join("")}
+  </div>`;
+}
+
+function renderFolderPreview(documents = [], options = {}) {
+  const className = options.className ? ` ${options.className}` : "";
+  const showTitle = Boolean(options.title);
+  const showDescription = Boolean(options.description);
+
+  return `<section class="ydhFolderPreview${className}">
+    ${showTitle ? `<div class="ydhFolderTitle">${escapeHtml(options.title)}</div>` : ""}
+    ${showDescription ? `<div class="mutedText" style="margin-top:4px;">${escapeHtml(options.description)}</div>` : ""}
+    <div class="ydhFolderGrid" style="margin-top:${showTitle || showDescription ? "10px" : "0"};">
+      ${documents
+        .map((document) => {
+          const isReady = String(document.status || "").toLowerCase() === "ready";
+          return `<article class="ydhFolderCard ${isReady ? "is-ready" : "is-missing"}" data-reveal="true">
+            <div class="ydhFolderTab" aria-hidden="true"></div>
+            <h4>${escapeHtml(document.label || "")}</h4>
+            <p>${escapeHtml(document.hint || "")}</p>
+            <span class="ydhFolderStatus">${escapeHtml(document.status || "Pending")}</span>
+          </article>`;
+        })
+        .join("")}
+    </div>
+  </section>`;
+}
+
+function renderLanyardCard(profile = {}) {
+  const name = String(profile.name || "Student Name").trim();
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toUpperCase() || "ST";
+
+  return `<div class="ydhLanyardWrap" data-reveal="true">
+    <div class="ydhLanyardHook" aria-hidden="true"></div>
+    <div class="ydhLanyardStrap" aria-hidden="true"></div>
+    <article class="ydhLanyardCard">
+      <div class="ydhLanyardAvatar">${escapeHtml(initials)}</div>
+      <div class="ydhLanyardName">${escapeHtml(name)}</div>
+      <div class="ydhLanyardMeta">${escapeHtml(profile.status || "Learner status: Verified")}</div>
+      <div class="ydhLanyardMeta">${escapeHtml(profile.province || "Province: Gauteng")}</div>
+      <span class="ydhLanyardBadge">${escapeHtml(profile.educationLevel || "NCV Level 4")}</span>
+    </article>
+  </div>`;
+}
+
+function renderDockNav(items = []) {
+  return `<nav class="ydhDock" aria-label="Landing mobile dock">
+    ${items
+      .map(
+        (item) => `<a href="${escapeHtml(item.href || "#/home")}" ${item.target ? `data-scroll-target="${escapeHtml(item.target)}"` : ""}>
+          <span class="ydhDockIcon" aria-hidden="true">${escapeHtml(item.icon || "•")}</span>
+          <span class="ydhDockLabel">${escapeHtml(item.label || "")}</span>
+        </a>`
+      )
+      .join("")}
+  </nav>`;
+}
+
+function createClickSpark(event) {
+  if (prefersReducedMotion()) return;
+  const button = event.currentTarget;
+  if (!(button instanceof HTMLElement)) return;
+
+  const rect = button.getBoundingClientRect();
+  const spark = document.createElement("span");
+  spark.className = "ydhClickSpark";
+
+  const fallbackX = rect.width / 2;
+  const fallbackY = rect.height / 2;
+  const x = Number.isFinite(event.clientX) ? event.clientX - rect.left : fallbackX;
+  const y = Number.isFinite(event.clientY) ? event.clientY - rect.top : fallbackY;
+
+  spark.style.left = `${Math.max(0, Math.min(rect.width, x))}px`;
+  spark.style.top = `${Math.max(0, Math.min(rect.height, y))}px`;
+
+  button.appendChild(spark);
+  window.setTimeout(() => {
+    if (spark.parentNode) spark.parentNode.removeChild(spark);
+  }, 520);
+}
+
+function applyInteractiveCardMotion(node, selector) {
+  if (prefersReducedMotion()) return;
+  if (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) return;
+
+  node.querySelectorAll(selector).forEach((card) => {
+    const onMove = (event) => {
+      const rect = card.getBoundingClientRect();
+      const offsetX = (event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5;
+      const offsetY = (event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5;
+      card.style.setProperty("--mx", String(offsetX));
+      card.style.setProperty("--my", String(offsetY));
+    };
+
+    const onLeave = () => {
+      card.style.setProperty("--mx", "0");
+      card.style.setProperty("--my", "0");
+    };
+
+    card.addEventListener("mousemove", onMove);
+    card.addEventListener("mouseleave", onLeave);
+    card.addEventListener("blur", onLeave, true);
+  });
+}
+
+function setupRevealAnimation(node, selector) {
+  const elements = Array.from(node.querySelectorAll(selector));
+  if (!elements.length) return;
+
+  if (prefersReducedMotion() || typeof IntersectionObserver !== "function") {
+    elements.forEach((element) => element.classList.add("is-visible"));
+    return;
   }
 
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { rootMargin: "0px 0px -8% 0px", threshold: 0.15 }
+  );
+
+  elements.forEach((element) => observer.observe(element));
+}
+
+function initializeLandingInteractions(node) {
+  const menuToggle = node.querySelector("#landingMenuToggle");
+  const navLinks = node.querySelector("#landingNavLinks");
+
+  const closeMenu = () => {
+    if (!menuToggle || !navLinks) return;
+    navLinks.classList.remove("open");
+    menuToggle.setAttribute("aria-expanded", "false");
+  };
+
+  if (menuToggle && navLinks) {
+    menuToggle.addEventListener("click", () => {
+      const nextOpen = !navLinks.classList.contains("open");
+      navLinks.classList.toggle("open", nextOpen);
+      menuToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+    });
+  }
+
+  const bubbleToggle = node.querySelector("#ydhBubbleToggle");
+  const bubbleActions = node.querySelector("#ydhBubbleActions");
+
+  if (bubbleToggle && bubbleActions) {
+    const closeBubble = () => {
+      bubbleActions.classList.remove("open");
+      bubbleActions.setAttribute("aria-hidden", "true");
+      bubbleToggle.setAttribute("aria-expanded", "false");
+    };
+
+    bubbleToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      const nextOpen = !bubbleActions.classList.contains("open");
+      bubbleActions.classList.toggle("open", nextOpen);
+      bubbleActions.setAttribute("aria-hidden", nextOpen ? "false" : "true");
+      bubbleToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+    });
+
+    node.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest("#ydhBubbleMenu")) {
+        closeBubble();
+      }
+    });
+  }
+
+  node.querySelectorAll("[data-scroll-target]").forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      const targetId = trigger.getAttribute("data-scroll-target");
+      if (!targetId) return;
+      const target = node.querySelector(`#${targetId}`);
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      closeMenu();
+    });
+  });
+
+  node.querySelectorAll(".sparkButton").forEach((button) => {
+    button.addEventListener("click", createClickSpark);
+  });
+
+  applyInteractiveCardMotion(node, "[data-reflective-card]");
+  applyInteractiveCardMotion(node, "[data-tilt-card]");
+
+  setupRevealAnimation(node, "[data-reveal='true']");
+}
+
+// Public landing page render function.
+function pageHome() {
+  const heroCards = [
+    {
+      type: "Featured bursary",
+      title: "Mechanical Engineering Bursary",
+      provider: "National Skills Fund",
+      province: "Gauteng"
+    },
+    {
+      type: "Featured learnership",
+      title: "Electrical Trade Learnership",
+      provider: "Coastal Industry Group",
+      province: "KwaZulu-Natal"
+    },
+    {
+      type: "Featured short course",
+      title: "IT Support Fundamentals",
+      provider: "Digital Skills Academy",
+      province: "Western Cape"
+    }
+  ];
+
+  const howItWorksSteps = [
+    {
+      title: "Create your profile",
+      description: "Build your learner profile with your province, education level, and goals."
+    },
+    {
+      title: "Discover opportunities",
+      description: "Find bursaries, learnerships, and courses matched to your profile."
+    },
+    {
+      title: "Apply with confidence",
+      description: "Submit applications using saved information and document vault support."
+    },
+    {
+      title: "Track your progress",
+      description: "Monitor statuses, get updates, and stay on top of next actions."
+    }
+  ];
+
+  const gettingStartedSteps = [
+    "Sign up",
+    "Complete profile",
+    "Upload documents",
+    "Apply to opportunities"
+  ];
+
+  const featureItems = [
+    "Smart recommendations",
+    "AI eligibility insights",
+    "Upload documents once",
+    "Track applications in one place",
+    "Access bursaries, courses, and learnerships"
+  ];
+
+  const opportunityCards = [
+    {
+      type: "Bursary",
+      title: "STEM Future Bursary",
+      provider: "Youth Skills Trust",
+      province: "Eastern Cape",
+      href: "#/login",
+      actionLabel: "Apply"
+    },
+    {
+      type: "Engineering Learnership",
+      title: "Industrial Technician Programme",
+      provider: "Metro Engineering Group",
+      province: "Limpopo",
+      href: "#/login",
+      actionLabel: "Apply"
+    },
+    {
+      type: "IT Short Course",
+      title: "Cloud Support Fast Track",
+      provider: "CodeBridge Institute",
+      province: "Western Cape",
+      href: "#/login",
+      actionLabel: "Apply"
+    }
+  ];
+
+  const partnerCards = [
+    {
+      type: "SETA Partner",
+      title: "Sector Skills Pipeline",
+      provider: "MerSETA Collaboration",
+      province: "National",
+      href: "#/signup",
+      actionLabel: "Partner"
+    },
+    {
+      type: "Employer Network",
+      title: "Verified Talent Access",
+      provider: "FutureWork Employers",
+      province: "National",
+      href: "#/signup",
+      actionLabel: "Join"
+    }
+  ];
+
+  const folderItems = [
+    { label: "ID Copy", hint: "Government-issued identity document", status: "Ready" },
+    { label: "Academic Transcript", hint: "Matric/TVET transcript upload", status: "Ready" },
+    { label: "Proof of Address", hint: "Municipal or verified residence proof", status: "Pending" },
+    { label: "CV", hint: "Career-ready CV for employers", status: "Pending" }
+  ];
+
+  const bubbleActions = [
+    { label: "Explore Bursaries", kind: "scroll", target: "opportunity-showcase" },
+    { label: "Learnerships", kind: "scroll", target: "opportunity-showcase" },
+    { label: "Courses", kind: "scroll", target: "opportunity-showcase" },
+    { label: "Login", kind: "link", href: "#/login" },
+    { label: "Sign Up", kind: "link", href: "#/signup" }
+  ];
+
+  const dockItems = [
+    { label: "Home", icon: "H", href: "#/home", target: "landingTop" },
+    { label: "Opportunities", icon: "O", href: "#/home", target: "opportunity-showcase" },
+    { label: "Features", icon: "F", href: "#/home", target: "platform-features" },
+    { label: "Login", icon: "L", href: "#/login" },
+    { label: "Sign Up", icon: "S", href: "#/signup" }
+  ];
+
+  const node = el(`<div class="landingPage" id="landingTop">
+    <header class="landingNavWrap">
+      <nav class="landingNav">
+        <a class="landingBrand" href="#/home">Youth Digital Hub</a>
+        <button type="button" class="landingMenuToggle" id="landingMenuToggle" aria-expanded="false" aria-controls="landingNavLinks">Menu</button>
+        <div class="landingNavLinks" id="landingNavLinks">
+          <a href="#/home" data-scroll-target="landingTop">Home</a>
+          <a href="#/home" data-scroll-target="how-it-works">How it Works</a>
+          <a href="#/home" data-scroll-target="opportunity-showcase">Opportunities</a>
+          <a href="#/home" data-scroll-target="platform-features">Features</a>
+          <a href="#/login">Login</a>
+          <a class="landingSignupLink" href="#/signup">Sign Up</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="landingMain">
+      <section class="landingHero" id="home">
+        <div class="landingHeroCopy" style="position:relative;">
+          <div class="landingTagline">Connecting TVET students to real opportunities.</div>
+          <h1>Find bursaries, learnerships, and courses in one place.</h1>
+          <p>Youth Digital Hub helps students and graduates across South Africa discover opportunities, manage documents, and track applications.</p>
+          <div class="landingHeroCtas">
+            <a class="btn btnPrimary sparkButton" href="#/signup">Get Started</a>
+            <a class="btn btnGhost" href="#/login">Login</a>
+            <button type="button" class="btn btnGhost sparkButton" data-scroll-target="opportunity-showcase">Explore Opportunities</button>
+          </div>
+          ${renderBubbleMenu(bubbleActions)}
+        </div>
+        ${renderReflectiveCards(heroCards)}
+      </section>
+
+      <section class="landingSection" id="how-it-works">
+        <div class="landingSectionHeading">
+          <h2>How Youth Digital Hub Works</h2>
+          <p>A guided path from first profile setup to successful applications.</p>
+        </div>
+        ${renderScrollStack(howItWorksSteps)}
+        <div style="margin-top:14px;">
+          ${renderStepper(gettingStartedSteps, 2, { className: "ydhStepper--compact" })}
+        </div>
+      </section>
+
+      <section class="landingSection" id="platform-features">
+        <div class="landingSectionHeading">
+          <h2>Platform Features</h2>
+          <p>Built to support students, graduates, employers, and SETA partners.</p>
+        </div>
+        ${renderAnimatedList(featureItems, { variant: "landing" })}
+      </section>
+
+      <section class="landingSection" id="opportunity-showcase">
+        <div class="landingSectionHeading">
+          <h2>Opportunity Showcase</h2>
+          <p>Explore bursaries, learnerships, and short courses in one place.</p>
+        </div>
+        ${renderTiltedCards(opportunityCards, { className: "ydhTiltGrid--opportunity" })}
+        <div class="ydhPartnerPanel">
+          <div class="landingSectionHeading" style="margin-top:16px;">
+            <h2 style="font-size:22px;">For Employers / SETAs</h2>
+            <p>Post opportunities, access verified talent, and track applicants.</p>
+          </div>
+          ${renderTiltedCards(partnerCards, { className: "ydhTiltGrid--partner", actionLabel: "Learn more", actionHref: "#/signup" })}
+        </div>
+      </section>
+
+      <section class="landingSection" id="doc-preview">
+        <div class="landingSectionHeading">
+          <h2>Document Management Preview</h2>
+          <p>Organise required files once and reuse them across applications.</p>
+        </div>
+        ${renderFolderPreview(folderItems, {
+          title: "How document management works",
+          description: "Required folders stay clearly organised for every opportunity.",
+          className: "ydhFolderPreview--landing"
+        })}
+      </section>
+
+      <section class="landingSection" id="verified-profile">
+        <div class="landingSectionHeading">
+          <h2>Verified Profile Preview</h2>
+          <p>Showcase your student identity with profile completeness and education context.</p>
+        </div>
+        ${renderLanyardCard({
+          name: "Thando Mkhize",
+          status: "Learner status: Verified",
+          province: "Province: KwaZulu-Natal",
+          educationLevel: "TVET N6"
+        })}
+      </section>
+
+      <section class="landingCta" id="start-now">
+        <h2>Start building your future today.</h2>
+        <p class="landingCtaMeta">Youth Digital Hub supports students, graduates, employers, and SETAs in one connected experience.</p>
+        <div class="landingCtaActions">
+          <a class="btn btnPrimary sparkButton" href="#/signup">Create Account</a>
+          <a class="btn btnGhost" href="#/login">Login</a>
+        </div>
+      </section>
+    </main>
+
+    ${renderDockNav(dockItems)}
+  </div>`);
+
+  initializeLandingInteractions(node);
   return node;
 }
 
-// Authentication page render + login/register form event wiring.
+// Authentication page render + login form event wiring.
 function pageLogin() {
-  const node = el(`<div class="grid" style="padding-inline:clamp(16px, 3vw, 40px); padding-block:24px;">
-    <div class="card">
-      <div class="cardHeader">
-        <h1 style="margin:0; font-size:24px;">National TVET & SETA Digital Access Platform</h1>
-        <p class="mutedText" style="margin:10px 0 0;">Mock login/register for demo.</p>
+  const user = currentUser();
+  if (user) {
+    if (user.role === "admin") navigate("/admin/dashboard");
+    else navigate("/student/dashboard");
+    return el(`<div class="content">Redirecting...</div>`);
+  }
+
+  const studentDemo = resolveDemoCredentialsByRole("student");
+  const adminDemo = resolveDemoCredentialsByRole("admin");
+
+  const node = el(`<div class="authPage">
+    <section class="authShell">
+      <div class="authIntro">
+        <a class="landingBrand" href="#/home">Youth Digital Hub</a>
+        <h1>Welcome back</h1>
+        <p>Log in to continue your journey.</p>
       </div>
-    </div>
 
-    <div class="card" style="margin-top:12px;">
-      <div class="tabs">
-        <div class="tab active" id="tabLogin">Login</div>
-        <div class="tab" id="tabRegister">Register</div>
-      </div>
-
-      <form id="form" style="margin-top:14px;">
-        <div class="field" id="fieldName" style="display:none;">
-          <label for="name"><b>Name *</b></label>
-          <input class="input" id="name" placeholder="Enter full name" />
-        </div>
-
-        <div class="field">
-          <label for="email"><b>Email *</b></label>
-          <input class="input" id="email" type="email" value="student@demo.co.za" />
-        </div>
-
-        <div class="field">
-          <label for="password"><b>Password *</b></label>
-          <input class="input" id="password" type="password" value="password123" />
-        </div>
-
-        <div class="field">
-          <label><b>Role *</b></label>
-          <div class="row">
-            <button type="button" class="tab active" id="roleStudent">Student</button>
-            <button type="button" class="tab" id="roleAdmin">Admin</button>
+      <div class="authCard">
+        <h2>Login</h2>
+        <p class="mutedText" style="margin:6px 0 0;">Your account type is resolved automatically and routed to the correct dashboard.</p>
+        <form id="loginForm" class="authForm">
+          <div class="field">
+            <label for="loginEmail"><b>Email</b></label>
+            <input class="input" id="loginEmail" type="email" placeholder="you@example.com" required />
           </div>
-        </div>
 
-        <div id="error" class="mutedText" style="margin-top:8px;"></div>
+          <div class="field">
+            <label for="loginPassword"><b>Password</b></label>
+            <input class="input" id="loginPassword" type="password" placeholder="Enter password" required />
+          </div>
 
-        <div style="margin-top:12px;">
-          <button class="btn btnPrimary" id="submitBtn" type="submit">Login</button>
-        </div>
-      </form>
-    </div>
+          <div id="loginError" class="mutedText" style="min-height:20px;"></div>
 
-    <div class="card" style="margin-top:12px;">
-      <b>Demo credentials</b>
-      <div style="margin-top:8px;">Student: student@demo.co.za / password123</div>
-      <div>Admin: admin@demo.co.za / password123</div>
-    </div>
+          <button class="btn btnPrimary" type="submit">Login</button>
+          <a class="btn btnGhost" href="#/signup">Create account</a>
+        </form>
+
+        <section class="authDemoCard" aria-label="Demo credentials">
+          <h3>Try the demo</h3>
+          <p class="authDemoSubtext">Explore the platform instantly with demo accounts.</p>
+          <div class="authDemoGrid">
+            <article class="authDemoItem">
+              <h4>Student Demo</h4>
+              <p><b>Email:</b> ${escapeHtml(studentDemo.email || "Not available")}</p>
+              <p><b>Password:</b> ${escapeHtml(studentDemo.password || "Not available")}</p>
+              <button type="button" class="btn btnGhost authDemoUseBtn" id="useStudentDemo">Use Student Demo</button>
+            </article>
+            <article class="authDemoItem">
+              <h4>Admin Demo</h4>
+              <p><b>Email:</b> ${escapeHtml(adminDemo.email || "Not available")}</p>
+              <p><b>Password:</b> ${escapeHtml(adminDemo.password || "Not available")}</p>
+              <button type="button" class="btn btnGhost authDemoUseBtn" id="useAdminDemo">Use Admin Demo</button>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
   </div>`);
 
-  let mode = "login";
-  let role = "student";
+  const form = node.querySelector("#loginForm");
+  const errorEl = node.querySelector("#loginError");
+  const loginEmailInput = node.querySelector("#loginEmail");
+  const loginPasswordInput = node.querySelector("#loginPassword");
 
-  const tabLogin = node.querySelector("#tabLogin");
-  const tabRegister = node.querySelector("#tabRegister");
-  const fieldName = node.querySelector("#fieldName");
-  const submitBtn = node.querySelector("#submitBtn");
-  const errorEl = node.querySelector("#error");
-  const roleStudent = node.querySelector("#roleStudent");
-  const roleAdmin = node.querySelector("#roleAdmin");
+  const applyDemoCredentials = (credentials, label) => {
+    if (!credentials.email || !credentials.password) {
+      errorEl.textContent = "Demo credentials are currently unavailable.";
+      return;
+    }
 
-  function setMode(nextMode) {
-    mode = nextMode;
-    tabLogin.classList.toggle("active", mode === "login");
-    tabRegister.classList.toggle("active", mode === "register");
-    fieldName.style.display = mode === "register" ? "" : "none";
-    submitBtn.textContent = mode === "login" ? "Login" : "Create account";
-    errorEl.textContent = "";
+    loginEmailInput.value = credentials.email;
+    loginPasswordInput.value = credentials.password;
+    errorEl.textContent = `${label} credentials loaded. Click Login to continue.`;
+  };
+
+  const useStudentDemoButton = node.querySelector("#useStudentDemo");
+  const useAdminDemoButton = node.querySelector("#useAdminDemo");
+
+  if (useStudentDemoButton) {
+    useStudentDemoButton.addEventListener("click", () => applyDemoCredentials(studentDemo, "Student demo"));
   }
 
-  function setRole(nextRole) {
-    role = nextRole;
-    roleStudent.classList.toggle("active", role === "student");
-    roleAdmin.classList.toggle("active", role === "admin");
+  if (useAdminDemoButton) {
+    useAdminDemoButton.addEventListener("click", () => applyDemoCredentials(adminDemo, "Admin demo"));
   }
 
-  tabLogin.onclick = () => setMode("login");
-  tabRegister.onclick = () => setMode("register");
-  roleStudent.onclick = () => setRole("student");
-  roleAdmin.onclick = () => setRole("admin");
-
-  node.querySelector("#form").onsubmit = (event) => {
+  form.addEventListener("submit", (event) => {
     event.preventDefault();
     errorEl.textContent = "";
 
-    const name = node.querySelector("#name").value || "";
-    const email = node.querySelector("#email").value || "";
-    const password = node.querySelector("#password").value || "";
+    const email = String(loginEmailInput?.value || "").trim();
+    const password = String(loginPasswordInput?.value || "");
 
-    const result = mode === "login" ? login(email, password, role) : register(name, email, password, role);
+    const result = login(email, password);
 
     if (!result.ok) {
       errorEl.textContent = result.error;
       return;
     }
 
-    if (result.user.role === "admin") navigate("/admin/corporate");
-    else navigate(result.user.profile ? "/student/dashboard" : "/student/onboarding");
-  };
+    if (result.user.role === "admin") navigate("/admin/dashboard");
+    else navigate("/student/dashboard");
+  });
 
   return node;
 }
 
+function pageSignup() {
+  const user = currentUser();
+  if (user) {
+    if (user.role === "admin") navigate("/admin/dashboard");
+    else navigate("/student/dashboard");
+    return el(`<div class="content">Redirecting...</div>`);
+  }
+
+  const signupSteps = ["Create account", "Complete profile (optional)", "Upload documents when ready", "Apply to opportunities"];
+
+  const node = el(`<div class="authPage">
+    <section class="authShell">
+      <div class="authIntro">
+        <a class="landingBrand" href="#/home">Youth Digital Hub</a>
+        <h1>Create your account</h1>
+        <p>Start exploring opportunities in minutes.</p>
+        <div style="margin-top:14px;">
+          ${renderStepper(signupSteps, 1, { className: "ydhStepper--compact" })}
+        </div>
+        <div class="authSignupTips" style="margin-top:14px;">
+          <div class="mutedText">Complete your profile for smarter recommendations</div>
+          <div class="mutedText">Upload documents when you're ready to apply</div>
+        </div>
+        <div class="authPreviewPanel" style="margin-top:14px;">
+          ${renderLanyardCard({
+            name: "Your Name",
+            status: "Learner status: Pending verification",
+            province: "Province: Optional during signup",
+            educationLevel: "Education level badge"
+          })}
+        </div>
+      </div>
+
+      <div class="authCard">
+        <h2>Sign Up</h2>
+        <form id="signupForm" class="authForm">
+          <div class="field">
+            <label for="signupName"><b>Full Name</b></label>
+            <input class="input" id="signupName" type="text" placeholder="Enter full name" required />
+          </div>
+
+          <div class="field">
+            <label for="signupEmail"><b>Email</b></label>
+            <input class="input" id="signupEmail" type="email" placeholder="you@example.com" required />
+          </div>
+
+          <div class="field">
+            <label for="signupPassword"><b>Password</b></label>
+            <input class="input" id="signupPassword" type="password" placeholder="Create password" required />
+          </div>
+
+          <div class="field">
+            <label for="signupProvince"><b>Province (optional)</b></label>
+            <select class="input select" id="signupProvince">
+              <option value="">Select province (optional)</option>
+              ${PROVINCES.map((province) => `<option value="${province}">${province}</option>`).join("")}
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="signupEducation"><b>Education Level (optional)</b></label>
+            <input class="input" id="signupEducation" type="text" placeholder="e.g. NCV Level 4" />
+          </div>
+
+          <div id="signupError" class="mutedText" style="min-height:20px;"></div>
+
+          <button class="btn btnPrimary" type="submit">Create Account</button>
+          <a class="btn btnGhost" href="#/login">Login</a>
+        </form>
+      </div>
+    </section>
+  </div>`);
+
+  const form = node.querySelector("#signupForm");
+  const errorEl = node.querySelector("#signupError");
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    errorEl.textContent = "";
+
+    const fullName = String(node.querySelector("#signupName")?.value || "").trim();
+    const email = String(node.querySelector("#signupEmail")?.value || "").trim();
+    const password = String(node.querySelector("#signupPassword")?.value || "");
+    const province = String(node.querySelector("#signupProvince")?.value || "").trim();
+    const educationLevel = String(node.querySelector("#signupEducation")?.value || "").trim();
+
+    const result = signupStudentAccount({
+      fullName,
+      email,
+      password,
+      province,
+      educationLevel
+    });
+
+    if (!result.ok) {
+      errorEl.textContent = result.error;
+      return;
+    }
+
+    navigate("/student/dashboard");
+  });
+
+  setupRevealAnimation(node, "[data-reveal='true']");
+  return node;
+}
+
 // Student onboarding form render and profile save event handling.
+
 function pageStudentOnboarding() {
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
@@ -3041,13 +4529,18 @@ function pageStudentOnboarding() {
     age: "",
     province: "",
     educationLevel: "",
-    interests: []
+    interests: [],
+    goals: ""
   };
 
   const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Learner Onboarding</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Capture learner profile to personalise opportunity discovery.</p>
+      <p class="mutedText" style="margin:8px 0 0;">Complete your profile for smarter recommendations. Upload documents when you're ready to apply.</p>
+    </div>
+
+    <div class="card onboardingFlowCard">
+      ${renderStepper(["Sign up", "Complete profile", "Upload documents when ready", "Apply to opportunities"], 2, { className: "ydhStepper--compact" })}
     </div>
 
     <div class="card">
@@ -3057,24 +4550,28 @@ function pageStudentOnboarding() {
           <input class="input" id="fullName" value="${escapeHtml(profile.fullName)}" required />
         </div>
         <div class="field">
-          <label><b>Age *</b></label>
-          <input class="input" id="age" value="${escapeHtml(profile.age)}" required />
+          <label><b>Age (optional)</b></label>
+          <input class="input" id="age" value="${escapeHtml(profile.age)}" placeholder="e.g. 21" />
         </div>
         <div class="field">
-          <label><b>Province *</b></label>
-          <select class="input select" id="province" required>
-            <option value="">Select province</option>
+          <label><b>Province (optional)</b></label>
+          <select class="input select" id="province">
+            <option value="">Select province (optional)</option>
             ${PROVINCES.map(
               (province) => `<option ${profile.province === province ? "selected" : ""} value="${province}">${province}</option>`
             ).join("")}
           </select>
         </div>
         <div class="field">
-          <label><b>Education level *</b></label>
-          <input class="input" id="education" value="${escapeHtml(profile.educationLevel)}" placeholder="e.g. Grade 12, NCV Level 4" required />
+          <label><b>Education level (optional)</b></label>
+          <input class="input" id="education" value="${escapeHtml(profile.educationLevel)}" placeholder="e.g. Grade 12, NCV Level 4" />
         </div>
         <div class="field">
-          <label><b>Career interests *</b></label>
+          <label><b>Career goals (optional)</b></label>
+          <textarea class="input" id="goals" rows="3" placeholder="Tell us what you want to achieve.">${escapeHtml(profile.goals || "")}</textarea>
+        </div>
+        <div class="field">
+          <label><b>Career interests (optional)</b></label>
           <div class="grid cols-2">
             ${INTERESTS.map((interest) => {
               const checked = profile.interests.includes(interest) ? "checked" : "";
@@ -3085,8 +4582,9 @@ function pageStudentOnboarding() {
           </div>
         </div>
         <div id="error" class="mutedText"></div>
-        <div style="margin-top:12px;">
+        <div style="margin-top:12px;" class="row">
           <button class="btn btnPrimary" type="submit">Save profile</button>
+          <a class="btn btnGhost" href="#/student/dashboard">Skip for now</a>
         </div>
       </form>
     </div>
@@ -3099,19 +4597,19 @@ function pageStudentOnboarding() {
     const age = node.querySelector("#age").value.trim();
     const province = node.querySelector("#province").value;
     const educationLevel = node.querySelector("#education").value.trim();
+    const goals = node.querySelector("#goals").value.trim();
     const interests = Array.from(node.querySelectorAll('input[type="checkbox"]:checked')).map((checkbox) => checkbox.value);
 
     const error = node.querySelector("#error");
     error.textContent = "";
 
-    if (!interests.length) {
-      error.textContent = "Select at least one interest to continue.";
+    if (!fullName) {
+      error.textContent = "Full name is required.";
       return;
     }
 
-    saveProfile({ fullName, age, province, educationLevel, interests });
-    render();
-    navigate("/student/bursaries");
+    saveProfile({ fullName, age, province, educationLevel, goals, interests });
+    navigate("/student/dashboard");
   };
 
   return shell("student", node);
@@ -3223,14 +4721,10 @@ function renderRequiredDocumentsChecklist(studentId, opportunityType, showManage
 function pageStudentListing(listingKey) {
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
-  if (!user.profile) {
-    navigate("/student/onboarding");
-    return el(`<div class="content">Redirecting...</div>`);
-  }
 
   const config = getStudentListingConfig(listingKey);
   const recommendedIds = recommendedIdsForStudent(user.id);
-  const scopedOpportunities = opportunities.filter((opportunity) =>
+  const scopedOpportunities = getOpportunityCatalogue().filter((opportunity) =>
     config.typeFilter.includes(opportunity.type)
   );
   const sectors = Array.from(
@@ -3449,6 +4943,9 @@ function pageStudentOpportunityDetails(id) {
   const backHref = routeForOpportunityType(opportunity.type);
   const recommended =
     user.profile && isOpportunityRecommended(opportunity, user.profile.interests || []);
+  const existingApplication = studentApplications(user.id).find((application) => application.opportunityId === opportunity.id) || null;
+  const lifecycle = getOpportunityLifecycleState(existingApplication);
+  const primaryAction = getOpportunityPrimaryAction(opportunity.id, existingApplication, true, lifecycle);
 
   const node = el(`<div class="grid">
     <div class="cardHeader">
@@ -3481,7 +4978,9 @@ function pageStudentOpportunityDetails(id) {
         <ul style="margin:8px 0 0 18px;">
           ${(Array.isArray(opportunity.requirements) && opportunity.requirements.length
             ? opportunity.requirements
-            : ["No requirements specified."]
+            : Array.isArray(opportunity.requiredDocuments) && opportunity.requiredDocuments.length
+              ? opportunity.requiredDocuments.map((document) => String(document) + " required")
+              : ["No requirements specified."]
           )
             .map((requirement) => `<li>${escapeHtml(requirement)}</li>`)
             .join("")}
@@ -3489,7 +4988,7 @@ function pageStudentOpportunityDetails(id) {
       </div>
 
       <div class="row" style="margin-top:14px;">
-        <a class="btn btnPrimary" href="#/student/apply/${opportunity.id}">Apply</a>
+        <a class="btn btnPrimary" href="${primaryAction.href}">${primaryAction.label}</a>
         <a class="btn btnGhost" href="#${backHref}">Back</a>
       </div>
     </div>
@@ -3557,6 +5056,15 @@ function pageStudentDocuments() {
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
   const documents = getStudentDocuments(user.id);
+  const checklist = getDocumentChecklist(user.id);
+  const proofOfAddressUploaded = Boolean(checklist.byCategory.find((item) => item.category === "Proof of Address")?.uploaded);
+  const cvUploaded = Boolean(checklist.byCategory.find((item) => item.category === "CV")?.uploaded);
+  const folderPreviewItems = [
+    { label: "ID Copy", hint: "Identity verification file", status: checklist.hasIdCopy ? "Ready" : "Missing" },
+    { label: "Academic Transcript", hint: "School or TVET academic evidence", status: checklist.hasAcademic ? "Ready" : "Missing" },
+    { label: "Proof of Address", hint: "Residence confirmation", status: proofOfAddressUploaded ? "Ready" : "Missing" },
+    { label: "CV", hint: "Career-ready learner profile", status: cvUploaded ? "Ready" : "Missing" }
+  ];
   const profile = getUserProfile(user) || {};
   const displayName = getUserDisplayName(user);
 
@@ -3572,6 +5080,14 @@ function pageStudentDocuments() {
         <div style="font-weight:800; font-size:18px; line-height:1.2;">${escapeHtml(displayName)}</div>
         <div class="mutedText" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(user.email || profile.email || "")}</div>
       </div>
+    </div>
+
+    <div class="card">
+      ${renderFolderPreview(folderPreviewItems, {
+        title: "Document vault",
+        description: "Folder layout for the files required across applications.",
+        className: "ydhFolderPreview--dashboard"
+      })}
     </div>
 
     ${renderChecklistTable(user.id)}
@@ -3708,22 +5224,48 @@ function pageStudentDocuments() {
     });
   });
 
+  setupRevealAnimation(node, ".ydhFolderPreview--dashboard [data-reveal=\"true\"]");
+
   return shell("student", node);
+}
+
+function pageStudentApplication(applicationId) {
+  const user = requireRole("student");
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  const application = studentApplications(user.id).find((entry) => entry.id === applicationId) || null;
+  if (!application) {
+    return shell(
+      "student",
+      el(`<div class="card">
+        <div><b>Application not found.</b></div>
+        <div class="mutedText" style="margin-top:8px;">This record may have been cleared after a demo data reset.</div>
+        <div class="row" style="margin-top:12px;">
+          <a class="btn btnPrimary" href="#/student/dashboard">Back to dashboard</a>
+        </div>
+      </div>`)
+    );
+  }
+
+  return pageStudentApply(application.opportunityId);
 }
 
 // Student application form page with checklist context and submit event handling.
 function pageStudentApply(courseId) {
+  try {
+
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
-  if (!user.profile) {
-    navigate("/student/onboarding");
-    return el(`<div class="content">Redirecting...</div>`);
-  }
 
-  const opportunity = getOpportunity(courseId);
-  if (!opportunity) return shell("student", el(`<div class="card">Opportunity not found.</div>`));
+const opportunity = getOpportunity(courseId);
+if (!opportunity) {
+  return shell(
+    "student",
+    el(`<div class="card"><div><b>Opportunity not found.</b></div><div class="mutedText" style="margin-top:8px;">The selected opportunity could not be loaded.</div><div class="row" style="margin-top:12px;"><a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a></div></div>`)
+  );
+}
 
-  let checklist = getDocumentChecklist(user.id, opportunity.type);
+let checklist = getDocumentChecklist(user.id, opportunity.type);
   let existingApplication = studentApplications(user.id).find((application) => application.opportunityId === opportunity.id) || null;
   let progressState = buildApplicationProgressState(user, opportunity, existingApplication);
 
@@ -3731,7 +5273,8 @@ function pageStudentApply(courseId) {
   let editorError = "";
   let editorNotice = "";
   let profileImpactNoticeVisible = false;
-  let profileDraft = createInlineProfileEditorDraft(getUserProfile(user) || {}, user);
+  // Root cause fix: apply page crashed because editorDraft was used before declaration (ReferenceError).
+  let editorDraft = createInlineProfileEditorDraft(getUserProfile(user) || {}, user);
   let focusTrapCleanup = () => {};
   let toastTimer = null;
   let toastHideTimer = null;
@@ -4062,6 +5605,11 @@ function pageStudentApply(courseId) {
   renderInlineEditor();
 
   return shell("student", node);
+  } catch (error) {
+    console.error("[pageStudentApply:error]", error);
+    console.error(error && error.stack ? error.stack : "");
+    return shell("student", el(`<div class="card"><div><b>Unable to load application form.</b></div><div class="mutedText" style="margin-top:8px;">Check console logs for details.</div><div class="row" style="margin-top:12px;"><a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a></div></div>`));
+  }
 }
 
 // Student dashboard page render: applications table, profile settings, and quick actions.
@@ -4183,13 +5731,34 @@ function pageStudentDashboard() {
 
   function getRecommendedForDashboard(studentId) {
     const recommendedIds = recommendedIdsForStudent(studentId);
-    let items = opportunities.filter((opportunity) => recommendedIds.has(opportunity.id)).slice(0, 4);
+    let items = getOpportunityCatalogue().filter((opportunity) => recommendedIds.has(opportunity.id)).slice(0, 4);
 
     if (!items.length) {
-      items = opportunities.slice(0, 4);
+      items = getOpportunityCatalogue().slice(0, 4);
     }
 
     return items;
+  }
+
+  function buildDashboardUpdateItems(liveUser, rows, recommendations) {
+    const checklist = getDocumentChecklist(liveUser.id);
+    const openApplications = rows.filter((row) => normalizeApplicationStatus(row.status, "draft") !== "rejected").length;
+    const submittedApplications = rows.filter((row) => Boolean(row.submittedAt)).length;
+    const topRecommendation = recommendations[0];
+
+    const updates = [
+      String(openApplications) + " active application" + (openApplications === 1 ? "" : "s") + " in your pipeline.",
+      checklist.complete
+        ? "Required documents are complete for most applications."
+        : "Complete your required documents to improve success rates.",
+      String(submittedApplications) + " application" + (submittedApplications === 1 ? "" : "s") + " already submitted.",
+      topRecommendation
+        ? "Top match right now: " + String(topRecommendation.title || "Recommended opportunity") + "."
+        : "New opportunities are available in your recommended categories.",
+      "Career guidance updates keep recommendations aligned to your goals."
+    ];
+
+    return updates;
   }
 
   function maybeScrollToDashboardView() {
@@ -4229,7 +5798,6 @@ function pageStudentDashboard() {
     const profileCompletedCount = profileChecks.filter(Boolean).length;
     const profileTotalCount = profileChecks.length;
     const profileCompleteness = profileTotalCount ? Math.round((profileCompletedCount / profileTotalCount) * 100) : 0;
-
     root.innerHTML = `
       <div class="card dashboardQuickHeader" id="dashboardHeroSection">
         <div class="row" style="justify-content:space-between; align-items:center; width:100%;">
@@ -4248,6 +5816,16 @@ function pageStudentDashboard() {
             <a class="btn btnPrimary" href="#/student/career-guidance">Career Guidance</a>
             <a class="btn btnGhost" href="#/student/bursaries">Browse Opportunities</a>
           </div>
+        </div>
+      </div>
+
+      <div class="card dashboardPromptCard" style="margin-top:12px;">
+        <div style="font-weight:700;">Profile momentum</div>
+        <div class="mutedText" style="margin-top:6px;">Complete your profile for smarter recommendations</div>
+        <div class="mutedText" style="margin-top:6px;">Upload documents when you&#39;re ready to apply</div>
+        <div class="row" style="margin-top:10px;">
+          <a class="btn btnGhost" href="#/student/onboarding">Complete profile</a>
+          <a class="btn btnGhost" href="#/student/documents">Manage documents</a>
         </div>
       </div>
 
@@ -4334,6 +5912,12 @@ function pageStudentDashboard() {
             ${renderRequiredDocumentsChecklist(liveUser.id, "", true)}
           </div>
 
+          <div class="card dashboardUpdatesCard" id="dashboardUpdatesSection">
+            <div class="dashboardSectionMeta">Recent updates</div>
+            <h3 class="dashboardSectionTitle" style="margin-top:6px;">Latest Opportunities / Updates</h3>
+            ${renderAnimatedList(buildDashboardUpdateItems(liveUser, rows, recommendations), { variant: "dashboard" })}
+          </div>
+
           <div class="card compactProfileCard" id="dashboardProfileSection">
             <div class="profileSummaryCard">
               ${renderUserAvatar(
@@ -4413,6 +5997,7 @@ function pageStudentDashboard() {
 
     const recommendedSet = recommendedIdsForStudent(liveUser.id);
     renderApplicationsSection(rows, recommendedSet);
+    setupRevealAnimation(root, "#dashboardUpdatesSection [data-reveal=\"true\"]");
 
     root.querySelectorAll("#applicationTabs button[data-tab]").forEach((tab) => {
       tab.addEventListener("click", () => {
@@ -5093,6 +6678,412 @@ function pageStudentCareerGuidance() {
   return shell("student", node);
 }
 
+function pageAdminOpportunities() {
+  const user = requireRole("admin");
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  let activeTab = "courses";
+  let editorOpen = false;
+  let editorError = "";
+  let editingOpportunityId = "";
+  let importNotice = "";
+  let importError = "";
+
+  const node = el(`<div class="grid">
+    <div class="cardHeader">
+      <h1 style="margin:0; font-size:24px;">Opportunity Management</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Create, edit, and bulk import courses, bursaries, and learnerships for students.</p>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700;">Opportunity library</div>
+          <div class="mutedText" style="font-size:12px; margin-top:4px;">Student pages use these records first. If empty, seeded demo opportunities are shown.</div>
+        </div>
+        <button type="button" class="btn btnPrimary" id="btnAddOpportunity">Add new</button>
+      </div>
+
+      <div class="tabs" id="adminOpportunityTabs" style="margin-top:12px;">
+        <button type="button" class="tab active" data-opp-tab="courses">Courses</button>
+        <button type="button" class="tab" data-opp-tab="bursaries">Bursaries</button>
+        <button type="button" class="tab" data-opp-tab="learnerships">Learnerships</button>
+      </div>
+
+      <div id="adminOpportunityListWrap" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;">Bulk import opportunities</div>
+      <div class="mutedText" style="font-size:12px; margin-top:4px;">Upload a <code>.json</code> file or paste a JSON array to import multiple opportunities.</div>
+      <div class="field" style="margin-top:10px;">
+        <label><b>Upload JSON file</b></label>
+        <input type="file" class="input" id="opportunityImportFile" accept=".json,application/json" />
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label><b>Paste JSON array</b></label>
+        <textarea id="opportunityImportText" class="input" rows="7" placeholder='[{"title":"Example","type":"Course","provider":"TVET","province":"Gauteng","sector":"IT","closingDate":"Rolling","tags":["IT"],"requiredDocuments":["ID Copy"]}]'></textarea>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button type="button" class="btn btnGhost" id="btnImportOpportunities">Import opportunities</button>
+      </div>
+      <div id="opportunityImportError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;"></div>
+      <div id="opportunityImportNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;"></div>
+    </div>
+
+    <div id="adminOpportunityEditorMount"></div>
+  </div>`);
+
+  function getTabLabel(bucket) {
+    if (bucket === "bursaries") return "Bursaries";
+    if (bucket === "learnerships") return "Learnerships";
+    return "Courses";
+  }
+
+  function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => reject(new Error("Unable to read file."));
+      reader.readAsText(file);
+    });
+  }
+
+  function getActiveTabOpportunities() {
+    const opportunityStore = ensureOpportunityStore();
+    const items = Array.isArray(opportunityStore[activeTab]) ? opportunityStore[activeTab] : [];
+    return [...items].sort((first, second) => {
+      const firstClosing = closingDateSortValue(first.closingDate);
+      const secondClosing = closingDateSortValue(second.closingDate);
+      if (firstClosing !== secondClosing) return firstClosing - secondClosing;
+      return String(first.title || "").localeCompare(String(second.title || ""));
+    });
+  }
+
+  function getEditingOpportunity() {
+    if (!editingOpportunityId) return null;
+    const opportunityStore = ensureOpportunityStore();
+    return flattenOpportunityStore(opportunityStore).find((item) => item.id === editingOpportunityId) || null;
+  }
+
+  function closeEditor() {
+    editorOpen = false;
+    editingOpportunityId = "";
+    editorError = "";
+    renderEditor();
+  }
+
+  function openEditor(opportunityId = "") {
+    editorOpen = true;
+    editingOpportunityId = opportunityId || "";
+    editorError = "";
+    renderEditor();
+  }
+
+  function renderList() {
+    const wrap = node.querySelector("#adminOpportunityListWrap");
+    if (!wrap) return;
+
+    const items = getActiveTabOpportunities();
+
+    if (!items.length) {
+      wrap.innerHTML = `<div class="mutedText">No ${escapeHtml(getTabLabel(activeTab).toLowerCase())} loaded yet.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = `<div style="overflow-x:auto;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Provider</th>
+            <th>Province</th>
+            <th>Sector</th>
+            <th>Closing</th>
+            <th>Tags</th>
+            <th>Required docs</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items
+            .map(
+              (item) => `<tr>
+                <td><b>${escapeHtml(item.title)}</b><div class="mutedText" style="font-size:12px; margin-top:4px;">${escapeHtml(item.type)}</div></td>
+                <td>${escapeHtml(item.provider || item.institution || "-")}</td>
+                <td>${escapeHtml(item.province || item.location || "-")}</td>
+                <td>${escapeHtml(item.sector || "-")}</td>
+                <td>${escapeHtml(formatDateLabel(item.closingDate))}</td>
+                <td>${escapeHtml((item.tags || []).join(", ") || "-")}</td>
+                <td>${escapeHtml((item.requiredDocuments || []).join(", ") || "-")}</td>
+                <td>
+                  <div class="row" style="gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn btnGhost" data-opp-edit="${item.id}" style="padding:6px 10px;">Edit</button>
+                    <button type="button" class="btn btnGhost" data-opp-delete="${item.id}" style="padding:6px 10px;">Delete</button>
+                  </div>
+                </td>
+              </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>`;
+
+    wrap.querySelectorAll("button[data-opp-edit]").forEach((button) => {
+      button.addEventListener("click", () => {
+        openEditor(button.getAttribute("data-opp-edit") || "");
+      });
+    });
+
+    wrap.querySelectorAll("button[data-opp-delete]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const opportunityId = button.getAttribute("data-opp-delete") || "";
+        if (!opportunityId) return;
+        if (!confirm("Delete this opportunity?")) return;
+        deleteOpportunityRecord(opportunityId);
+        renderList();
+      });
+    });
+  }
+
+  function renderEditor() {
+    const mount = node.querySelector("#adminOpportunityEditorMount");
+    if (!mount) return;
+
+    if (!editorOpen) {
+      mount.innerHTML = "";
+      return;
+    }
+
+    const editing = getEditingOpportunity();
+    const typeValue = editing?.type || defaultTypeForOpportunityBucket(activeTab);
+    const isRolling = String(editing?.closingDate || "Rolling") === "Rolling";
+    const selectedDocs = Array.isArray(editing?.requiredDocuments) ? editing.requiredDocuments : [];
+
+    mount.innerHTML = `<div id="adminOpportunityEditorOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1200; padding:16px; display:flex; align-items:flex-start; justify-content:center; overflow:auto;">
+      <section class="card" role="dialog" aria-modal="true" aria-labelledby="adminOpportunityEditorTitle" style="width:min(760px, 100%); margin:10px 0;">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h3 id="adminOpportunityEditorTitle" style="margin:0;">${editing ? "Edit opportunity" : "Add opportunity"}</h3>
+            <div class="mutedText" style="font-size:12px; margin-top:4px;">Manage ${escapeHtml(getTabLabel(activeTab).toLowerCase())} visibility for students.</div>
+          </div>
+          <button type="button" class="btn btnGhost" id="btnCloseOpportunityEditor">Close</button>
+        </div>
+
+        <form id="adminOpportunityForm" style="margin-top:12px;">
+          <div class="grid cols-2">
+            <div class="field">
+              <label><b>Title</b></label>
+              <input class="input" id="oppTitle" value="${escapeHtml(editing?.title || "")}" required />
+            </div>
+            <div class="field">
+              <label><b>Type</b></label>
+              <select class="input select" id="oppType">
+                ${OPPORTUNITY_TYPES.map((type) => `<option value="${type}" ${typeValue === type ? "selected" : ""}>${type}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid cols-2">
+            <div class="field">
+              <label><b>Provider</b></label>
+              <input class="input" id="oppProvider" value="${escapeHtml(editing?.provider || editing?.institution || "")}" />
+            </div>
+            <div class="field">
+              <label><b>Province</b></label>
+              <select class="input select" id="oppProvince">
+                <option value="National">National</option>
+                ${PROVINCES.map((province) => `<option value="${province}" ${(editing?.province || editing?.location || "National") === province ? "selected" : ""}>${province}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid cols-2">
+            <div class="field">
+              <label><b>Sector</b></label>
+              <input class="input" id="oppSector" value="${escapeHtml(editing?.sector || "")}" />
+            </div>
+            <div class="field">
+              <label><b>Closing date</b></label>
+              <input class="input" id="oppClosingDate" type="date" value="${!isRolling ? escapeHtml(editing?.closingDate || "") : ""}" ${isRolling ? "disabled" : ""} />
+              <label style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="oppClosingRolling" ${isRolling ? "checked" : ""} /> Rolling
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label><b>Tags (comma separated)</b></label>
+            <input class="input" id="oppTags" value="${escapeHtml((editing?.tags || []).join(", "))}" />
+          </div>
+
+          <div class="field">
+            <label><b>Required documents</b></label>
+            <div class="grid cols-2" style="gap:8px;">
+              ${OPPORTUNITY_REQUIRED_DOCUMENT_OPTIONS.map((doc) => `<label class="card" style="padding:8px; display:flex; align-items:center; gap:8px;"><input type="checkbox" data-opp-required-doc="${doc}" ${selectedDocs.includes(doc) ? "checked" : ""} /> ${doc}</label>`).join("")}
+            </div>
+          </div>
+
+          <div id="oppEditorError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(editorError)}</div>
+
+          <div class="row" style="margin-top:12px; justify-content:flex-end;">
+            <button type="button" class="btn btnGhost" id="btnCancelOpportunityEditor">Cancel</button>
+            <button type="submit" class="btn btnPrimary">${editing ? "Save changes" : "Create opportunity"}</button>
+          </div>
+        </form>
+      </section>
+    </div>`;
+
+    const overlay = mount.querySelector("#adminOpportunityEditorOverlay");
+    const closeButton = mount.querySelector("#btnCloseOpportunityEditor");
+    const cancelButton = mount.querySelector("#btnCancelOpportunityEditor");
+    const form = mount.querySelector("#adminOpportunityForm");
+    const rollingCheckbox = mount.querySelector("#oppClosingRolling");
+    const closingInput = mount.querySelector("#oppClosingDate");
+
+    if (overlay) {
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) closeEditor();
+      });
+    }
+
+    if (closeButton) closeButton.addEventListener("click", closeEditor);
+    if (cancelButton) cancelButton.addEventListener("click", closeEditor);
+
+    if (rollingCheckbox && closingInput) {
+      rollingCheckbox.addEventListener("change", () => {
+        closingInput.disabled = rollingCheckbox.checked;
+        if (rollingCheckbox.checked) closingInput.value = "";
+      });
+    }
+
+    if (form) {
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const requiredDocuments = Array.from(form.querySelectorAll("input[data-opp-required-doc]:checked")).map((input) => input.getAttribute("data-opp-required-doc"));
+        const closingDate = rollingCheckbox && rollingCheckbox.checked ? "Rolling" : String(closingInput?.value || "").trim();
+
+        const payload = {
+          id: editing?.id || uid("opp"),
+          title: String(form.querySelector("#oppTitle")?.value || "").trim(),
+          type: String(form.querySelector("#oppType")?.value || "").trim(),
+          provider: String(form.querySelector("#oppProvider")?.value || "").trim(),
+          province: String(form.querySelector("#oppProvince")?.value || "").trim(),
+          sector: String(form.querySelector("#oppSector")?.value || "").trim(),
+          closingDate,
+          tags: String(form.querySelector("#oppTags")?.value || ""),
+          requiredDocuments
+        };
+
+        if (!payload.title) {
+          editorError = "Title is required.";
+          renderEditor();
+          return;
+        }
+
+        if (!payload.closingDate) {
+          editorError = "Provide a closing date or select Rolling.";
+          renderEditor();
+          return;
+        }
+
+        const result = upsertOpportunityRecord(payload);
+        if (!result.ok) {
+          editorError = result.error || "Unable to save opportunity.";
+          renderEditor();
+          return;
+        }
+
+        importError = "";
+        importNotice = result.updated ? "Opportunity updated." : "Opportunity created.";
+        editorOpen = false;
+        editingOpportunityId = "";
+        editorError = "";
+        renderImportMessages();
+        renderEditor();
+        renderList();
+      });
+    }
+  }
+
+  function renderImportMessages() {
+    const notice = node.querySelector("#opportunityImportNotice");
+    const error = node.querySelector("#opportunityImportError");
+    if (notice) notice.textContent = importNotice;
+    if (error) error.textContent = importError;
+  }
+
+  async function handleImport() {
+    importNotice = "";
+    importError = "";
+
+    const fileInput = node.querySelector("#opportunityImportFile");
+    const file = fileInput?.files && fileInput.files[0];
+    const textArea = node.querySelector("#opportunityImportText");
+    let rawText = String(textArea?.value || "").trim();
+
+    if (!rawText && file) {
+      try {
+        rawText = String(await readFileAsText(file)).trim();
+      } catch {
+        importError = "Could not read selected file.";
+        renderImportMessages();
+        return;
+      }
+    }
+
+    if (!rawText) {
+      importError = "Upload a JSON file or paste a JSON array first.";
+      renderImportMessages();
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      importError = "Invalid JSON format.";
+      renderImportMessages();
+      return;
+    }
+
+    const result = importOpportunitiesFromArray(parsed);
+    if (!result.ok) {
+      importError = result.error || "Import failed.";
+      renderImportMessages();
+      return;
+    }
+
+    importNotice = `Import complete: ${result.inserted} added, ${result.updated} updated, ${result.skipped} skipped.`;
+    importError = "";
+    renderImportMessages();
+    renderList();
+  }
+
+  node.querySelector("#btnAddOpportunity")?.addEventListener("click", () => {
+    openEditor("");
+  });
+
+  node.querySelectorAll("#adminOpportunityTabs button[data-opp-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeTab = button.getAttribute("data-opp-tab") || "courses";
+      node.querySelectorAll("#adminOpportunityTabs button[data-opp-tab]").forEach((tab) => {
+        tab.classList.toggle("active", tab === button);
+      });
+      renderList();
+    });
+  });
+
+  node.querySelector("#btnImportOpportunities")?.addEventListener("click", handleImport);
+
+  renderImportMessages();
+  renderList();
+  renderEditor();
+
+  return shell("admin", node);
+}
+
 // Admin corporate overview page render (portfolio metrics and summary tiles).
 function pageAdminCorporate() {
   const user = requireRole("admin");
@@ -5287,7 +7278,7 @@ function renderApplicantDetailDrawer(options = {}) {
     `<button type="button" class="tab adminDrawerActionBtn ${active ? "active" : ""}" data-drawer-tag-appid="${row.application.id}" data-drawer-tag-key="${key}" data-drawer-tag-active="${active ? "1" : "0"}">${label}</button>`;
 
   return `<div class="adminApplicantDrawerOverlay open" id="applicantDrawerOverlay" aria-hidden="false">
-    <section class="adminApplicantDrawerPanel" id="applicantDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="applicantDrawerTitle" tabindex="-1" data-applicant-id="${escapeHtml(applicantId)}">
+    <section class="adminApplicantDrawerPanel application-view" id="applicantDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="applicantDrawerTitle" tabindex="-1" data-page="application-view" data-applicant-id="${escapeHtml(applicantId)}">
       <header class="adminApplicantDrawerHeader">
         <div class="adminApplicantHeaderIdentity">
           ${renderUserAvatar(row.student, "avatarMd")}
@@ -5313,10 +7304,7 @@ function renderApplicantDetailDrawer(options = {}) {
             <div><span>Interests</span><b>${escapeHtml(interests)}</b></div>
           </div>
           <div class="adminApplicantScoreRow">
-            <div>
-              <div class="mutedText" style="font-size:12px;">AI score</div>
-              <div class="adminApplicantScoreValue">${row.score.score}</div>
-            </div>
+            <div class="adminApplicantScoreLead">AI score: <b>${row.score.score}</b></div>
             <ul class="adminApplicantInsightList">
               ${row.score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
             </ul>
@@ -5357,7 +7345,7 @@ function renderApplicantDetailDrawer(options = {}) {
           </div>
           <div class="adminApplicantNotes">
             <label class="adminApplicantNotesLabel" for="drawerNotesField"><b>Notes</b></label>
-            <textarea id="drawerNotesField" class="adminApplicantNotesField" rows="4" placeholder="Add internal notes for this application...">${escapeHtml(row.eligibility.reasons[0] || "")}</textarea>
+            <textarea id="drawerNotesField" class="adminApplicantNotesField" rows="4" placeholder="Add internal notes for this applicant...">${escapeHtml(row.eligibility.reasons[0] || "")}</textarea>
           </div>
         </section>
 
@@ -5775,7 +7763,7 @@ function pageAdminBursaries() {
                 const tagButton = (key, label, active) =>
                   `<button type="button" class="tab ${active ? "active" : ""}" data-tag-appid="${appId}" data-tag-key="${key}" data-tag-active="${active ? "1" : "0"}">${label}</button>`;
 
-                return `<tr class="adminApplicantRowClickable" tabindex="0" data-view-appid="${appId}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
+                return `<tr class="adminApplicantRowClickable" tabindex="0" role="button" aria-haspopup="dialog" data-view-appid="${appId}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
                   <td>
                     <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
                       ${renderUserAvatar(row.student, "avatarSm")}
@@ -5785,9 +7773,6 @@ function pageAdminBursaries() {
                       </div>
                     </div>
                     <div style="margin-top:6px; font-size:12px;">${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</div>
-                    <div class="row" style="margin-top:8px;">
-                      <button type="button" class="btn btnGhost adminApplicantViewBtn" data-view-appid="${appId}">View applicant</button>
-                    </div>
                   </td>
                   <td><span class="badge ${row.opportunityType === "Bursary" ? "badgePurple" : row.opportunityType === "Course" ? "badgeBlue" : "badgeBlue"}">${escapeHtml(row.opportunityType)}</span></td>
                   <td>
@@ -5831,7 +7816,8 @@ function pageAdminBursaries() {
     `;
 
     wrap.querySelectorAll("button[data-tag-appid]").forEach((button) => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
         const appId = button.getAttribute("data-tag-appid");
         const key = button.getAttribute("data-tag-key");
         const active = button.getAttribute("data-tag-active") === "1";
@@ -5842,18 +7828,14 @@ function pageAdminBursaries() {
     });
 
     wrap.querySelectorAll("select[data-status-appid]").forEach((select) => {
+      select.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
       select.addEventListener("change", () => {
         const appId = select.getAttribute("data-status-appid");
         updateStatus(appId, select.value);
         renderCandidateTable();
         renderApplicantDrawer();
-      });
-    });
-
-    wrap.querySelectorAll("button[data-view-appid]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        openApplicantDrawer(button.getAttribute("data-view-appid"));
       });
     });
 
@@ -6094,8 +8076,6 @@ function pageAdminTalent() {
   const user = requireRole("admin");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
-  const allRows = buildApplicationRows();
-
   const node = el(`<div class="grid">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Talent Pipeline & Workforce Planning</h1>
@@ -6122,11 +8102,45 @@ function pageAdminTalent() {
       <div style="font-weight:700;">Graduate Availability Forecast</div>
       <div id="forecastWrap" class="grid cols-3" style="margin-top:10px;"></div>
     </div>
+
+    <div id="talentApplicantDrawerMount"></div>
   </div>`);
+
+  let drawerOpen = false;
+  let drawerApplicationId = "";
+  let drawerFocusCleanup = () => {};
+  let drawerPageScrollY = 0;
+  let drawerBodyOverflowBefore = "";
+  let drawerBodyLocked = false;
+
+  function clearDrawerFocusTrap() {
+    if (typeof drawerFocusCleanup === "function") {
+      drawerFocusCleanup();
+    }
+    drawerFocusCleanup = () => {};
+  }
+
+  function lockDrawerBackgroundScroll() {
+    if (drawerBodyLocked) return;
+    drawerPageScrollY = window.scrollY;
+    drawerBodyOverflowBefore = document.body.style.overflow || "";
+    document.body.style.overflow = "hidden";
+    drawerBodyLocked = true;
+  }
+
+  function unlockDrawerBackgroundScroll() {
+    if (!drawerBodyLocked) return;
+    document.body.style.overflow = drawerBodyOverflowBefore;
+    drawerBodyLocked = false;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: drawerPageScrollY, behavior: "auto" });
+    });
+  }
 
   function getFilteredTalentRows() {
     const query = (node.querySelector("#talentQuery").value || "").trim().toLowerCase();
     const provinceFilter = node.querySelector("#talentProvince").value;
+    const allRows = buildApplicationRows();
 
     return allRows.filter((row) => {
       const profile = row.student?.profile;
@@ -6135,6 +8149,166 @@ function pageAdminTalent() {
       const matchesProvince = !provinceFilter || (profile?.province || "") === provinceFilter;
       return matchesQuery && matchesProvince;
     });
+  }
+
+  function getTalentDrawerContext(applicationId) {
+    if (!applicationId) return null;
+    const row = buildApplicationRows("all").find((entry) => entry.application.id === applicationId) || null;
+    if (!row) return null;
+
+    const profile = getUserProfile(row.student) || {};
+    const documents = getStudentDocuments(row.application.studentId);
+    const documentRows = getApplicantDocumentRows(row.opportunityType, documents);
+
+    return {
+      row,
+      profile,
+      documents,
+      documentRows
+    };
+  }
+
+  function triggerDrawerDocumentDownload(docMeta) {
+    if (!docMeta) return;
+
+    const filename = String(docMeta.filename || `${docMeta.category || "document"}.txt`);
+
+    if (docMeta.previewDataUrl) {
+      const anchor = document.createElement("a");
+      anchor.href = docMeta.previewDataUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      return;
+    }
+
+    const fallbackContent = [
+      `Demo document placeholder for ${filename}`,
+      `Category: ${docMeta.category || "Unknown"}`,
+      `Uploaded: ${formatDate(docMeta.uploadedAt || new Date().toISOString())}`,
+      "Original binary file is not stored in this demo build."
+    ].join("\n");
+
+    const blob = new Blob([fallbackContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${filename.replace(/\.[^.]+$/, "") || "document"}-metadata.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
+  function openDrawerDocumentPreview(docMeta) {
+    if (!docMeta) return;
+
+    if (docMeta.previewDataUrl) {
+      window.open(docMeta.previewDataUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    triggerDrawerDocumentDownload(docMeta);
+  }
+
+  function closeApplicantDrawer() {
+    drawerOpen = false;
+    drawerApplicationId = "";
+    unlockDrawerBackgroundScroll();
+    renderApplicantDrawer();
+  }
+
+  function openApplicantDrawer(applicationId) {
+    if (!applicationId) return;
+    drawerOpen = true;
+    drawerApplicationId = applicationId;
+    lockDrawerBackgroundScroll();
+    renderApplicantDrawer();
+  }
+
+  function renderApplicantDrawer() {
+    const mount = node.querySelector("#talentApplicantDrawerMount");
+    if (!mount) return;
+
+    clearDrawerFocusTrap();
+
+    const context = drawerOpen ? getTalentDrawerContext(drawerApplicationId) : null;
+    const canRender = drawerOpen && Boolean(context);
+
+    if (drawerOpen && !context) {
+      drawerOpen = false;
+      drawerApplicationId = "";
+      unlockDrawerBackgroundScroll();
+    }
+
+    mount.innerHTML = renderApplicantDetailDrawer({
+      open: canRender,
+      applicantId: drawerApplicationId,
+      context
+    });
+
+    if (!canRender) return;
+
+    const overlay = mount.querySelector("#applicantDrawerOverlay");
+    const panel = mount.querySelector("#applicantDrawerPanel");
+    const closeButton = mount.querySelector("#closeApplicantDrawerBtn");
+
+    if (overlay) {
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) closeApplicantDrawer();
+      });
+    }
+
+    if (closeButton) {
+      closeButton.addEventListener("click", closeApplicantDrawer);
+    }
+
+    mount.querySelectorAll("[data-close-applicant-drawer]").forEach((button) => {
+      button.addEventListener("click", closeApplicantDrawer);
+    });
+
+    mount.querySelectorAll("button[data-drawer-doc-preview]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const documentId = button.getAttribute("data-drawer-doc-preview");
+        const docMeta = context.documents.find((item) => item.id === documentId);
+        openDrawerDocumentPreview(docMeta);
+      });
+    });
+
+    mount.querySelectorAll("button[data-drawer-doc-download]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const documentId = button.getAttribute("data-drawer-doc-download");
+        const docMeta = context.documents.find((item) => item.id === documentId);
+        triggerDrawerDocumentDownload(docMeta);
+      });
+    });
+
+    mount.querySelectorAll("button[data-drawer-tag-appid]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const appId = button.getAttribute("data-drawer-tag-appid");
+        const key = button.getAttribute("data-drawer-tag-key");
+        const active = button.getAttribute("data-drawer-tag-active") === "1";
+        updateApplicationMeta(appId, { [key]: !active });
+        renderTalentTable();
+        renderPlacementTracker();
+        renderForecast();
+        renderApplicantDrawer();
+      });
+    });
+
+    mount.querySelectorAll("select[data-drawer-status-appid]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const appId = select.getAttribute("data-drawer-status-appid");
+        updateStatus(appId, select.value);
+        renderTalentTable();
+        renderPlacementTracker();
+        renderForecast();
+        renderApplicantDrawer();
+      });
+    });
+
+    drawerFocusCleanup = activateDialogFocusTrap(panel, closeApplicantDrawer, closeButton || panel);
   }
 
   function renderTalentTable() {
@@ -6159,7 +8333,7 @@ function pageAdminTalent() {
         <tbody>
           ${filteredRows
             .map(
-              (row) => `<tr>
+              (row) => `<tr class="adminApplicantRowClickable" tabindex="0" role="button" aria-haspopup="dialog" data-view-appid="${row.application.id}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
             <td>
               <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
                 ${renderUserAvatar(row.student, "avatarSm")}
@@ -6181,6 +8355,19 @@ function pageAdminTalent() {
         </tbody>
       </table>
     </div>`;
+
+    wrap.querySelectorAll("tr.adminApplicantRowClickable").forEach((rowElement) => {
+      rowElement.addEventListener("click", (event) => {
+        if (event.target.closest("button, a, select, input, label")) return;
+        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
+      });
+
+      rowElement.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
+      });
+    });
   }
 
   function renderPlacementTracker() {
@@ -6276,17 +8463,26 @@ function pageAdminTalent() {
     `;
   }
 
-  node.querySelector("#talentQuery").addEventListener("input", renderTalentTable);
-  node.querySelector("#talentProvince").addEventListener("change", renderTalentTable);
+  node.querySelector("#talentQuery").addEventListener("input", () => {
+    renderTalentTable();
+    renderApplicantDrawer();
+  });
+
+  node.querySelector("#talentProvince").addEventListener("change", () => {
+    renderTalentTable();
+    renderApplicantDrawer();
+  });
 
   renderTalentTable();
   renderPlacementTracker();
   renderForecast();
+  renderApplicantDrawer();
 
   return shell("admin", node);
 }
 
 // Admin analytics page render for high-level labour-intelligence summaries.
+
 function pageAdminAnalytics() {
   const user = requireRole("admin");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
@@ -6373,115 +8569,154 @@ function pageAdminAnalytics() {
 
 /** ---------- Router ---------- **/
 // Hash-route dispatcher: maps URL fragments to page render functions with role guards.
-function render() {
-  const user = currentUser();
+function render() {  const user = currentUser();
+  const resolvedRoute = route || "/";
 
-  if (route === "/") {
-    mount(pageHome());
-    return;
+  if (DEBUG) {
+    console.log("[route]", location.hash, resolvedRoute);
   }
 
-  if (route === "/login") {
-    mount(pageLogin());
-    return;
-  }
+  try {
+    if (resolvedRoute === "/") {
+      navigate("/home");
+      return;
+    }
 
-  if (route === "/student/onboarding") {
-    mount(pageStudentOnboarding());
-    return;
-  }
+    if (resolvedRoute === "/home") {
+      mount(pageHome());
+      return;
+    }
 
-  if (route === "/student/dashboard") {
-    mount(pageStudentDashboard());
-    return;
-  }
+    if (resolvedRoute === "/login") {
+      mount(pageLogin());
+      return;
+    }
 
-  if (route === "/student/career-guidance") {
-    mount(pageStudentCareerGuidance());
-    return;
-  }
+    if (resolvedRoute === "/signup") {
+      mount(pageSignup());
+      return;
+    }
 
-  if (route === "/student/documents") {
-    mount(pageStudentDocuments());
-    return;
-  }
+    if (resolvedRoute === "/student/onboarding") {
+      mount(pageStudentOnboarding());
+      return;
+    }
 
-  if (route === "/student/bursaries") {
-    mount(pageStudentBursaries());
-    return;
-  }
+    if (resolvedRoute === "/student/dashboard") {
+      mount(pageStudentDashboard());
+      return;
+    }
 
-  if (route === "/student/learnerships") {
-    mount(pageStudentLearnerships());
-    return;
-  }
+    if (resolvedRoute === "/student/career-guidance") {
+      mount(pageStudentCareerGuidance());
+      return;
+    }
 
-  if (route === "/student/courses") {
-    mount(pageStudentCourses());
-    return;
-  }
+    if (resolvedRoute === "/student/documents") {
+      mount(pageStudentDocuments());
+      return;
+    }
 
-  if (route.startsWith("/student/opportunity/")) {
-    mount(pageStudentOpportunityDetails(route.split("/")[3]));
-    return;
-  }
+    if (resolvedRoute === "/student/bursaries") {
+      mount(pageStudentBursaries());
+      return;
+    }
 
-  if (route.startsWith("/student/apply/")) {
-    mount(pageStudentApply(route.split("/")[3]));
-    return;
-  }
+    if (resolvedRoute === "/student/learnerships") {
+      mount(pageStudentLearnerships());
+      return;
+    }
 
-  if (route === "/student/opportunities") {
-    navigate("/student/courses");
-    return;
-  }
+    if (resolvedRoute === "/student/courses") {
+      mount(pageStudentCourses());
+      return;
+    }
 
-  if (route.startsWith("/student/opportunities/")) {
-    const opportunityId = route.split("/")[3];
-    navigate(`/student/opportunity/${opportunityId}`);
-    return;
-  }
+    if (resolvedRoute.startsWith("/student/opportunity/")) {
+      mount(pageStudentOpportunityDetails(resolvedRoute.split("/")[3]));
+      return;
+    }
 
-  if (route === "/admin") {
-    navigate("/admin/corporate");
-    return;
-  }
+    if (resolvedRoute.startsWith("/student/application/")) {
+      mount(pageStudentApplication(resolvedRoute.split("/")[3]));
+      return;
+    }
 
-  if (route === "/admin/corporate") {
-    mount(pageAdminCorporate());
-    return;
-  }
+    if (resolvedRoute.startsWith("/student/apply/")) {
+      mount(pageStudentApply(resolvedRoute.split("/")[3]));
+      return;
+    }
 
-  if (route === "/admin/bursaries") {
-    mount(pageAdminBursaries());
-    return;
-  }
+    if (resolvedRoute === "/student/opportunities") {
+      navigate("/student/courses");
+      return;
+    }
 
-  if (route === "/admin/lifecycle") {
-    mount(pageAdminLifecycle());
-    return;
-  }
+    if (resolvedRoute.startsWith("/student/opportunities/")) {
+      const opportunityId = resolvedRoute.split("/")[3];
+      navigate(`/student/opportunity/${opportunityId}`);
+      return;
+    }
 
-  if (route === "/admin/talent") {
-    mount(pageAdminTalent());
-    return;
-  }
+    if (resolvedRoute === "/admin") {
+      navigate("/admin/dashboard");
+      return;
+    }
 
-  if (route === "/admin/analytics") {
-    mount(pageAdminAnalytics());
-    return;
-  }
+    if (resolvedRoute === "/admin/dashboard") {
+      mount(pageAdminCorporate());
+      return;
+    }
 
-  if (user) {
-    if (user.role === "admin") navigate("/admin/corporate");
-    else navigate(user.profile ? "/student/dashboard" : "/student/onboarding");
-    return;
-  }
+    if (resolvedRoute === "/admin/corporate") {
+      mount(pageAdminCorporate());
+      return;
+    }
 
-  navigate("/");
+    if (resolvedRoute === "/admin/opportunities") {
+      mount(pageAdminOpportunities());
+      return;
+    }
+
+    if (resolvedRoute === "/admin/bursaries") {
+      mount(pageAdminBursaries());
+      return;
+    }
+
+    if (resolvedRoute === "/admin/lifecycle") {
+      mount(pageAdminLifecycle());
+      return;
+    }
+
+    if (resolvedRoute === "/admin/talent") {
+      mount(pageAdminTalent());
+      return;
+    }
+
+    if (resolvedRoute === "/admin/analytics") {
+      mount(pageAdminAnalytics());
+      return;
+    }
+
+    if (user) {
+      if (user.role === "admin") navigate("/admin/dashboard");
+      else navigate("/student/dashboard");
+      return;
+    }
+
+    navigate("/home");
+  } catch (error) {
+    console.error("[render:error]", error);
+    console.error(error && error.stack ? error.stack : "");
+    console.error("[render:context]", { hash: location.hash, resolvedRoute });
+    mount(
+      el(`<div class="grid"><div class="card"><div style="font-weight:700;">Something went wrong.</div><div class="mutedText" style="margin-top:8px;">Check console logs for route debug details.</div></div></div>`)
+    );
+  }
 }
 
 /** ---------- Utilities ---------- **/
+
 // Shared formatting/escaping/export helpers used across student and admin page templates.
 function escapeHtml(value) {
   return String(value ?? "")
