@@ -1,2484 +1,454 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Youth Digital Hub MVP</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Ishungu Hair is a luxury hair and beauty brand offering premium wigs, elegant beauty services, and confidence-led experiences."
+  />
+  <title>Ishungu Hair | Luxury Hair & Beauty</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Root mount container for the single-page hash-routed interface -->
-  <div id="root"></div>
-  <!-- Main application logic, rendering, events, and hash router -->
-  <script src="functionality.js"></script>
-</body>
-</html>
-      --mobile-nav-height: 76px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      margin: 0;
-      min-height: 100%;
-      font-family: "Nunito Sans", "Avenir Next", "Segoe UI", sans-serif;
-      background: var(--smoky-white);
-      color: var(--text);
-    }
-
-    body {
-      min-height: 100vh;
-      line-height: 1.5;
-      position: relative;
-      overflow-x: hidden;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      inset: auto;
-      width: 34rem;
-      height: 34rem;
-      border-radius: 999px;
-      filter: blur(12px);
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.55;
-    }
-
-    body::before {
-      top: -10rem;
-      left: -8rem;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(217, 184, 243, 0.88), transparent 56%),
-        radial-gradient(circle at 70% 50%, rgba(69, 88, 200, 0.2), transparent 58%);
-    }
-
-    body::after {
-      right: -12rem;
-      bottom: -10rem;
-      background:
-        radial-gradient(circle at 45% 40%, rgba(223, 227, 125, 0.8), transparent 54%),
-        radial-gradient(circle at 65% 62%, rgba(69, 88, 200, 0.18), transparent 58%);
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    button,
-    input,
-    select,
-    textarea {
-      font: inherit;
-    }
-
-    #root {
-      min-height: 100vh;
-      position: relative;
-      z-index: 1;
-    }
-
-    .app,
-    .appShell {
-      min-height: 100vh;
-      width: 100%;
-      display: grid;
-      grid-template-columns: clamp(280px, 22vw, 320px) minmax(0, 1fr);
-      gap: clamp(16px, 2vw, 24px);
-      padding: var(--shell-vpad) var(--shell-gutter) calc(var(--shell-vpad) + 8px);
-      align-items: start;
-      max-width: none;
-      margin: 0;
-    }
-
-    .sidebar {
-      background: linear-gradient(180deg, rgba(35, 38, 44, 0.96), rgba(35, 38, 44, 0.9));
-      color: rgba(255, 255, 255, 0.9);
-      border-radius: var(--radius-xl);
-      padding: 24px 18px 20px;
-      box-shadow: 0 14px 30px rgba(20, 22, 26, 0.18);
-      position: sticky;
-      top: var(--shell-vpad);
-      min-height: calc(100vh - (var(--shell-vpad) * 2));
-      width: 100%;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .sidebar::before,
-    .sidebar::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      pointer-events: none;
-      opacity: 0.12;
-    }
-
-    .sidebar::before {
-      width: 11rem;
-      height: 11rem;
-      top: -4rem;
-      right: -4rem;
-      background: radial-gradient(circle, rgba(217, 184, 243, 0.7), transparent 68%);
-    }
-
-    .sidebar::after {
-      width: 8rem;
-      height: 8rem;
-      bottom: -2rem;
-      left: -2rem;
-      background: radial-gradient(circle, rgba(223, 227, 125, 0.52), transparent 70%);
-    }
-
-    .sidebar .tab {
-      width: 100%;
-      justify-content: flex-start;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      color: rgba(255, 255, 255, 0.74);
-      padding: 13px 16px;
-      border-radius: 999px;
-      backdrop-filter: blur(8px);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
-
-    .sidebar .tab.active {
-      background: rgba(69, 88, 200, 0.3);
-      color: rgba(255, 255, 255, 0.95);
-      border-color: rgba(142, 156, 255, 0.35);
-      box-shadow: 0 8px 16px rgba(30, 36, 78, 0.2);
-    }
-
-    .sidebar .tab:hover {
-      color: rgba(255, 255, 255, 0.92);
-      transform: translateX(1px);
-      box-shadow: 0 6px 14px rgba(69, 88, 200, 0.1);
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-      background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78)),
-        linear-gradient(120deg, rgba(217, 184, 243, 0.16), rgba(223, 227, 125, 0.12));
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.78);
-      border-radius: var(--radius-lg);
-      padding: 20px 24px;
-      box-shadow: var(--shadow-soft);
-      margin-bottom: 26px;
-    }
-
-    .mobileTopHeader {
-      display: none;
-    }
-
-    .mobileBottomNav {
-      display: none;
-    }
-
-    .mobileNotifyBtn {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      border: 1px solid rgba(41, 43, 45, 0.12);
-      background: rgba(255, 255, 255, 0.88);
-      color: var(--jet-black);
-      font-size: 17px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .mainShell {
-      min-width: 0;
-      width: 100%;
-      display: grid;
-      gap: var(--content-gap);
-      align-content: start;
-    }
-
-    .content {
-      min-width: 0;
-      width: 100%;
-      padding: 0 0 24px;
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--content-gap);
-      align-content: start;
-    }
-
-    .content > * {
-      grid-column: 1 / -1;
-      min-width: 0;
-    }
-
-    .card,
-    .tile {
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 22px;
-      box-shadow: var(--shadow-soft);
-      position: relative;
-      overflow: hidden;
-      backdrop-filter: blur(14px);
-    }
-
-    .card::before,
-    .tile::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 0;
-      background: transparent;
-      opacity: 0;
-    }
-
-    .cardHeader,
-    .tileHeader {
-      display: grid;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    .cardHeader h1,
-    .tileHeader h1,
-    .cardHeader h2,
-    .tileHeader h2,
-    .cardHeader h3,
-    .tileHeader h3,
-    .card h1,
-    .card h2,
-    .card h3,
-      h1,
-      h2,
-      h3 {
-      margin: 0;
-      color: var(--jet-black);
-      line-height: 1.08;
-      font-weight: 760;
-    }
-
-    .cardHeader p,
-    .tileHeader p {
-      margin: 0;
-    }
-
-    .grid {
-      display: grid;
-      gap: 20px;
-    }
-
-    .layoutGrid12 {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--content-gap);
-      align-items: start;
-    }
-
-    .col-span-12 {
-      grid-column: span 12;
-      min-width: 0;
-    }
-
-    .col-span-8 {
-      grid-column: span 8;
-      min-width: 0;
-    }
-
-    .col-span-6 {
-      grid-column: span 6;
-      min-width: 0;
-    }
-
-    .col-span-4 {
-      grid-column: span 4;
-      min-width: 0;
-    }
-
-    .grid.cols-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .grid.cols-3 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .desktopOnly {
-      display: block;
-    }
-
-    .mobileOnly {
-      display: none;
-    }
-
-    .field {
-      display: grid;
-      gap: 8px;
-      margin: 0;
-    }
-
-    .input,
-    .select {
-      width: 100%;
-      min-height: 50px;
-      border: 1px solid var(--border-strong);
-      border-radius: 16px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(239, 240, 246, 0.9));
-      padding: 13px 15px;
-      color: var(--jet-black);
-      outline: none;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease, transform 140ms ease;
-    }
-
-    .input:focus,
-    .select:focus {
-      border-color: rgba(69, 88, 200, 0.46);
-      box-shadow: 0 0 0 5px rgba(69, 88, 200, 0.12);
-      background: var(--white);
-      transform: translateY(-1px);
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 46px;
-      padding: 11px 18px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 14px 24px rgba(41, 43, 45, 0.12);
-    }
-
-    .btn:disabled {
-      opacity: 0.56;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .btnPrimary {
-      background: var(--royal-blue);
-      color: var(--white);
-      border-color: var(--royal-blue);
-      box-shadow: 0 16px 28px rgba(69, 88, 200, 0.24);
-    }
-
-    .btnGhost {
-      background: rgba(255, 255, 255, 0.78);
-      color: var(--jet-black);
-      border-color: rgba(69, 88, 200, 0.12);
-      box-shadow: 0 10px 22px rgba(41, 43, 45, 0.05);
-    }
-
-    .btnDanger {
-      background: var(--salmon-orange);
-      color: var(--white);
-      border-color: var(--salmon-orange);
-      box-shadow: 0 16px 28px rgba(238, 94, 55, 0.24);
-    }
-
-    .tabs {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .tab {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 10px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(69, 88, 200, 0.12);
-      background: rgba(255, 255, 255, 0.84);
-      color: var(--jet-black);
-      cursor: pointer;
-      transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
-      font-weight: 600;
-    }
-
-    .tab:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 18px rgba(69, 88, 200, 0.1);
-    }
-
-    .tab.active {
-      background: linear-gradient(135deg, rgba(217, 184, 243, 0.95), rgba(238, 226, 255, 0.92));
-      border-color: transparent;
-      color: var(--jet-black);
-      box-shadow: 0 14px 24px rgba(217, 184, 243, 0.24);
-    }
-
-    .applicationsSection,
-    .applicationTabs {
-      --accent: #7B8794;
-      --accent-soft: rgba(123, 135, 148, 0.12);
-      --accent-border: rgba(123, 135, 148, 0.24);
-    }
-
-    .applicationsSection.theme-bursary,
-    .applicationTabs.theme-bursary {
-      --accent: #8B5CF6;
-      --accent-soft: color-mix(in srgb, #8B5CF6 14%, white);
-      --accent-border: #D9C8FF;
-    }
-
-    .applicationsSection.theme-learnership,
-    .applicationTabs.theme-learnership {
-      --accent: #22C55E;
-      --accent-soft: color-mix(in srgb, #22C55E 14%, white);
-      --accent-border: #BFF2D6;
-    }
-
-    .applicationsSection.theme-course,
-    .applicationTabs.theme-course {
-      --accent: #4B6CB7;
-      --accent-soft: color-mix(in srgb, #4B6CB7 14%, white);
-      --accent-border: #CFE0FF;
-    }
-
-    .applicationsSection.theme-neutral,
-    .applicationTabs.theme-neutral {
-      --accent: #7B8794;
-      --accent-soft: rgba(123, 135, 148, 0.12);
-      --accent-border: rgba(123, 135, 148, 0.24);
-    }
-
-    .applicationsSection::before {
-      height: 3px;
-      opacity: 1;
-      background: var(--accent, #7B8794);
-    }
-
-    .applicationsSection .dashboardSectionMeta {
-      color: color-mix(in srgb, var(--accent, #7B8794) 58%, #6b7280);
-    }
-
-    .applicationTabs {
-      gap: 8px;
-      padding: 4px;
-      border-radius: 14px;
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      background: rgba(255, 255, 255, 0.62);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    }
-
-    .applicationTabs .tab {
-      min-height: 40px;
-      padding: 9px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(41, 43, 45, 0.12);
-      background: rgba(255, 255, 255, 0.96);
-      color: rgba(41, 43, 45, 0.82);
-      box-shadow: none;
-    }
-
-    .applicationTabs .tab:hover {
-      border-color: var(--accent-border);
-      box-shadow: 0 4px 9px rgba(41, 43, 45, 0.06);
-    }
-
-    .applicationTabs .tab.active {
-      background: var(--accent-soft);
-      border-color: var(--accent-border);
-      color: color-mix(in srgb, var(--accent, #7B8794) 74%, #1f2937);
-      box-shadow: inset 0 2px 0 var(--accent), 0 6px 12px rgba(41, 43, 45, 0.06);
-    }
-
-    .placeholder {
-      width: 100%;
-      height: 108px;
-      border-radius: 20px;
-      background:
-        radial-gradient(circle at 25% 24%, rgba(223, 227, 125, 0.62), transparent 34%),
-        radial-gradient(circle at 78% 22%, rgba(217, 184, 243, 0.7), transparent 30%),
-        linear-gradient(135deg, rgba(69, 88, 200, 0.2), rgba(255, 255, 255, 0.8));
-      border: 1px solid rgba(69, 88, 200, 0.1);
-    }
-
-    .badge,
-    .status,
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: 30px;
-      padding: 6px 11px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .badgeBlue {
-      background: rgba(69, 88, 200, 0.14);
-      color: var(--royal-blue);
-      border-color: rgba(69, 88, 200, 0.22);
-    }
-
-    .badgeGreen {
-      background: rgba(223, 227, 125, 0.38);
-      color: #6d741d;
-      border-color: rgba(95, 114, 10, 0.16);
-    }
-
-    .badgeOrange {
-      background: rgba(238, 94, 55, 0.12);
-      color: var(--salmon-orange);
-      border-color: rgba(238, 94, 55, 0.22);
-    }
-
-    .badgePurple {
-      background: rgba(217, 184, 243, 0.38);
-      color: #7f53b5;
-      border-color: rgba(127, 83, 181, 0.2);
-    }
-
-    .badge,
-    .chip {
-      background: rgba(41, 43, 45, 0.08);
-      color: var(--jet-black);
-      border-color: rgba(41, 43, 45, 0.12);
-    }
-
-    .status {
-      background: rgba(41, 43, 45, 0.06);
-      color: var(--jet-black);
-      border-color: rgba(41, 43, 45, 0.12);
-    }
-
-    .table,
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border-spacing: 0;
-      overflow: hidden;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.74);
-    }
-
-    .table th,
-    .table td,
-    th,
-    td {
-      text-align: left;
-      padding: 14px 12px;
-      vertical-align: top;
-      border-top: 1px solid rgba(41, 43, 45, 0.08);
-    }
-
-    .table thead th,
-    thead th {
-      border-top: 0;
-      background: linear-gradient(90deg, rgba(69, 88, 200, 0.12), rgba(217, 184, 243, 0.18));
-      color: var(--jet-black);
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .table tbody tr,
-    tbody tr {
-      transition: background 140ms ease, transform 140ms ease;
-    }
-
-    .table tbody tr:hover,
-    tbody tr:hover {
-      background: rgba(69, 88, 200, 0.05);
-    }
-
-    .adminApplicantRowClickable {
-      cursor: pointer;
-    }
-
-    .adminApplicantRowClickable:focus-visible {
-      outline: 2px solid rgba(69, 88, 200, 0.5);
-      outline-offset: -2px;
-    }
-
-    .adminApplicantViewBtn {
-      min-height: 34px;
-      padding: 7px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 700;
-      width: auto;
-    }
-
-    .adminApplicantDrawerOverlay {
-      position: fixed;
-      inset: 0;
-      z-index: 88;
-      display: flex;
-      justify-content: flex-end;
-      background: rgba(17, 22, 29, 0.42);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 160ms ease;
-    }
-
-    .adminApplicantDrawerOverlay.open {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .adminApplicantDrawerPanel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: clamp(420px, 42vw, 520px);
-      max-width: calc(100vw - 12px);
-      height: 100vh;
-      background: rgba(255, 255, 255, 0.99);
-      border-left: 1px solid rgba(41, 43, 45, 0.12);
-      box-shadow: -18px 0 36px rgba(17, 22, 29, 0.2);
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
-      overflow: hidden;
-      transform: translateX(14px);
-      transition: transform 180ms ease;
-    }
-
-    .adminApplicantDrawerOverlay.open .adminApplicantDrawerPanel {
-      transform: translateX(0);
-    }
-
-    .adminApplicantDrawerHeader {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      align-items: flex-start;
-      padding: 18px;
-      border-bottom: 1px solid rgba(41, 43, 45, 0.08);
-      background: rgba(255, 255, 255, 0.98);
-      backdrop-filter: blur(8px);
-    }
-
-    .adminApplicantHeaderIdentity {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .adminApplicantHeaderIdentity h3 {
-      margin: 0;
-      font-size: 18px;
-      line-height: 1.2;
-    }
-
-    .adminApplicantHeaderActions {
-      display: grid;
-      justify-items: end;
-      gap: 6px;
-      min-width: 130px;
-    }
-
-    .adminApplicantDrawerClose {
-      min-height: 36px;
-      padding: 7px 12px;
-      width: auto;
-    }
-
-    .adminApplicantDrawerBody {
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding: 18px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .adminApplicantSection {
-      border-radius: 16px;
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      box-shadow: 0 8px 16px rgba(41, 43, 45, 0.05);
-      padding: 16px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .adminApplicantSectionTitle {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-
-    .adminApplicantInfoGrid {
-      display: grid;
-      gap: 8px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .adminApplicantInfoGrid div {
-      display: grid;
-      gap: 3px;
-    }
-
-    .adminApplicantInfoGrid span {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      font-weight: 700;
-    }
-
-    .adminApplicantInfoGrid b {
-      font-size: 13px;
-      line-height: 1.35;
-      color: var(--jet-black);
-    }
-
-    .adminApplicantScoreRow {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 12px;
-      align-items: center;
-    }
-
-    .adminApplicantScoreValue {
-      font-size: 26px;
-      font-weight: 800;
-      line-height: 1;
-      color: var(--jet-black);
-    }
-
-    .adminApplicantInsightList {
-      margin: 0 0 0 16px;
-      padding: 0;
-      display: grid;
-      gap: 4px;
-    }
-
-    .adminApplicantInsightList li {
-      font-size: 12px;
-      color: rgba(41, 43, 45, 0.76);
-      line-height: 1.4;
-    }
-
-    .adminApplicantDocList {
-      display: grid;
-      gap: 10px;
-    }
-
-    .adminApplicantDocRow {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(41, 43, 45, 0.09);
-      background: rgba(255, 255, 255, 0.95);
-      align-items: center;
-    }
-
-    .adminApplicantDocName {
-      font-weight: 700;
-      font-size: 13px;
-      color: var(--jet-black);
-    }
-
-    .adminApplicantDocActions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: flex-end;
-      align-items: center;
-      min-width: 180px;
-    }
-
-    .adminApplicantDocStatus {
-      display: inline-flex;
-      align-items: center;
-      min-height: 30px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      background: rgba(41, 43, 45, 0.06);
-    }
-
-    .adminApplicantDocStatus.is-submitted {
-      color: #2b8a3e;
-    }
-
-    .adminApplicantDocStatus.is-missing {
-      color: #7b8794;
-    }
-
-    .adminApplicantMiniBtn {
-      min-height: 32px;
-      padding: 6px 10px;
-      border-radius: 10px;
-      font-size: 12px;
-      font-weight: 700;
-      width: auto;
-    }
-
-    .adminApplicantPreviewBox {
-      min-height: 100px;
-      border-radius: 14px;
-      border: 1px dashed rgba(41, 43, 45, 0.18);
-      background: rgba(239, 240, 246, 0.6);
-      display: grid;
-      place-items: center;
-      padding: 10px;
-    }
-
-    .adminApplicantPreviewBox img {
-      width: 100%;
-      max-height: 220px;
-      object-fit: contain;
-      border-radius: 12px;
-      border: 1px solid rgba(41, 43, 45, 0.14);
-      background: #fff;
-    }
-
-    .adminApplicantNotes {
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(41, 43, 45, 0.12);
-      background: #fff;
-      opacity: 1;
-    }
-
-    .adminApplicantNotesLabel {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--jet-black);
-      margin-bottom: 8px;
-    }
-
-    .adminApplicantNotesField {
-      width: 100%;
-      min-height: 112px;
-      border: 1px solid rgba(41, 43, 45, 0.2);
-      border-radius: 12px;
-      background: #fff;
-      color: var(--jet-black);
-      font-size: 14px;
-      line-height: 1.45;
-      padding: 12px;
-      opacity: 1;
-      resize: vertical;
-      cursor: text;
-    }
-
-    .adminApplicantNotesField::placeholder {
-      color: rgba(41, 43, 45, 0.54);
-      opacity: 1;
-    }
-
-    .adminApplicantNotesField:focus {
-      outline: none;
-      border-color: rgba(69, 88, 200, 0.48);
-      box-shadow: 0 0 0 4px rgba(69, 88, 200, 0.14);
-    }
-
-    .adminApplicantTimeline {
-      display: grid;
-      gap: 8px;
-    }
-
-    .adminApplicantTimelineRow {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      font-size: 13px;
-      padding: 7px 0;
-      border-bottom: 1px solid rgba(41, 43, 45, 0.08);
-    }
-
-    .adminApplicantTimelineRow:last-child {
-      border-bottom: 0;
-    }
-
-    .adminApplicantTimelineRow span {
-      color: rgba(41, 43, 45, 0.68);
-    }
-
-    .adminApplicantTimelineRow b {
-      text-align: right;
-      color: var(--jet-black);
-      font-weight: 700;
-    }
-
-    .adminApplicantDrawerFooter {
-      position: sticky;
-      bottom: 0;
-      z-index: 2;
-      border-top: 1px solid rgba(41, 43, 45, 0.1);
-      background: rgba(255, 255, 255, 0.98);
-      padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
-      display: grid;
-      gap: 12px;
-      backdrop-filter: blur(8px);
-    }
-
-    .adminApplicantFooterActions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .adminApplicantFooterActions .tab {
-      width: 100%;
-      min-height: 36px;
-      border-radius: 10px;
-      padding: 7px 10px;
-      font-size: 12px;
-    }
-
-    .adminApplicantFooterStatus {
-      display: grid;
-      gap: 6px;
-    }
-
-    .adminApplicantFooterStatus .input {
-      min-height: 42px;
-    }
-
-    .adminApplicantFooterBottom {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .muted,
-    .mutedText {
-      color: var(--muted);
-    }
-
-    .pageSurface {
-      background: rgba(255, 255, 255, 0.56);
-      border: 1px solid rgba(255, 255, 255, 0.6);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .sessionBadge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(69, 88, 200, 0.08);
-      border: 1px solid rgba(69, 88, 200, 0.1);
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--jet-black);
-    }
-
-    .sidebarUserCard {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.06);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .userAvatar {
-      width: 44px;
-      height: 44px;
-      min-width: 44px;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 2px solid rgba(69, 88, 200, 0.2);
-      box-shadow: 0 10px 20px rgba(41, 43, 45, 0.12);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, rgba(217, 184, 243, 0.5), rgba(69, 88, 200, 0.25));
-      color: var(--jet-black);
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      user-select: none;
-      text-transform: uppercase;
-    }
-
-    .userAvatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .userAvatarInitials {
-      background: linear-gradient(135deg, rgba(223, 227, 125, 0.88), rgba(217, 184, 243, 0.78));
-      border-color: rgba(41, 43, 45, 0.14);
-    }
-
-    .avatarSm {
-      width: 30px;
-      height: 30px;
-      min-width: 30px;
-      font-size: 11px;
-      border-width: 1px;
-    }
-
-    .avatarMd {
-      width: 46px;
-      height: 46px;
-      min-width: 46px;
-      font-size: 15px;
-    }
-
-    .avatarLg {
-      width: 64px;
-      height: 64px;
-      min-width: 64px;
-      font-size: 22px;
-      border-width: 2px;
-    }
-
-    .sessionDot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--old-flax), var(--royal-blue));
-      box-shadow: 0 0 0 4px rgba(69, 88, 200, 0.08);
-    }
-
-    .dashboardTopGrid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-      gap: 16px;
-    }
-
-    .dashboardMainGrid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-      gap: 16px;
-      align-items: start;
-    }
-
-    .dashboardLayoutGrid {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--content-gap);
-      align-items: start;
-    }
-
-    .dashboardPrimaryCol {
-      grid-column: span 8;
-      display: grid;
-      gap: var(--content-gap);
-      min-width: 0;
-    }
-
-    .dashboardSupportCol {
-      grid-column: span 4;
-      display: grid;
-      gap: var(--content-gap);
-      min-width: 0;
-    }
-
-    .dashboardQuickHeader {
-      padding: 14px 16px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      box-shadow: 0 6px 14px rgba(41, 43, 45, 0.05);
-    }
-
-    .dashboardQuickHeaderActions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
-    }
-
-    .compactProfileCard {
-      padding-top: 16px;
-    }
-
-    .profileQuickEdit {
-      border: 1px solid rgba(41, 43, 45, 0.1);
-      border-radius: 14px;
-      padding: 8px 10px 10px;
-      background: rgba(255, 255, 255, 0.82);
-    }
-
-    .profileQuickEdit > summary {
-      cursor: pointer;
-      font-weight: 700;
-      list-style: none;
-      font-size: 13px;
-      color: var(--jet-black);
-    }
-
-    .profileQuickEdit > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .profileCompletenessBar .applicationProgressBarFill {
-      background: #4B6CB7;
-    }
-
-    .dashboardWelcomeCard {
-      background:
-        linear-gradient(140deg, rgba(69, 88, 200, 0.16), rgba(217, 184, 243, 0.28), rgba(255, 255, 255, 0.92)),
-        rgba(255, 255, 255, 0.94);
-    }
-
-    .dashboardCareerCard {
-      background:
-        linear-gradient(140deg, rgba(223, 227, 125, 0.36), rgba(255, 255, 255, 0.9)),
-        rgba(255, 255, 255, 0.94);
-    }
-
-    .dashboardActionRow {
-      margin-top: 14px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .dashboardSectionTitle {
-      font-size: 17px;
-      font-weight: 780;
-      margin: 0;
-    }
-
-    .dashboardSectionMeta {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-    }
-
-
-    .listingGrid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--content-gap);
-      align-items: stretch;
-    }
-
-    .listingGrid > * {
-      min-width: 0;
-      height: 100%;
-    }
-
-    .filterPanel {
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(41, 43, 45, 0.07);
-      box-shadow: 0 2px 8px rgba(41, 43, 45, 0.04);
-      position: sticky;
-      top: 10px;
-      z-index: 8;
-      backdrop-filter: blur(8px);
-    }
-
-    .filterPanel::before {
-      display: none;
-    }
-
-    .filterRow {
-      display: grid;
-      grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr));
-      gap: 10px;
-      align-items: end;
-    }
-
-    .filterControl {
-      display: grid;
-      gap: 5px;
-      margin: 0;
-    }
-
-    .filterControl label,
-    .filterControl > span {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .filterControl .input,
-    .filterControl .select {
-      min-height: 42px;
-      padding: 9px 12px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.96);
-      box-shadow: none;
-    }
-
-    .mobileApplicationsRail {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    }
-
-    .is-bursary {
-      --accent-colour: #8B5CF6;
-    }
-
-    .is-course {
-      --accent-colour: #4B6CB7;
-    }
-
-    .is-learnership,
-    .is-internship {
-      --accent-colour: #22C55E;
-    }
-
-    .is-guidance {
-      --accent-colour: #A3E635;
-    }
-
-    .card-accent-top {
-      position: relative;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.97);
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      box-shadow: 0 6px 14px rgba(41, 43, 45, 0.05);
-    }
-
-    .card-accent-top::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: var(--accent-colour, rgba(41, 43, 45, 0.24));
-      border-top-left-radius: inherit;
-      border-top-right-radius: inherit;
-      opacity: 1;
-    }
-
-    .chip-category {
-      background: rgba(41, 43, 45, 0.08);
-      background: color-mix(in srgb, var(--accent-colour, #8892a0) 14%, white);
-      color: color-mix(in srgb, var(--accent-colour, #8892a0) 78%, #1f2937);
-      border-color: transparent;
-      box-shadow: none;
-    }
-
-    .recommendedFlag {
-      background: rgba(69, 88, 200, 0.12);
-      color: #344ea8;
-      border-color: transparent;
-    }
-
-    .recommendedStack {
-      display: grid;
-      gap: 10px;
-    }
-
-    .opportunityCard,
-    .careerOpportunityCard,
-    .recommendedCard,
-    .mobileApplicationCard {
-      border-radius: 18px;
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      background: rgba(255, 255, 255, 0.98);
-      box-shadow: 0 6px 14px rgba(41, 43, 45, 0.05);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .opportunityCard,
-    .careerOpportunityCard,
-    .mobileApplicationCard {
-      padding: 11px 12px;
-    }
-
-    .recommendedCard {
-      padding: 10px 12px;
-    }
-
-    .mobileApplicationCard {
-      min-width: 280px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .opportunityCardLayout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 182px;
-      gap: 12px;
-      align-items: stretch;
-    }
-
-    .opportunityCardMain {
-      min-width: 0;
-      display: grid;
-      gap: 5px;
-    }
-
-    .opportunityTitle {
-      font-size: 16px;
-      font-weight: 760;
-      line-height: 1.24;
-      margin: 0;
-      color: var(--jet-black);
-    }
-
-    .opportunityOrg {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 0;
-    }
-
-    .opportunityMetaStack {
-      display: grid;
-      gap: 3px;
-      margin-top: 2px;
-    }
-
-    .opportunityMetaRow {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .opportunityMetaRow b {
-      color: var(--jet-black);
-      font-weight: 700;
-      text-align: right;
-    }
-
-    .closingSoon {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #9b6d11;
-      background: rgba(245, 158, 11, 0.16);
-      border-radius: 999px;
-      padding: 3px 8px;
-      width: fit-content;
-      margin-top: 2px;
-    }
-
-    .opportunityCardActions {
-      min-width: 160px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 10px;
-    }
-
-    .statusPill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 28px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      border: 0;
-      letter-spacing: 0.01em;
-    }
-
-    .statusOpen {
-      background: rgba(34, 197, 94, 0.12);
-      color: #1c7c3b;
-    }
-
-    .statusSubmitted {
-      background: rgba(69, 88, 200, 0.14);
-      color: #3250bf;
-    }
-
-    .statusComplete {
-      background: rgba(34, 197, 94, 0.16);
-      color: #17713a;
-    }
-
-    .statusClosed {
-      background: rgba(41, 43, 45, 0.1);
-      color: rgba(41, 43, 45, 0.72);
-    }
-
-    .progressMicro {
-      height: 5px;
-      border-radius: 999px;
-      background: rgba(41, 43, 45, 0.1);
-      overflow: hidden;
-      margin-top: 4px;
-    }
-
-    .progressMicroFill {
-      width: var(--progress-width, 56%);
-      height: 100%;
-      border-radius: inherit;
-      background: var(--accent-colour, var(--royal-blue));
-    }
-
-    .progressSummaryText {
-      margin-top: 2px;
-      font-size: 12px;
-    }
-
-    .applicationProgressBlock {
-      gap: 12px;
-    }
-
-    .applicationProgressSummary {
-      border: 1px solid color-mix(in srgb, var(--accent-colour, #4b6cb7) 24%, rgba(41, 43, 45, 0.08));
-      box-shadow: 0 7px 14px rgba(41, 43, 45, 0.05);
-    }
-
-    .applicationProgressBar {
-      margin-top: 10px;
-      width: 100%;
-      height: 8px;
-      border-radius: 999px;
-      background: rgba(41, 43, 45, 0.11);
-      overflow: hidden;
-    }
-
-    .applicationProgressBarFill {
-      height: 100%;
-      border-radius: inherit;
-      background: var(--accent-colour, var(--royal-blue));
-      transition: width 180ms ease;
-    }
-
-    .applicationProgressStepper {
-      border-radius: 18px;
-      box-shadow: 0 7px 14px rgba(41, 43, 45, 0.05);
-    }
-
-    .applicationSteps {
-      display: grid;
-      gap: 10px;
-    }
-
-    .applicationStep {
-      display: grid;
-      grid-template-columns: 30px minmax(0, 1fr);
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .applicationStepRail {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100%;
-    }
-
-    .applicationStepCircle {
-      width: 22px;
-      height: 22px;
-      border-radius: 999px;
-      display: grid;
-      place-items: center;
-      border: 1px solid rgba(41, 43, 45, 0.16);
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.95);
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1;
-      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
-    }
-
-    .applicationStepConnector {
-      width: 3px;
-      flex: 1;
-      min-height: 28px;
-      margin-top: 6px;
-      border-radius: 999px;
-      background: rgba(41, 43, 45, 0.12);
-      transition: background 160ms ease;
-    }
-
-    .applicationStepHeader {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .applicationStepHeader h4 {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 740;
-      line-height: 1.25;
-      color: var(--jet-black);
-    }
-
-    .applicationStepState {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--muted);
-    }
-
-    .applicationStepDescription {
-      margin: 4px 0 0;
-      font-size: 12px;
-      line-height: 1.35;
-      color: var(--muted);
-    }
-
-    .applicationStepAction {
-      margin-top: 8px;
-    }
-
-    .applicationStepAction .btn {
-      min-height: 40px;
-      padding: 9px 14px;
-    }
-
-    .applicationStep.is-complete .applicationStepCircle {
-      background: #22C55E;
-      border-color: #22C55E;
-      color: #fff;
-      animation: stepCheckPop 180ms ease;
-    }
-
-    .applicationStep.is-complete .applicationStepConnector {
-      background: color-mix(in srgb, var(--accent-colour, #4b6cb7) 72%, white);
-    }
-
-    .applicationStep.is-complete .applicationStepDescription {
-      opacity: 0.72;
-    }
-
-    .applicationStep.is-active .applicationStepCircle {
-      width: 28px;
-      height: 28px;
-      border: 2px solid var(--accent-colour, #4b6cb7);
-      color: var(--jet-black);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-colour, #4b6cb7) 18%, white);
-      transform: translateY(-1px);
-    }
-
-    .applicationStep.is-active .applicationStepState {
-      color: color-mix(in srgb, var(--accent-colour, #4b6cb7) 72%, #1f2937);
-    }
-
-    .applicationStep.is-locked .applicationStepCircle {
-      border-color: rgba(41, 43, 45, 0.12);
-      background: rgba(41, 43, 45, 0.05);
-      color: rgba(41, 43, 45, 0.48);
-    }
-
-    .applicationStep.is-locked .applicationStepDescription,
-    .applicationStep.is-locked .applicationStepState,
-    .applicationStep.is-locked .applicationStepHeader h4 {
-      color: rgba(41, 43, 45, 0.5);
-    }
-
-    @keyframes stepCheckPop {
-      from {
-        transform: scale(0.85);
-      }
-      to {
-        transform: scale(1);
-      }
-    }
-
-    .card-priority {
-      box-shadow: 0 10px 20px rgba(41, 43, 45, 0.09);
-      border-color: rgba(69, 88, 200, 0.2);
-    }
-
-    .card-in-progress {
-      box-shadow: 0 10px 18px rgba(41, 43, 45, 0.08);
-      border-color: color-mix(in srgb, var(--accent-colour, #4b6cb7) 32%, rgba(41, 43, 45, 0.08));
-    }
-
-    .card-submitted {
-      box-shadow: 0 5px 12px rgba(41, 43, 45, 0.05);
-    }
-
-    .card-closed {
-      opacity: 0.92;
-    }
-
-    .mobileList {
-      display: none;
-      gap: 10px;
-    }
-
-    .mobileListCard {
-      border-radius: 16px;
-      border: 1px solid rgba(41, 43, 45, 0.1);
-      background: rgba(255, 255, 255, 0.95);
-      padding: 12px;
-      display: grid;
-      gap: 6px;
-    }
-
-    .profileSummaryCard {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .profileReviewCard {
-      padding: 14px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.9);
-    }
-
-    .profileReviewHeader {
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 8px;
-    }
-
-    .profileEditTrigger {
-      min-height: 38px;
-      padding: 8px 14px;
-      font-size: 13px;
-    }
-
-    .profileReadonlyField {
-      margin-top: 2px;
-    }
-
-    .readonlyFieldHead {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
-
-    .inlineFieldEdit {
-      border: 0;
-      background: transparent;
-      color: var(--royal-blue);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 2px 0;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .inlineFieldEdit:hover {
-      color: color-mix(in srgb, var(--royal-blue) 84%, #1f2937);
-    }
-
-    .profileImpactNotice {
-      margin-top: 10px;
-      font-size: 12px;
-      color: rgba(41, 43, 45, 0.72);
-    }
-
-    .inlineProfileEditorOverlay {
-      position: fixed;
-      inset: 0;
-      z-index: 80;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      padding: 16px;
-      background: rgba(17, 22, 29, 0.44);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 150ms ease;
-    }
-
-    .inlineProfileEditorOverlay.open {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .inlineProfileEditorSheet {
-      width: min(720px, 100%);
-      max-height: min(86vh, calc(100dvh - 26px));
-      overflow: auto;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.98);
-      border: 1px solid rgba(41, 43, 45, 0.12);
-      box-shadow: 0 24px 45px rgba(17, 22, 29, 0.22);
-      padding: 16px;
-    }
-
-    .inlineProfileEditorClose {
-      min-height: 38px;
-      padding: 8px 12px;
-      width: auto;
-    }
-
-    .inlineProfileEditorSection {
-      display: grid;
-      gap: 10px;
-    }
-
-    .inlineProfileEditorSectionTitle {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .inlineProfileInterestsGrid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .inlineInterestChip {
-      display: block;
-      cursor: pointer;
-    }
-
-    .inlineInterestChip input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .inlineInterestChip span {
-      display: flex;
-      align-items: center;
-      min-height: 38px;
-      border-radius: 12px;
-      padding: 8px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      color: rgba(41, 43, 45, 0.8);
-      background: rgba(239, 240, 246, 0.86);
-      border: 1px solid rgba(41, 43, 45, 0.12);
-      transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
-    }
-
-    .inlineInterestChip input:checked + span {
-      background: rgba(69, 88, 200, 0.14);
-      color: var(--royal-blue);
-      border-color: rgba(69, 88, 200, 0.3);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    }
-
-    .inlineProfileEditorActions {
-      align-items: center;
-      gap: 8px;
-    }
-
-    .inlineProfileToast {
-      position: fixed;
-      left: 50%;
-      bottom: calc(14px + env(safe-area-inset-bottom));
-      z-index: 88;
-      transform: translate(-50%, 12px);
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(23, 28, 38, 0.94);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 700;
-      box-shadow: 0 14px 24px rgba(17, 22, 29, 0.3);
-      opacity: 0;
-      transition: transform 150ms ease, opacity 150ms ease;
-      pointer-events: none;
-    }
-
-    .inlineProfileToast.show {
-      opacity: 1;
-      transform: translate(-50%, 0);
-    }
-
-    .srOnly {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    .dangerZone {
-      border: 1px solid rgba(238, 94, 55, 0.28);
-      border-radius: 16px;
-      padding: 10px 12px;
-      background: rgba(238, 94, 55, 0.08);
-    }
-
-    .dangerZone > summary {
-      cursor: pointer;
-      font-weight: 700;
-      list-style: none;
-    }
-
-    .dangerZone > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .careerWizardCard {
-      padding: 24px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.97);
-      border: 1px solid rgba(41, 43, 45, 0.08);
-      box-shadow: 0 10px 18px rgba(41, 43, 45, 0.06);
-    }
-
-    .careerProgressTrack {
-      width: 100%;
-      height: 12px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: rgba(41, 43, 45, 0.09);
-      border: 1px solid rgba(41, 43, 45, 0.08);
-    }
-
-    .careerProgressFill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--royal-blue), var(--purple), var(--old-flax));
-      transition: width 180ms ease;
-    }
-
-    .quizStepNavigator {
-      margin-top: 10px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .quizStepLabel {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .quizStepScroller {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 2px 1px 6px;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .quizStepScroller::-webkit-scrollbar {
-      height: 6px;
-    }
-
-    .quizStepScroller::-webkit-scrollbar-thumb {
-      background: rgba(41, 43, 45, 0.2);
-      border-radius: 999px;
-    }
-
-    .quizStepItem {
-      flex: 0 0 auto;
-      scroll-snap-align: center;
-    }
-
-    .quizStepCircle {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      border: 1px solid rgba(41, 43, 45, 0.16);
-      background: rgba(255, 255, 255, 0.94);
-      display: grid;
-      place-items: center;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1;
-      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
-    }
-
-    .quizStepItem.is-completed .quizStepCircle {
-      border-color: transparent;
-      background: rgba(41, 43, 45, 0.09);
-      color: #2b3139;
-      animation: quizStepPop 160ms ease;
-    }
-
-    .quizStepItem.is-current .quizStepCircle {
-      width: 38px;
-      height: 38px;
-      border: 2px solid var(--accent-colour, #A3E635);
-      color: var(--jet-black);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-colour, #A3E635) 18%, white);
-      transform: translateY(-1px);
-    }
-
-    .quizStepItem.is-upcoming .quizStepCircle {
-      background: rgba(255, 255, 255, 0.82);
-      color: rgba(41, 43, 45, 0.6);
-    }
-
-    @keyframes quizStepPop {
-      from {
-        transform: scale(0.88);
-      }
-      to {
-        transform: scale(1);
-      }
-    }
-
-    .careerOptionsGrid {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .careerOption {
-      min-height: 50px;
-      border-radius: 16px;
-      border: 1px solid rgba(69, 88, 200, 0.14);
-      background: rgba(255, 255, 255, 0.84);
-      color: var(--jet-black);
-      padding: 10px 14px;
-      text-align: left;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
-    }
-
-    .careerOption:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 16px rgba(69, 88, 200, 0.12);
-    }
-
-    .careerOption.active {
-      background: rgba(163, 230, 53, 0.18);
-      border-color: rgba(163, 230, 53, 0.5);
-      color: var(--jet-black);
-      box-shadow: 0 8px 14px rgba(129, 145, 20, 0.14);
-    }
-
-    .careerMatchGrid {
-      display: grid;
-      gap: 14px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    }
-
-    .careerMatchCard {
-      border-radius: 22px;
-      border: 1px solid transparent;
-      color: var(--jet-black);
-      padding: 18px;
-      box-shadow: 0 18px 30px rgba(41, 43, 45, 0.08);
-    }
-
-    .careerColorBlue {
-      background: linear-gradient(150deg, rgba(69, 88, 200, 0.1), rgba(255, 255, 255, 0.95));
-      border-color: rgba(69, 88, 200, 0.12);
-    }
-
-    .careerColorPurple {
-      background: linear-gradient(150deg, rgba(217, 184, 243, 0.15), rgba(255, 255, 255, 0.95));
-      border-color: rgba(127, 83, 181, 0.12);
-    }
-
-    .careerColorLime {
-      background: linear-gradient(150deg, rgba(223, 243, 125, 0.14), rgba(255, 255, 255, 0.96));
-      border-color: rgba(129, 145, 20, 0.12);
-    }
-
-    .careerColorOrange {
-      background: linear-gradient(150deg, rgba(238, 94, 55, 0.1), rgba(255, 255, 255, 0.96));
-      border-color: rgba(238, 94, 55, 0.12);
-    }
-
-    .careerTwoCol {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-      gap: 16px;
-    }
-
-    .careerStageGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-    }
-
-    .careerStageCard {
-      border-radius: 18px;
-      border: 1px solid rgba(69, 88, 200, 0.12);
-      background: rgba(255, 255, 255, 0.95);
-      padding: 14px;
-      box-shadow: 0 12px 20px rgba(41, 43, 45, 0.06);
-    }
-
-    .careerOpportunitiesGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-    }
-
-    .careerOpportunityCard {
-      border-radius: 16px;
-      border: 1px solid rgba(41, 43, 45, 0.1);
-      background: rgba(255, 255, 255, 0.94);
-      padding: 12px;
-      box-shadow: 0 10px 18px rgba(41, 43, 45, 0.06);
-    }
-
-    ul {
-      margin-top: 8px;
-    }
-
-    @media (max-width: 1024px) {
-      .app,
-      .appShell {
-        grid-template-columns: clamp(260px, 28vw, 300px) minmax(0, 1fr);
-      }
-
-      .content,
-      .layoutGrid12,
-      .dashboardLayoutGrid {
-        grid-template-columns: repeat(8, minmax(0, 1fr));
-      }
-
-      .col-span-8,
-      .dashboardPrimaryCol {
-        grid-column: span 5;
-      }
-
-      .col-span-6 {
-        grid-column: span 4;
-      }
-
-      .col-span-4,
-      .dashboardSupportCol {
-        grid-column: span 3;
-      }
-
-      .listingGrid,
-      .grid.cols-3,
-      .careerTwoCol {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .careerOptionsGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .inlineProfileInterestsGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .dashboardQuickHeaderActions {
-        justify-content: flex-start;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .topbar {
-        padding: 16px;
-        border-radius: 20px;
-      }
-    }
-
-    @media (max-width: 767px) {
-      .app,
-      .appShell {
-        grid-template-columns: 1fr;
-        padding: env(safe-area-inset-top) var(--mobile-page-pad) calc(var(--mobile-page-pad) + env(safe-area-inset-bottom));
-        gap: 16px;
-      }
-
-      .sidebar {
-        display: none;
-      }
-
-      .content,
-      .layoutGrid12,
-      .dashboardLayoutGrid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      .col-span-12,
-      .col-span-8,
-      .col-span-6,
-      .col-span-4,
-      .dashboardPrimaryCol,
-      .dashboardSupportCol {
-        grid-column: 1 / -1;
-      }
-
-      body::before,
-      body::after {
-        opacity: 0.36;
-      }
-
-      .hasMobileHeader .topbar {
-        display: none;
-      }
-
-      .mobileTopHeader {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        padding: 6px 0 10px;
-        background: linear-gradient(180deg, rgba(239, 240, 246, 0.95), rgba(239, 240, 246, 0.7));
-        backdrop-filter: blur(10px);
-      }
-
-      .row,
-      .tabs {
-        width: 100%;
-      }
-
-      .btn,
-      .tab {
-        width: 100%;
-      }
-
-      .content {
-        padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 20px);
-      }
-
-      .card,
-      .tile {
-        border-radius: 18px;
-        padding: var(--mobile-card-pad);
-        box-shadow: 0 8px 18px rgba(41, 43, 45, 0.08);
-      }
-
-      .card::before,
-      .tile::before {
-        height: 5px;
-      }
-
-      .card-accent-top::before {
-        height: 4px;
-      }
-
-      .dashboardActionRow {
-        grid-template-columns: 1fr;
-      }
-
-      .desktopOnly {
-        display: none !important;
-      }
-
-      .mobileOnly {
-        display: block;
-      }
-
-      .mobileApplicationsRail {
-        display: grid;
-        gap: 10px;
-        margin-top: 12px;
-        grid-template-columns: 1fr;
-      }
-
-      .recommendedStack {
-        gap: 12px;
-      }
-
-      .grid.cols-2,
-      .grid.cols-3,
-      .listingGrid {
-        grid-template-columns: 1fr;
-      }
-
-      .dashboardTopGrid,
-      .dashboardMainGrid,
-      .dashboardLayoutGrid,
-      .careerTwoCol {
-        grid-template-columns: 1fr;
-      }
-
-      .dashboardQuickHeader {
-        padding: 14px;
-      }
-
-      .dashboardQuickHeaderActions {
-        width: 100%;
-      }
-
-      .dashboardQuickHeaderActions .btn {
-        width: 100%;
-      }
-
-      .opportunityCard,
-      .careerOpportunityCard,
-      .recommendedCard,
-      .mobileApplicationCard {
-        padding: 12px;
-        border-radius: 16px;
-        box-shadow: 0 6px 12px rgba(41, 43, 45, 0.05);
-      }
-
-      .opportunityCardLayout {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-
-      .opportunityCardActions {
-        align-items: stretch;
-        min-width: 0;
-      }
-
-      .opportunityCardActions .btn {
-        width: 100%;
-      }
-
-      .statusPill {
-        align-self: flex-start;
-      }
-
-      .applicationProgressSummary,
-      .applicationProgressStepper {
-        padding: 12px;
-      }
-
-      .applicationStep {
-        grid-template-columns: 26px minmax(0, 1fr);
-        gap: 10px;
-      }
-
-      .applicationStepConnector {
-        min-height: 22px;
-      }
-
-      .applicationSummaryAction .btn,
-      .applicationStepAction .btn {
-        width: 100%;
-      }
-
-      .adminApplicantDrawerPanel {
-        width: 100%;
-        max-width: 100%;
-        border-left: 0;
-        box-shadow: none;
-      }
-
-      .adminApplicantDrawerHeader,
-      .adminApplicantDrawerBody,
-      .adminApplicantDrawerFooter {
-        padding-left: var(--mobile-card-pad);
-        padding-right: var(--mobile-card-pad);
-      }
-
-      .adminApplicantHeaderActions {
-        min-width: 0;
-      }
-
-      .adminApplicantInfoGrid,
-      .adminApplicantFooterActions {
-        grid-template-columns: 1fr;
-      }
-
-      .adminApplicantDocRow {
-        grid-template-columns: 1fr;
-      }
-
-      .adminApplicantDocActions {
-        justify-content: flex-start;
-        min-width: 0;
-      }
-
-      .adminApplicantNotesField {
-        min-height: 120px;
-      }
-
-      .adminApplicantScoreRow {
-        grid-template-columns: 1fr;
-      }
-
-      .adminApplicantDrawerClose,
-      .adminApplicantViewBtn {
-        width: 100%;
-      }
-
-      .adminApplicantMiniBtn {
-        width: auto;
-      }
-
-      .quizStepScroller {
-        gap: 7px;
-        padding-bottom: 8px;
-      }
-
-      .quizStepCircle {
-        width: 30px;
-        height: 30px;
-        font-size: 11px;
-      }
-
-      .quizStepItem.is-current .quizStepCircle {
-        width: 36px;
-        height: 36px;
-      }
-
-      .mobileList {
-        display: grid;
-      }
-
-      .careerOptionsGrid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-
-      .inlineProfileEditorOverlay {
-        padding: 0;
-        align-items: flex-end;
-      }
-
-      .inlineProfileEditorSheet {
-        width: 100%;
-        max-height: calc(100dvh - 10px);
-        border-radius: 22px 22px 0 0;
-        padding: 16px var(--mobile-card-pad) calc(20px + env(safe-area-inset-bottom));
-      }
-
-      .inlineProfileInterestsGrid {
-        grid-template-columns: 1fr;
-      }
-
-      .inlineProfileEditorActions,
-      .inlineProfileEditorActions .row {
-        width: 100%;
-        display: grid;
-        gap: 8px;
-      }
-
-      .inlineProfileEditorClose {
-        width: auto;
-      }
-
-      .inlineProfileEditorActions .btn {
-        width: 100%;
-      }
-
-      .profileReviewHeader {
-        gap: 10px;
-      }
-
-      .profileEditTrigger {
-        width: 100%;
-      }
-
-      .inlineProfileToast {
-        width: calc(100% - 24px);
-        border-radius: 16px;
-        text-align: center;
-        bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 10px);
-      }
-
-      .careerOption {
-        min-height: 46px;
-        padding: 9px 12px;
-        font-size: 14px;
-      }
-
-      .mobileBottomNav {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-        position: fixed;
-        left: 12px;
-        right: 12px;
-        bottom: calc(10px + env(safe-area-inset-bottom));
-        z-index: 35;
-        padding: 10px 8px;
-        border-radius: 22px;
-        background: rgba(32, 35, 39, 0.93);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 12px 26px rgba(16, 19, 23, 0.34);
-        backdrop-filter: blur(14px);
-      }
-
-      .mobileBottomNavItem {
-        min-height: 54px;
-        border-radius: 16px;
-        color: rgba(255, 255, 255, 0.8);
-        display: grid;
-        justify-items: center;
-        align-content: center;
-        gap: 4px;
-        font-size: 11px;
-        font-weight: 700;
-        border: 1px solid transparent;
-        transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-      }
-
-      .mobileBottomNavItemIcon {
-        font-size: 16px;
-        line-height: 1;
-      }
-
-      .mobileBottomNavItem.active {
-        background: linear-gradient(140deg, rgba(69, 88, 200, 0.95), rgba(127, 83, 181, 0.85));
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.22);
-      }
-
-      .profileSummaryCard {
-        align-items: flex-start;
-      }
-
-      .dangerZone .btn {
-        width: 100%;
-      }
-    }
-  </style>
-</head>
-<body>
-  <!-- Root mount container for the single-page hash-routed interface -->
-  <div id="root"></div>
-  <!-- Main application logic, rendering, events, and hash router -->
-  <script src="functionality.js"></script>
+  <div class="page-grain" aria-hidden="true"></div>
+
+  <!-- Sticky Header -->
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a href="#home" class="brand" aria-label="Ishungu Hair home">
+        <img src="assets/logo-ishungu.png" alt="Ishungu Hair logo" />
+        <span>Ishungu Hair</span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a class="nav-link is-active" href="#home">Home</a>
+        <a class="nav-link" href="#collection">Collection</a>
+        <a class="nav-link" href="#services">Services</a>
+        <a class="nav-link" href="#about">About</a>
+        <a class="nav-link" href="#contact">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#services" class="btn btn-primary btn-sm">Book Now</a>
+        <button
+          class="menu-toggle"
+          id="menuToggle"
+          type="button"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+          aria-controls="mobileMenu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Navigation -->
+  <div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a class="mobile-nav-link" href="#home">Home</a>
+      <a class="mobile-nav-link" href="#collection">Collection</a>
+      <a class="mobile-nav-link" href="#services">Services</a>
+      <a class="mobile-nav-link" href="#about">About</a>
+      <a class="mobile-nav-link" href="#contact">Contact</a>
+      <a class="btn btn-primary mobile-menu-cta" href="#services">Book Now</a>
+    </nav>
+  </div>
+
+  <main id="mainContent">
+    <div class="top-story" id="topStory">
+      <!-- Signature Guide Line System -->
+      <div class="guide-line-layer" aria-hidden="true">
+        <svg id="guideLineSvg" preserveAspectRatio="none">
+          <!-- SVG GUIDE PATH EDIT POINT: Adjust path geometry in script.js -> buildGuidePaths() -->
+          <path id="guideLineMain" class="guide-line guide-line-main" d="" />
+          <path id="guideLineGhostA" class="guide-line guide-line-ghost" d="" />
+          <path id="guideLineGhostB" class="guide-line guide-line-ghost" d="" />
+        </svg>
+      </div>
+
+      <!-- Hero Section -->
+      <section id="home" class="section hero-cinematic" data-nav-section="home">
+        <figure class="hero-bg" data-hero-bg>
+          <!-- HERO IMAGE: Required uploaded portrait (sunglasses) -->
+          <img src="emmanuel-black--Rca_idmbuI-unsplash.png" alt="Ishungu Hair beauty portrait with sunglasses" />
+        </figure>
+
+        <div class="hero-overlay" aria-hidden="true"></div>
+
+        <!-- HERO SVG PATH DEFINED HERE: subtle layered curve kept away from key beauty details -->
+        <svg class="hero-curves" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+          <path class="hero-curve hero-curve--main" d="M 90 118 C 250 70, 460 76, 620 142 C 708 178, 768 238, 760 308 C 752 372, 680 414, 590 430" />
+          <path class="hero-curve hero-curve--ghost" d="M 112 100 C 278 54, 486 64, 646 130 C 730 164, 790 224, 786 294 C 780 356, 712 402, 622 422" />
+          <path class="hero-curve hero-curve--ghost hero-curve--ghost-b" d="M 72 136 C 230 92, 438 96, 594 164 C 680 200, 742 262, 736 332 C 730 392, 664 436, 574 452" />
+        </svg>
+
+        <div class="container hero-canvas" data-hero-content>
+          <div class="hero-headline-wrap">
+            <!-- EDITABLE COPY: Hero headline -->
+            <h1 class="hero-title hero-title--canvas">
+              <span class="line">Luxury Hair.</span>
+              <span class="line">Timeless Confidence.</span>
+            </h1>
+          </div>
+
+          <div class="hero-detail">
+            <!-- EDITABLE COPY: Hero paragraph -->
+            <p class="hero-description">
+              Premium wigs, beauty services, and a polished experience designed to help every woman feel
+              effortlessly beautiful.
+            </p>
+
+            <div class="hero-actions">
+              <a href="#services" class="btn btn-outline btn-outline--light">Book Appointment</a>
+            </div>
+          </div>
+        </div>
+        <span class="line-anchor line-anchor--hero" data-line-anchor="hero"></span>
+      </section>
+
+      <!-- Brand Intro / Elevated About -->
+      <section id="about" class="section intro intro-connected" data-nav-section="about">
+        <div class="container intro-connected-grid">
+          <div class="intro-copy">
+            <p class="eyebrow reveal-up">Brand Introduction</p>
+
+            <!-- EDITABLE COPY: About headline -->
+            <h2 class="section-title" data-stagger-lines>
+              <span class="line">A Luxury Ritual in Hair</span>
+              <span class="line">and Beauty Refinement</span>
+            </h2>
+
+            <!-- EDITABLE COPY: About paragraphs -->
+            <p class="section-text reveal-up">
+              Ishungu Hair blends premium craftsmanship with feminine elegance to create a beauty destination where
+              confidence is styled with intention.
+            </p>
+            <p class="section-text reveal-up">
+              From curated wigs to bespoke appointments, every touchpoint is designed to feel polished, personal,
+              and quietly unforgettable.
+            </p>
+          </div>
+
+          <figure class="intro-connected-image media-frame reveal-scale" data-parallax="7">
+            <!-- IMAGE PLACEHOLDER: Replace with founder/studio/lifestyle brand image -->
+            <img src="assets/about-image.jpg" alt="Premium Ishungu Hair beauty portrait" />
+          </figure>
+
+          <aside class="intro-note reveal-up">
+            <!-- EDITABLE COPY: Intro support text -->
+            <p>
+              Every texture, every finish, every appointment is curated with the same objective: beauty that feels
+              effortless and unmistakably premium.
+            </p>
+          </aside>
+        </div>
+
+        <span class="line-anchor line-anchor--about" data-line-anchor="about"></span>
+      </section>
+
+      <!-- Featured Offerings -->
+      <section id="collection" class="section offerings offerings-editorial" data-nav-section="collection">
+        <div class="container offerings-layout">
+          <div class="section-head">
+            <p class="eyebrow reveal-up">Featured Offerings</p>
+
+            <!-- EDITABLE COPY: Offerings heading -->
+            <h2 class="section-title" data-stagger-lines>
+              <span class="line">Designed for Women Who</span>
+              <span class="line">Choose Elevated Beauty</span>
+            </h2>
+          </div>
+
+          <div class="offering-rail" data-stagger-cards>
+            <article class="offering-item reveal-up">
+              <span class="offering-number">01</span>
+              <div class="offering-body">
+                <h3>Wigs &amp; Hair Collection</h3>
+                <!-- EDITABLE COPY: Card description -->
+                <p>Luxury textures, premium quality bundles, and curated pieces with natural movement and flawless finish.</p>
+              </div>
+              <a href="#contact" class="text-link">Explore Collection</a>
+            </article>
+
+            <article class="offering-item reveal-up">
+              <span class="offering-number">02</span>
+              <div class="offering-body">
+                <h3>Beauty Services</h3>
+                <!-- EDITABLE COPY: Card description -->
+                <p>Precision styling, makeup artistry, and polished finishing touches tailored to your lifestyle and events.</p>
+              </div>
+              <a href="#services" class="text-link">View Services</a>
+            </article>
+
+            <article class="offering-item reveal-up">
+              <span class="offering-number">03</span>
+              <div class="offering-body">
+                <h3>Custom Hair Experience</h3>
+                <!-- EDITABLE COPY: Card description -->
+                <p>Private consultations and bespoke styling journeys that align texture, shape, and confidence perfectly.</p>
+              </div>
+              <a href="#services" class="text-link">Start Consultation</a>
+            </article>
+          </div>
+        </div>
+
+        <span class="line-anchor line-anchor--collection" data-line-anchor="collection"></span>
+      </section>
+    </div>
+
+    <!-- Editorial Gallery -->
+    <section id="gallery" class="section gallery">
+      <div class="container">
+        <div class="section-head section-head--narrow">
+          <p class="eyebrow reveal-up">Editorial Story</p>
+
+          <!-- EDITABLE COPY: Gallery heading -->
+          <h2 class="section-title" data-stagger-lines>
+            <span class="line">A Visual Language of</span>
+            <span class="line">Elegance and Detail</span>
+          </h2>
+        </div>
+
+        <div class="gallery-grid" data-stagger-cards>
+          <figure class="gallery-item gallery-item--large reveal-scale" data-parallax="6">
+            <!-- IMAGE PLACEHOLDER: Client campaign image -->
+            <img src="assets/gallery-1.png" alt="Ishungu Hair editorial beauty portrait" />
+          </figure>
+
+          <figure class="gallery-item reveal-scale" data-parallax="-4">
+            <!-- IMAGE PLACEHOLDER: Client beauty detail image -->
+            <img src="assets/gallery-2.png" alt="Natural hair care detail" />
+          </figure>
+
+          <figure class="gallery-item reveal-scale" data-parallax="8">
+            <!-- IMAGE PLACEHOLDER: Client nail detail image -->
+            <img src="assets/gallery-3.png" alt="Elegant nails and beauty styling" />
+          </figure>
+
+          <figure class="gallery-item reveal-scale" data-parallax="-5">
+            <!-- IMAGE PLACEHOLDER: Supporting beauty texture image -->
+            <img src="assets/gallery-4.jpg" alt="Beauty studio detail" />
+          </figure>
+
+          <figure class="gallery-item reveal-scale" data-parallax="5">
+            <!-- IMAGE PLACEHOLDER: Supporting premium hair image -->
+            <img src="assets/gallery-5.jpg" alt="Makeup and beauty close-up" />
+          </figure>
+
+          <figure class="gallery-item gallery-item--wide reveal-scale" data-parallax="3">
+            <!-- IMAGE PLACEHOLDER: Lifestyle/studio image -->
+            <img src="assets/gallery-6.jpg" alt="Luxury salon experience image" />
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why Choose Ishungu -->
+    <section id="reasons" class="section why-choose">
+      <div class="container why-grid">
+        <div class="why-intro">
+          <p class="eyebrow reveal-up">Why Choose Ishungu</p>
+
+          <!-- EDITABLE COPY: Why heading -->
+          <h2 class="section-title" data-stagger-lines>
+            <span class="line">Premium Standards.</span>
+            <span class="line">Personalised Care.</span>
+          </h2>
+
+          <!-- EDITABLE COPY: Why intro paragraph -->
+          <p class="section-text reveal-up">
+            We combine artistry, quality products, and a calm luxury atmosphere to make every appointment feel
+            intentional and elevated.
+          </p>
+        </div>
+
+        <div class="reason-cards" data-stagger-cards>
+          <article class="reason-card reveal-up">
+            <h3>Premium Quality Hair</h3>
+            <p>Carefully sourced textures that hold their beauty, softness, and natural movement over time.</p>
+          </article>
+          <article class="reason-card reveal-up">
+            <h3>Elegant Finishes</h3>
+            <p>From lace customization to final styling, every look is refined to feel polished and photo-ready.</p>
+          </article>
+          <article class="reason-card reveal-up">
+            <h3>Personalised Experience</h3>
+            <p>Consultations tailored to your face shape, style goals, and comfort for confidence that lasts.</p>
+          </article>
+          <article class="reason-card reveal-up">
+            <h3>Trusted Service</h3>
+            <p>Consistent professionalism, premium hygiene standards, and attentive aftercare advice.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Services / Beauty Experience -->
+    <section id="services" class="section services" data-nav-section="services">
+      <div class="container services-grid">
+        <figure class="services-image media-frame reveal-scale" data-parallax="10">
+          <!-- IMAGE PLACEHOLDER: Replace with salon service image -->
+          <img src="assets/service-image.jpg" alt="Premium beauty and salon service" />
+        </figure>
+
+        <div class="services-copy">
+          <p class="eyebrow reveal-up">Beauty Experience</p>
+
+          <!-- EDITABLE COPY: Services heading -->
+          <h2 class="section-title" data-stagger-lines>
+            <span class="line">Appointments Crafted</span>
+            <span class="line">Around Your Signature Look</span>
+          </h2>
+
+          <!-- EDITABLE COPY: Services paragraph -->
+          <p class="section-text reveal-up">
+            Enjoy a private, detail-rich appointment flow designed to deliver polished results with ease, comfort,
+            and long-lasting beauty confidence.
+          </p>
+
+          <ul class="service-list reveal-up">
+            <li>Luxury Wig Installation &amp; Styling</li>
+            <li>Custom Wig Fitting &amp; Personalisation</li>
+            <li>Event Glam Makeup &amp; Beauty Finishing</li>
+            <li>Nail Aesthetic Detailing</li>
+          </ul>
+
+          <a href="#contact" class="btn btn-primary reveal-up">Book Your Appointment</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section id="testimonials" class="section testimonials">
+      <div class="container">
+        <div class="section-head section-head--narrow">
+          <p class="eyebrow reveal-up">Client Trust</p>
+
+          <!-- EDITABLE COPY: Testimonial heading -->
+          <h2 class="section-title" data-stagger-lines>
+            <span class="line">Loved for Quality,</span>
+            <span class="line">Remembered for Experience</span>
+          </h2>
+        </div>
+
+        <div class="testimonial-slider" data-slider>
+          <button class="slider-btn" type="button" data-prev aria-label="Previous testimonial">&#8592;</button>
+
+          <div class="testimonial-panels" data-slides>
+            <article class="testimonial-card is-active" data-slide>
+              <!-- EDITABLE COPY: Testimonial -->
+              <p>“My install looked effortless and luxurious. Ishungu Hair made me feel beautiful from the moment I walked in.”</p>
+              <h3>Nomsa M.</h3>
+              <span>Returning Client</span>
+            </article>
+
+            <article class="testimonial-card" data-slide>
+              <!-- EDITABLE COPY: Testimonial -->
+              <p>“The level of detail is unmatched. From consultation to finish, everything felt premium and personal.”</p>
+              <h3>Thando K.</h3>
+              <span>Custom Wig Experience</span>
+            </article>
+
+            <article class="testimonial-card" data-slide>
+              <!-- EDITABLE COPY: Testimonial -->
+              <p>“Ishungu is my trusted beauty destination. Elegant service, quality products, and consistent excellence.”</p>
+              <h3>Lerato S.</h3>
+              <span>Beauty Services Client</span>
+            </article>
+          </div>
+
+          <button class="slider-btn" type="button" data-next aria-label="Next testimonial">&#8594;</button>
+        </div>
+
+        <div class="slider-dots" data-slider-dots aria-label="Testimonial pagination"></div>
+        <p class="trust-note reveal-up">Trusted by women seeking refined beauty experiences and premium lasting results.</p>
+      </div>
+    </section>
+
+    <!-- Premium CTA -->
+    <section id="contact" class="section premium-cta" data-nav-section="contact">
+      <div class="cta-bg" aria-hidden="true">
+        <!-- IMAGE PLACEHOLDER: Replace with hero-quality closing background visual -->
+        <img src="assets/gallery-1.png" alt="" />
+      </div>
+
+      <div class="container cta-content">
+        <p class="eyebrow reveal-up">Ready for Your Signature Look?</p>
+
+        <!-- EDITABLE COPY: CTA heading -->
+        <h2 class="cta-title" data-stagger-lines>
+          <span class="line">Step Into the Ishungu</span>
+          <span class="line">Luxury Beauty Experience</span>
+        </h2>
+
+        <!-- EDITABLE COPY: CTA paragraph -->
+        <p class="cta-text reveal-up">
+          Book your appointment or explore our premium collection and discover beauty styled with intention.
+        </p>
+
+        <div class="cta-actions reveal-up" data-stagger-buttons>
+          <a href="#services" class="btn btn-primary">Book Luxury Session</a>
+          <a href="#collection" class="btn btn-outline btn-outline--light">Shop Collection</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <img src="assets/logo-ishungu.png" alt="Ishungu Hair logo" />
+        <!-- EDITABLE COPY: Footer brand line -->
+        <p>Luxury hair and beauty experiences curated for confidence, elegance, and timeless feminine style.</p>
+      </div>
+
+      <div class="footer-col">
+        <h3>Navigation</h3>
+        <a href="#home">Home</a>
+        <a href="#collection">Collection</a>
+        <a href="#services">Services</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </div>
+
+      <div class="footer-col">
+        <h3>Contact</h3>
+        <!-- EDITABLE COPY: Replace contact placeholders -->
+        <p>+27 00 000 0000</p>
+        <p>hello@ishunguhair.com</p>
+        <p>Johannesburg, South Africa</p>
+      </div>
+
+      <div class="footer-col">
+        <h3>Social</h3>
+        <!-- EDITABLE COPY: Replace social placeholders -->
+        <a href="#" aria-label="Instagram">Instagram</a>
+        <a href="#" aria-label="Facebook">Facebook</a>
+        <a href="#" aria-label="TikTok">TikTok</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <p>&copy; <span id="year"></span> Ishungu Hair. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
