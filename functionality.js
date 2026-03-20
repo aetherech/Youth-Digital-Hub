@@ -2124,9 +2124,6 @@ window.addEventListener("storage", (event) => {
 // Hash-router listener: re-render the matching page whenever URL hash changes.
 window.addEventListener("hashchange", () => {
   route = getRouteFromHash();
-  currentUserId = getSessionUserId();
-  // Tell the routing bridge to show the dashboard pane (safe no-op if bridge not loaded)
-  if (typeof window.showApp === 'function') window.showApp();
   render();
 });
 
@@ -4738,13 +4735,12 @@ function getAdminMobileNavItems(currentRoute) {
 function shell(role, contentNode) {
   const user = currentUser();
   const sidebarItems = getSidebarItems(role);
+  const isPartner = role === 'corporate' || role === 'institute';
   const pageTitle = getPageTitleForRoute(route);
   const displayName = getUserDisplayName(user);
   const profile = getUserProfile(user) || {};
   const firstName = getUserNameParts(user || {}).firstName || (displayName || "Student").split(" ")[0] || "Student";
-  const isPartner = role === "corporate" || role === "institute";
 
-  // For partner roles the sidebar items carry a dashPage key (no real navigation)
   const sidebar = el(`<aside class="sidebar">
     <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:var(--color-text-muted);">NATIONAL TVET & SETA MVP</div>
     <div style="margin-top:6px; font-weight:700; text-transform:uppercase;">${role} panel</div>
@@ -4762,20 +4758,17 @@ function shell(role, contentNode) {
     <div style="margin-top:12px; display:grid; gap:8px;">
       ${sidebarItems
         .map((item, idx) => {
-          const active = isPartner ? idx === 0 : isRouteActive(
+          if (isPartner && item.dashPage) {
+            const active = idx === 0;
+            return `<button type="button" class="tab ${active ? "active" : ""}" data-dash-page="${item.dashPage}" data-partner-nav="1" style="background:none;border:none;text-align:left;cursor:pointer;font-family:inherit;font-size:inherit;width:100%;">${item.label}</button>`;
+          }
+          const active = isRouteActive(
             role === "student" ? resolveStudentNavRoute(route) : route,
             item.href
           );
-          if (isPartner && item.dashPage) {
-            return `<button type="button" class="tab ${active ? "active" : ""}" data-dash-page="${item.dashPage}" data-partner-nav="1">${item.label}</button>`;
-          }
           return `<a class="tab ${active ? "active" : ""}" href="#${item.href}">${item.label}</a>`;
         })
         .join("")}
-    </div>
-    <div style="margin-top:auto; padding-top:16px; display:flex; flex-direction:column; gap:8px;">
-      <button class="btn btnGhost" id="btnRoleSidebar" style="width:100%;">Role switch</button>
-      <button class="btn btnPrimary" id="btnLogoutSidebar" style="width:100%;">Logout</button>
     </div>
   </aside>`);
 
@@ -4800,10 +4793,6 @@ function shell(role, contentNode) {
     navigate("/home");
   };
 
-  // Sidebar logout/role-switch buttons (partner sidebar has these too)
-  sidebar.querySelector("#btnRoleSidebar")?.addEventListener("click", () => { logout(); navigate("/login"); });
-  sidebar.querySelector("#btnLogoutSidebar")?.addEventListener("click", () => { logout(); navigate("/home"); });
-
   const mobileHeader =
     role === "student"
       ? el(`<header class="mobileTopHeader">
@@ -4819,7 +4808,7 @@ function shell(role, contentNode) {
       : null;
 
   const main = document.createElement("div");
-  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""} ${isPartner ? "hasPartnerMobileNav" : ""}`.trim();
+  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""}`.trim();
   if (mobileHeader) {
     main.appendChild(mobileHeader);
   }
@@ -4830,20 +4819,17 @@ function shell(role, contentNode) {
   main.appendChild(contentWrap);
 
   const app = document.createElement("div");
-  app.className = `appShell ${isPartner ? "partnerShell" : ""}`.trim();
+  app.className = "appShell" + (isPartner ? " partnerShell" : "");
   app.appendChild(sidebar);
   app.appendChild(main);
 
-  // ─── Partner sidebar: wire clicks to the page-switcher exposed by the dashboard ───
+  // Partner sidebar: wire buttons to page-switcher
   if (isPartner) {
-    sidebar.querySelectorAll("[data-partner-nav]").forEach((btn) => {
+    sidebar.querySelectorAll("[data-partner-nav]").forEach(btn => {
       btn.addEventListener("click", () => {
         const page = btn.getAttribute("data-dash-page");
-        if (window.__partnerSwitch && typeof window.__partnerSwitch === "function") {
-          window.__partnerSwitch(page);
-        }
-        // Sync active state in sidebar
-        sidebar.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        if (window.__partnerSwitch) window.__partnerSwitch(page);
+        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
         btn.classList.add("active");
       });
     });
@@ -4978,63 +4964,48 @@ function shell(role, contentNode) {
     }
   }
 
-  // ─── Partner (corporate / institute) mobile bottom nav ───────────────
+  // ── Partner mobile bottom nav ───────────────────────────────────────────────
   if (isPartner) {
-    const partnerBottomNav = el(`<nav class="mobileBottomNav mobileBottomNavPartner" aria-label="Partner navigation">
-      ${sidebarItems.map((item, idx) => `
-        <button type="button" class="mobileBottomNavItem ${idx === 0 ? "active" : ""}"
-          data-dash-page="${item.dashPage}" data-partner-mobile-nav="1">
-          <span class="mobileBottomNavItemIcon">${getPartnerMobileIcon(item.dashPage)}</span>
-          <span class="mobileBottomNavItemLabel">${item.label}</span>
-        </button>`).join("")}
-    </nav>`);
-    partnerBottomNav.querySelectorAll("[data-partner-mobile-nav]").forEach((btn) => {
+    const picons = { overview:"◈", opportunities:"▥", applicants:"◎", pipeline:"◔", analytics:"◉", programs:"▣", students:"◎", applications:"▥", docs:"▤" };
+    const pbn = document.createElement("nav");
+    pbn.className = "mobileBottomNav mobileBottomNavPartner";
+    pbn.setAttribute("aria-label", "Partner navigation");
+    pbn.innerHTML = sidebarItems.map((item, idx) =>
+      `<button type="button" class="mobileBottomNavItem ${idx===0?"active":""}" data-dash-page="${item.dashPage}" data-partner-mobile-nav="1">
+        <span class="mobileBottomNavItemIcon">${picons[item.dashPage]||"•"}</span>
+        <span class="mobileBottomNavItemLabel">${item.label}</span>
+      </button>`
+    ).join("");
+    pbn.querySelectorAll("[data-partner-mobile-nav]").forEach(btn => {
       btn.addEventListener("click", () => {
         const page = btn.getAttribute("data-dash-page");
         if (window.__partnerSwitch) window.__partnerSwitch(page);
-        partnerBottomNav.querySelectorAll(".mobileBottomNavItem").forEach(b => b.classList.remove("active"));
+        pbn.querySelectorAll(".mobileBottomNavItem").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
         sidebar.querySelector(`[data-dash-page="${page}"]`)?.classList.add("active");
       });
     });
-    app.appendChild(partnerBottomNav);
+    app.appendChild(pbn);
   }
 
   return app;
 }
 
-function getPartnerMobileIcon(page) {
-  const icons = {
-    overview: "◈", opportunities: "▥", applicants: "◎", pipeline: "◔",
-    analytics: "◉", programs: "▣", students: "◎", applications: "▥", docs: "▤"
-  };
-  return icons[page] || "•";
-}
 
-// ─── Shared detail-view modal for partner dashboards ─────────────────────────
 function openPartnerModal(title, html) {
-  let existing = document.getElementById("partnerDetailModal");
+  var existing = document.getElementById('partnerDetailModal');
   if (existing) existing.remove();
-  const overlay = el(`<div id="partnerDetailModal" style="
-      position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);
-      display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="
-        background:var(--color-surface);border-radius:var(--radius-lg);
-        max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:28px;
-        box-shadow:0 24px 64px rgba(0,0,0,.22);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <b style="font-size:18px;font-weight:800;">${escapeHtml(title)}</b>
-        <button class="btn btnGhost" id="partnerModalClose" style="padding:6px 12px;">✕ Close</button>
-      </div>
-      <div id="partnerModalBody">${html}</div>
-    </div>
-  </div>`);
-  overlay.querySelector("#partnerModalClose").onclick = () => overlay.remove();
-  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
-  document.addEventListener("keydown", function esc(e) {
-    if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", esc); }
-  });
+  var overlay = document.createElement('div');
+  overlay.id = 'partnerDetailModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:partnerModalIn 180ms ease both';
+  overlay.innerHTML = '<div style="background:var(--color-surface);border-radius:var(--radius-lg);max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:28px;box-shadow:0 24px 64px rgba(0,0,0,.22);animation:partnerModalSlide 220ms cubic-bezier(0.22,1,0.36,1) both">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
+    + '<b style="font-size:18px;font-weight:800;">' + escapeHtml(title) + '</b>'
+    + '<button class="btn btnGhost" id="pmc" style="padding:6px 12px;">✕ Close</button>'
+    + '</div><div>' + html + '</div></div>';
+  overlay.querySelector('#pmc').onclick = function() { overlay.remove(); };
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 }
 
@@ -5138,12 +5109,12 @@ function pageCorporateDashboard() {
     node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
     const target = node.querySelector('#' + corpPageMap[name]);
     if (target) target.style.display = '';
-    // Sync sidebar and mobile bottom nav
-    const shell = node.closest('.appShell');
+    // Sync sidebar + mobile nav active state
+    const shell = node.closest('.partnerShell');
     if (shell) {
-      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-dash-page') === name);
-      });
+      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(b =>
+        b.classList.toggle('active', b.getAttribute('data-dash-page') === name)
+      );
     }
   }
   window.__partnerSwitch = corpSwitch;
@@ -5249,7 +5220,7 @@ function pageCorporateDashboard() {
         <section class="card">
           <div style="overflow-x:auto;">
             <table class="table">
-              <thead><tr><th>Opportunity</th><th>Type</th><th>Province</th><th>Closing</th><th>Views</th><th>Applicants</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Opportunity</th><th>Type</th><th>Province</th><th>Closing</th><th>Views</th><th>Applicants</th><th>Status</th></tr></thead>
               <tbody>
                 ${liveOpps.map(opp => `<tr>
                   <td><b>${escapeHtml(opp.title)}</b><div class="mutedText" style="font-size:12px;">${escapeHtml(opp.company)} • ${escapeHtml(opp.stipend)}</div></td>
@@ -5259,7 +5230,6 @@ function pageCorporateDashboard() {
                   <td>${opp.views}</td>
                   <td><b>${opp.applications}</b></td>
                   <td><span class="badge ${opp.status==='open'?'badgeGreen':opp.status==='closing soon'?'badgeOrange':'badgeBlue'}">${escapeHtml(opp.status.charAt(0).toUpperCase()+opp.status.slice(1))}</span></td>
-                  <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-opp="${escapeHtml(opp.id)}">View Opportunity</button></td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -5270,6 +5240,7 @@ function pageCorporateDashboard() {
       pg.querySelector('#corpAddOppBtn')?.addEventListener('click', () => { formOpen = true; formError = ''; rebuild(); });
       pg.querySelector('#corpCancelOppBtn')?.addEventListener('click', () => { formOpen = false; rebuild(); });
       pg.querySelector('#corpSaveOppBtn')?.addEventListener('click', () => {
+        const title = String(pg.querySelector('#nOppTitle')?.value||'').trim();
         const company = String(pg.querySelector('#nOppCompany')?.value||'').trim();
         if (!title) { formError = 'Title is required.'; rebuild(); return; }
         if (!company) { formError = 'Company is required.'; rebuild(); return; }
@@ -5323,7 +5294,7 @@ function pageCorporateDashboard() {
         </div>
         <div style="overflow-x:auto;">
           <table class="table">
-            <thead><tr><th>Name</th><th>Province</th><th>Education</th><th>Skills</th><th>Opportunity</th><th>Score</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Province</th><th>Education</th><th>Skills</th><th>Opportunity</th><th>Score</th><th>Status</th></tr></thead>
             <tbody id="caTbody"></tbody>
           </table>
         </div>
@@ -5352,37 +5323,31 @@ function pageCorporateDashboard() {
           <td>${escapeHtml(op?.title||'—')}</td>
           <td><b>${a.score}%</b></td>
           <td><span class="badge ${bc}">${escapeHtml(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></td>
-          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-applicant="${escapeHtml(a.id)}">View Applicant</button></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-app="${escapeHtml(a.id)}">View</button></td>
         </tr>`;
       }).join('') : `<tr><td colspan="8" style="text-align:center; padding:20px;" class="mutedText">No applicants match your filters.</td></tr>`;
-      // Wire view buttons
-      tbody.querySelectorAll('[data-view-applicant]').forEach(btn => {
+      tbody.querySelectorAll('[data-view-app]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const a = CORP_APPLICANTS.find(x => x.id === btn.getAttribute('data-view-applicant'));
+          const a = CORP_APPLICANTS.find(x=>x.id===btn.getAttribute('data-view-app'));
           if (!a) return;
-          const op = liveOpps.find(o => o.id === a.oppId);
+          const op = liveOpps.find(o=>o.id===a.oppId);
           const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
           openPartnerModal('Applicant Profile', `
-            <div style="display:grid;gap:16px;">
+            <div style="display:grid;gap:14px;">
               <div style="display:flex;gap:12px;align-items:center;">
-                <div style="width:52px;height:52px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(a.name.charAt(0))}</div>
-                <div><div style="font-size:18px;font-weight:800;">${escapeHtml(a.name)}</div><div class="mutedText" style="font-size:13px;">${escapeHtml(a.email)}</div></div>
+                <div style="width:50px;height:50px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(a.name.charAt(0))}</div>
+                <div><div style="font-size:17px;font-weight:800;">${escapeHtml(a.name)}</div><div class="mutedText">${escapeHtml(a.email)}</div></div>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Phone</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.phone)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.province)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.education)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Match Score</div><div style="font-size:22px;font-weight:800;color:var(--color-primary);margin-top:4px;">${a.score}%</div></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Phone</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.phone)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.province)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.education)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Score</div><div style="font-size:22px;font-weight:800;color:var(--color-primary);margin-top:2px;">${a.score}%</div></div>
               </div>
-              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(a.skills||[]).map(s=>`<span class="badge badgeBlue">${escapeHtml(s)}</span>`).join('')}</div></div>
-              <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Applied For</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(op?.title||'—')}</div></div>
-              <div style="display:flex;gap:10px;align-items:center;">
-                <div class="mutedText" style="font-size:13px;">Status:</div>
-                <span class="badge ${bc}" style="font-size:13px;">${escapeHtml(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span>
-              </div>
-              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Documents</div>
-                <div style="font-size:13px;color:var(--color-text-muted);">ID Copy · Matric Certificate · CV</div>
-              </div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(a.skills||[]).map(s=>`<span class="badge badgeBlue">${escapeHtml(s)}</span>`).join('')}</div></div>
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Applied For</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(op?.title||'—')}</div></div>
+              <div style="display:flex;align-items:center;gap:10px;"><span class="mutedText">Status:</span><span class="badge ${bc}">${escapeHtml(a.status)}</span></div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:4px;">Documents</div><div class="mutedText" style="font-size:13px;">ID Copy · Matric Certificate · CV</div></div>
             </div>`);
         });
       });
@@ -5439,16 +5404,10 @@ function pageCorporateDashboard() {
             </div>
             ${apps.length ? apps.slice(0,6).map(a => {
               const op = liveOpps.find(o=>o.id===a.oppId);
-              const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
               return `<div style="padding:10px; border:1px solid var(--color-border); border-radius:12px; margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                  <div>
-                    <div style="font-weight:700; font-size:13px;">${escapeHtml(a.name)}</div>
-                    <div class="mutedText" style="font-size:11px; margin-top:2px;">${escapeHtml(op?.title||'—')}</div>
-                    <div class="mutedText" style="font-size:11px;">${escapeHtml(a.province)} • ${a.score}%</div>
-                  </div>
-                  <button class="btn btnGhost" style="padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;" data-view-pipeline-app="${a.id}">View</button>
-                </div>
+                <div style="font-weight:700; font-size:13px;">${escapeHtml(a.name)}</div>
+                <div class="mutedText" style="font-size:11px; margin-top:2px;">${escapeHtml(op?.title||'—')}</div>
+                <div class="mutedText" style="font-size:11px;">${escapeHtml(a.province)} • ${a.score}%</div>
               </div>`;
             }).join('') + (apps.length > 6 ? `<div class="mutedText" style="font-size:12px; padding:4px 0;">+${apps.length-6} more</div>` : '')
             : `<div class="mutedText" style="font-size:13px;">No applicants at this stage.</div>`}
@@ -5456,31 +5415,12 @@ function pageCorporateDashboard() {
         }).join('')}
       </div>
     </div>`;
-    // Wire pipeline "View" buttons
-    pg.querySelectorAll('[data-view-pipeline-app]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const a = CORP_APPLICANTS.find(x => x.id === btn.getAttribute('data-view-pipeline-app'));
-        if (!a) return;
-        const op = liveOpps.find(o => o.id === a.oppId);
-        const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
-        openPartnerModal('Pipeline Applicant', `
-          <div style="display:grid;gap:14px;">
-            <div style="display:flex;gap:12px;align-items:center;">
-              <div style="width:48px;height:48px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800;flex-shrink:0;">${escapeHtml(a.name.charAt(0))}</div>
-              <div><div style="font-size:17px;font-weight:800;">${escapeHtml(a.name)}</div><div class="mutedText">${escapeHtml(a.email)}</div></div>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
-              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Stage</div><div style="font-weight:700;margin-top:4px;"><span class="badge ${bc}">${escapeHtml(a.status)}</span></div></div>
-              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Score</div><div style="font-size:20px;font-weight:800;color:var(--color-primary);margin-top:4px;">${a.score}%</div></div>
-              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.province)}</div></div>
-              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.education)}</div></div>
-            </div>
-            <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(a.skills||[]).map(s=>`<span class="badge badgeBlue">${escapeHtml(s)}</span>`).join('')}</div></div>
-            <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Applied For</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(op?.title||'—')}</div></div>
-          </div>`);
-      });
-    });
   }
+
+  // ════════════════════════════════════════
+  //  PAGE: ANALYTICS
+  // ════════════════════════════════════════
+  function renderCorpAnalytics() {
     const pg = node.querySelector('#corpPgAnalytics');
     if (!pg) return;
 
@@ -5566,9 +5506,9 @@ function pageCorporateDashboard() {
             <td>${escapeHtml(d.uploaded)}</td>
             <td><span class="badge ${d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue'}">${d.status}</span></td>
             <td><div class="row" style="gap:6px;flex-wrap:wrap;">
-              <button class="btn btnGhost" data-view-doc="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">View Document</button>
+              <button class="btn btnGhost" data-view-doc="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">View</button>
               ${d.status==='Pending'
-                ? `<button class="btn btnGhost" data-cdv="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Approve</button><button class="btn btnGhost" data-cdr="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Reject</button>`
+                ? `<button class="btn btnGhost" data-cdv="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">Approve</button><button class="btn btnGhost" data-cdr="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">Reject</button>`
                 : `<span class="mutedText" style="font-size:12px;">Done</span>`}
             </div></td>
           </tr>`).join('')}
@@ -5576,26 +5516,26 @@ function pageCorporateDashboard() {
       </table></div>`;
       wrap.querySelectorAll('[data-view-doc]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const d = liveDocs.find(x => x.id === btn.getAttribute('data-view-doc'));
+          const d = liveDocs.find(x=>x.id===btn.getAttribute('data-view-doc'));
           if (!d) return;
           const sc = d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue';
           openPartnerModal('Document Review', `
             <div style="display:grid;gap:14px;">
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.applicantName)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Document Type</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Applicant</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.applicantName)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Type</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
               </div>
               <div style="background:var(--color-background);border-radius:var(--radius-md);padding:24px;text-align:center;border:2px dashed var(--color-border);">
                 <div style="font-size:32px;margin-bottom:8px;">📄</div>
-                <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(d.docType)}</div>
-                <div class="mutedText" style="font-size:12px;">Document preview not available in demo mode</div>
+                <div style="font-weight:600;">${escapeHtml(d.docType)}</div>
+                <div class="mutedText" style="font-size:12px;margin-top:4px;">Preview not available in demo mode</div>
               </div>
-              ${d.status==='Pending' ? `<div class="row" style="gap:10px;justify-content:flex-end;">
-                <button class="btn btnGhost" onclick="document.getElementById('partnerDetailModal')?.remove();" data-cdv-modal="${d.id}">Approve</button>
-                <button class="btn btnGhost" style="color:var(--color-danger);" onclick="document.getElementById('partnerDetailModal')?.remove();" data-cdr-modal="${d.id}">Reject</button>
-              </div>` : ''}
+              ${d.status==='Pending'?`<div class="row" style="gap:10px;justify-content:flex-end;">
+                <button class="btn btnPrimary" onclick="document.getElementById('partnerDetailModal')?.remove();">Approve</button>
+                <button class="btn btnGhost" style="color:var(--color-danger);" onclick="document.getElementById('partnerDetailModal')?.remove();">Reject</button>
+              </div>`:''}
             </div>`);
         });
       });
@@ -5731,12 +5671,11 @@ function pageInstituteDashboard() {
     node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
     const target = node.querySelector('#' + instPageMap[name]);
     if (target) target.style.display = '';
-    // Sync sidebar and mobile bottom nav
-    const shell = node.closest('.appShell');
+    const shell = node.closest('.partnerShell');
     if (shell) {
-      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-dash-page') === name);
-      });
+      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(b =>
+        b.classList.toggle('active', b.getAttribute('data-dash-page') === name)
+      );
     }
   }
   window.__partnerSwitch = instSwitch;
@@ -5922,7 +5861,7 @@ function pageInstituteDashboard() {
         </div>
         <div style="overflow-x:auto;">
           <table class="table">
-            <thead><tr><th>Name</th><th>Student #</th><th>Province</th><th>Education</th><th>Program</th><th>Status</th><th>Funded</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Student #</th><th>Province</th><th>Education</th><th>Program</th><th>Status</th><th>Funded</th></tr></thead>
             <tbody id="stTbody"></tbody>
           </table>
         </div>
@@ -5951,31 +5890,30 @@ function pageInstituteDashboard() {
           <td>${escapeHtml(prog?.name||'—')}</td>
           <td><span class="badge ${bc}">${escapeHtml(s.status)}</span></td>
           <td><span class="badge ${s.funded?'badgeGreen':'badgeOrange'}">${s.funded?'Yes':'No'}</span></td>
-          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-inst-student="${escapeHtml(s.id)}">View Student</button></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;" data-view-student="${escapeHtml(s.id)}">View</button></td>
         </tr>`;
       }).join('') : `<tr><td colspan="8" style="text-align:center;padding:20px;" class="mutedText">No students match filters.</td></tr>`;
-      tbody.querySelectorAll('[data-view-inst-student]').forEach(btn => {
+      tbody.querySelectorAll('[data-view-student]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const s = INST_STUDENTS.find(x => x.id === btn.getAttribute('data-view-inst-student'));
+          const s = INST_STUDENTS.find(x=>x.id===btn.getAttribute('data-view-student'));
           if (!s) return;
-          const prog = livePrograms.find(p => p.id === s.progId);
+          const prog = livePrograms.find(p=>p.id===s.progId);
           const bc = s.status==='Accepted'?'badgeGreen':s.status==='Rejected'?'badgeOrange':s.status==='Waitlisted'?'badgeBlue':'';
           openPartnerModal('Student Profile', `
             <div style="display:grid;gap:14px;">
               <div style="display:flex;gap:12px;align-items:center;">
-                <div style="width:52px;height:52px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(s.name.charAt(0))}</div>
-                <div><div style="font-size:18px;font-weight:800;">${escapeHtml(s.name)}</div><div class="mutedText">${escapeHtml(s.email)}</div></div>
+                <div style="width:50px;height:50px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(s.name.charAt(0))}</div>
+                <div><div style="font-size:17px;font-weight:800;">${escapeHtml(s.name)}</div><div class="mutedText">${escapeHtml(s.email)}</div></div>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student #</div><div style="font-weight:700;margin-top:4px;">${s.id.slice(-6).toUpperCase()}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Phone</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.phone||'—')}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.province)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.education)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${bc}">${escapeHtml(s.status)}</span></div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Funded</div><div style="margin-top:4px;"><span class="badge ${s.funded?'badgeGreen':'badgeOrange'}">${s.funded?'Yes':'No'}</span></div></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student #</div><div style="font-weight:600;margin-top:4px;">${s.id.slice(-6).toUpperCase()}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.province)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.education)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${bc}">${escapeHtml(s.status)}</span></div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Funded</div><div style="margin-top:4px;"><span class="badge ${s.funded?'badgeGreen':'badgeOrange'}">${s.funded?'Yes':'No'}</span></div></div>
               </div>
-              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Interests</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(s.interests||[]).map(i=>`<span class="badge badgeBlue">${escapeHtml(i)}</span>`).join('')}</div></div>
-              <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Enrolled Program</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(prog?.name||'Not assigned')}</div></div>
+              ${s.interests?.length ? `<div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Interests</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${s.interests.map(i=>`<span class="badge badgeBlue">${escapeHtml(i)}</span>`).join('')}</div></div>` : ''}
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Program</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(prog?.name||'Not assigned')}</div></div>
             </div>`);
         });
       });
@@ -5986,16 +5924,6 @@ function pageInstituteDashboard() {
       downloadCsv('students.csv', INST_STUDENTS.map(s => ({
         name:s.name, email:s.email, phone:s.phone, province:s.province,
         education:s.education, interests:s.interests.join('; '),
-        program:livePrograms.find(p=>p.id===s.progId)?.name||'',
-        status:s.status, funded:s.funded?'Yes':'No'
-      })));
-    });
-    rebuildStudents();
-  }
-
-  // ════════════════════════════════════════
-  //  PAGE: APPLICATIONS
-  // ════════════════════════════════════════
         program:livePrograms.find(p=>p.id===s.progId)?.name||'',
         status:s.status, funded:s.funded?'Yes':'No'
       })));
@@ -6036,7 +5964,7 @@ function pageInstituteDashboard() {
         </div>
         <div style="overflow-x:auto;">
           <table class="table">
-            <thead><tr><th>Student</th><th>Program</th><th>Province</th><th>Date</th><th>Status</th><th>Funded</th><th></th></tr></thead>
+            <thead><tr><th>Student</th><th>Program</th><th>Province</th><th>Date</th><th>Status</th><th>Funded</th></tr></thead>
             <tbody id="apTbody"></tbody>
           </table>
         </div>
@@ -6062,18 +5990,18 @@ function pageInstituteDashboard() {
           <td>${escapeHtml(a.createdAt)}</td>
           <td><span class="badge ${bc}">${escapeHtml(a.status)}</span></td>
           <td><span class="badge ${a.funded?'badgeGreen':'badgeOrange'}">${a.funded?'Yes':'No'}</span></td>
-          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-inst-app="${escapeHtml(a.id)}">View Applicant</button></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;" data-view-inst-app="${escapeHtml(a.id)}">View</button></td>
         </tr>`;
       }).join('') : `<tr><td colspan="7" style="text-align:center;padding:20px;" class="mutedText">No applications match filters.</td></tr>`;
       tbody.querySelectorAll('[data-view-inst-app]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const a = INST_APPS.find(x => x.id === btn.getAttribute('data-view-inst-app'));
+          const a = INST_APPS.find(x=>x.id===btn.getAttribute('data-view-inst-app'));
           if (!a) return;
           const bc = a.status==='Accepted'?'badgeGreen':a.status==='Rejected'?'badgeOrange':a.status==='Waitlisted'?'badgeBlue':'';
           openPartnerModal('Application Detail', `
             <div style="display:grid;gap:14px;">
               <div style="display:flex;gap:12px;align-items:center;">
-                <div style="width:48px;height:48px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800;flex-shrink:0;">${escapeHtml(a.studentName.charAt(0))}</div>
+                <div style="width:46px;height:46px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800;flex-shrink:0;">${escapeHtml(a.studentName.charAt(0))}</div>
                 <div><div style="font-size:17px;font-weight:800;">${escapeHtml(a.studentName)}</div><div class="mutedText">${escapeHtml(a.province)}</div></div>
               </div>
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
@@ -6082,7 +6010,7 @@ function pageInstituteDashboard() {
                 <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${bc}">${escapeHtml(a.status)}</span></div></div>
                 <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Funded</div><div style="margin-top:4px;"><span class="badge ${a.funded?'badgeGreen':'badgeOrange'}">${a.funded?'Yes':'No'}</span></div></div>
               </div>
-              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Documents Submitted</div><div style="font-size:13px;color:var(--color-text-muted);">ID Copy · Academic Transcript · Proof of Address</div></div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:4px;">Documents Submitted</div><div class="mutedText" style="font-size:13px;">ID Copy · Academic Transcript · Proof of Address</div></div>
             </div>`);
         });
       });
@@ -6197,36 +6125,37 @@ function pageInstituteDashboard() {
             <td>${escapeHtml(d.uploaded)}</td>
             <td><span class="badge ${d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue'}">${d.status}</span></td>
             <td><div class="row" style="gap:6px;flex-wrap:wrap;">
-              <button class="btn btnGhost" data-view-inst-doc="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">View Document</button>
+              <button class="btn btnGhost" data-view-idoc="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">View</button>
               ${d.status==='Pending'
-                ? `<button class="btn btnGhost" data-idv="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Approve</button><button class="btn btnGhost" data-idr="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Reject</button>`
+                ? `<button class="btn btnGhost" data-idv="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">Approve</button><button class="btn btnGhost" data-idr="${d.id}" type="button" style="padding:5px 10px;font-size:12px;">Reject</button>`
                 : `<span class="mutedText" style="font-size:12px;">Done</span>`}
             </div></td>
           </tr>`).join('')}
         </tbody>
       </table></div>`;
-      wrap.querySelectorAll('[data-view-inst-doc]').forEach(btn => {
+
+      wrap.querySelectorAll('[data-view-idoc]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const d = liveDocs.find(x => x.id === btn.getAttribute('data-view-inst-doc'));
+          const d = liveDocs.find(x=>x.id===btn.getAttribute('data-view-idoc'));
           if (!d) return;
           const sc = d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue';
           openPartnerModal('Document Review', `
             <div style="display:grid;gap:14px;">
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.studentName)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Document Type</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
-                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.studentName)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Type</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
               </div>
               <div style="background:var(--color-background);border-radius:var(--radius-md);padding:24px;text-align:center;border:2px dashed var(--color-border);">
                 <div style="font-size:32px;margin-bottom:8px;">📄</div>
-                <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(d.docType)}</div>
-                <div class="mutedText" style="font-size:12px;">Document preview not available in demo mode</div>
+                <div style="font-weight:600;">${escapeHtml(d.docType)}</div>
+                <div class="mutedText" style="font-size:12px;margin-top:4px;">Preview not available in demo mode</div>
               </div>
-              ${d.status==='Pending' ? `<div class="row" style="gap:10px;justify-content:flex-end;">
-                <button class="btn btnGhost" onclick="document.getElementById('partnerDetailModal')?.remove();">Approve</button>
+              ${d.status==='Pending'?`<div class="row" style="gap:10px;justify-content:flex-end;">
+                <button class="btn btnPrimary" onclick="document.getElementById('partnerDetailModal')?.remove();">Approve</button>
                 <button class="btn btnGhost" style="color:var(--color-danger);" onclick="document.getElementById('partnerDetailModal')?.remove();">Reject</button>
-              </div>` : ''}
+              </div>`:''}
             </div>`);
         });
       });
@@ -7273,106 +7202,63 @@ function initializeLandingInteractions(node) {
 
 // Public landing page render function.
 
-// ─── /demos — Role selection page ────────────────────────────────────────────
-function pageDemos() {
-  const node = el(`<div class="demosPage"></div>`);
 
+// ── /demos — Role selection page ─────────────────────────────────────────────
+function pageDemos() {
+  const node = document.createElement('div');
+  node.className = 'demosPage';
   node.innerHTML = `
     <div class="demosWrap">
-      <!-- Back to landing -->
-      <a href="#/home" class="demosBack">
-        <span style="font-size:18px;">←</span> Back to home
-      </a>
-
+      <a href="index.html" class="demosBack">← Back to home</a>
       <div class="demosHero">
         <div class="demosEyebrow">Youth Digital Hub</div>
         <h1 class="demosTitle">Try the Platform</h1>
-        <p class="demosSub">Explore the full experience as any role — no sign-up required. Pick a workspace below and dive straight in.</p>
+        <p class="demosSub">Explore the full experience as any role — no sign-up required. Pick a workspace below.</p>
       </div>
-
       <div class="demosGrid">
-
-        <!-- Student -->
         <button class="demosCard demosCard--student" data-demo="student" type="button">
           <div class="demosCardIcon">🎓</div>
-          <div class="demosCardBody">
-            <div class="demosCardTitle">Student Demo</div>
-            <div class="demosCardDesc">Explore your personalised dashboard, apply for bursaries, learnerships and internships, and track your applications.</div>
-            <ul class="demosCardFeats">
-              <li>AI career quiz &amp; matching</li>
-              <li>Bursary &amp; learnership listings</li>
-              <li>Application tracking</li>
-              <li>Document management</li>
-            </ul>
-          </div>
+          <div class="demosCardTitle">Student Demo</div>
+          <div class="demosCardDesc">Explore bursaries, learnerships and internships, track applications, and use the AI career quiz.</div>
+          <ul class="demosCardFeats"><li>AI career matching</li><li>Bursary &amp; learnership listings</li><li>Application tracking</li><li>Document management</li></ul>
           <div class="demosCardCta">Enter Student Demo →</div>
         </button>
-
-        <!-- Corporate -->
         <button class="demosCard demosCard--corporate" data-demo="corporate" type="button">
           <div class="demosCardIcon">🏢</div>
-          <div class="demosCardBody">
-            <div class="demosCardTitle">Corporate Partner Demo</div>
-            <div class="demosCardDesc">Post internship and learnership opportunities, review applicants, manage your talent pipeline, and verify documents.</div>
-            <ul class="demosCardFeats">
-              <li>Post &amp; manage opportunities</li>
-              <li>Applicant profiles &amp; scoring</li>
-              <li>Hiring pipeline view</li>
-              <li>Document verification</li>
-            </ul>
-          </div>
+          <div class="demosCardTitle">Corporate Partner Demo</div>
+          <div class="demosCardDesc">Post opportunities, review applicants, manage your talent pipeline and verify documents.</div>
+          <ul class="demosCardFeats"><li>Post &amp; manage opportunities</li><li>Applicant profiles &amp; scoring</li><li>Hiring pipeline</li><li>Document verification</li></ul>
           <div class="demosCardCta">Enter Corporate Demo →</div>
         </button>
-
-        <!-- Institute -->
         <button class="demosCard demosCard--institute" data-demo="institute" type="button">
           <div class="demosCardIcon">🏫</div>
-          <div class="demosCardBody">
-            <div class="demosCardTitle">Institute Demo</div>
-            <div class="demosCardDesc">Manage student enrolments, oversee funding applications, track program analytics, and review student documents.</div>
-            <ul class="demosCardFeats">
-              <li>Program &amp; enrolment management</li>
-              <li>Student profiles</li>
-              <li>Funding application oversight</li>
-              <li>Analytics &amp; reporting</li>
-            </ul>
-          </div>
+          <div class="demosCardTitle">Institute Demo</div>
+          <div class="demosCardDesc">Manage student enrolments, funding applications, program analytics and document review.</div>
+          <ul class="demosCardFeats"><li>Program management</li><li>Student profiles</li><li>Funding oversight</li><li>Analytics &amp; reporting</li></ul>
           <div class="demosCardCta">Enter Institute Demo →</div>
         </button>
-
-        <!-- Admin -->
         <button class="demosCard demosCard--admin" data-demo="admin" type="button">
           <div class="demosCardIcon">⚙️</div>
-          <div class="demosCardBody">
-            <div class="demosCardTitle">Platform Admin Demo</div>
-            <div class="demosCardDesc">The full operator view — manage all institutions, opportunities, users, bursary pipelines, and system analytics across the entire platform.</div>
-            <ul class="demosCardFeats">
-              <li>Full platform oversight</li>
-              <li>Institution management</li>
-              <li>User &amp; role management</li>
-              <li>System analytics</li>
-            </ul>
-          </div>
+          <div class="demosCardTitle">Platform Admin Demo</div>
+          <div class="demosCardDesc">The full operator view — manage institutions, users, bursaries and system analytics.</div>
+          <ul class="demosCardFeats"><li>Full platform oversight</li><li>Institution management</li><li>User &amp; role management</li><li>System analytics</li></ul>
           <div class="demosCardCta">Enter Admin Demo →</div>
         </button>
-
       </div>
-
       <div class="demosFooter">
-        <span>Ready to create your real account?</span>
-        <a href="#/signup" class="btn btnPrimary" style="display:inline-flex;align-items:center;gap:6px;">Create Free Profile →</a>
-        <a href="#/login" class="btn btnGhost">Already have an account? Login</a>
+        <span>Ready to create a real account?</span>
+        <a href="#/signup" class="btn btnPrimary">Create Free Profile →</a>
+        <a href="#/login" class="btn btnGhost">Login</a>
       </div>
     </div>`;
 
-  // Wire demo card clicks
-  const demoRoutes = {
+  const DEMO_ROUTES = {
     student:   '/student/dashboard',
     corporate: '/corporate/dashboard',
     institute: '/institute/dashboard',
     admin:     '/admin/corporate'
   };
-  const demoIds = {
+  const DEMO_KEYS = {
     student:   'user-student-demo',
     corporate: 'user-corporate-demo',
     institute: 'user-institute-demo',
@@ -7382,18 +7268,13 @@ function pageDemos() {
   node.querySelectorAll('[data-demo]').forEach(card => {
     card.addEventListener('click', () => {
       const role = card.getAttribute('data-demo');
-      const userId = demoIds[role];
-      const target = demoRoutes[role];
-      if (!userId || !target) return;
-      // Use the global demoLogin defined in the routing bridge
+      // Use app.html's demoLogin if available, else do it inline
       if (typeof window.demoLogin === 'function') {
         window.demoLogin(role);
       } else {
-        // Fallback
-        try { sessionStorage.setItem(SESSION_KEY, userId); } catch(e) {}
-        currentUserId = userId;
-        if (typeof window.showApp === 'function') window.showApp();
-        navigate(target);
+        try { sessionStorage.setItem(SESSION_KEY, DEMO_KEYS[role]); } catch(e) {}
+        currentUserId = DEMO_KEYS[role];
+        navigate(DEMO_ROUTES[role]);
       }
     });
   });
@@ -12205,23 +12086,23 @@ function getSidebarItems(role) {
 
   if (role === "corporate") {
     return [
-      { label: "Overview",      href: "/corporate/dashboard", dashPage: "overview"       },
-      { label: "Opportunities", href: "/corporate/dashboard", dashPage: "opportunities"  },
-      { label: "Applicants",    href: "/corporate/dashboard", dashPage: "applicants"     },
-      { label: "Pipeline",      href: "/corporate/dashboard", dashPage: "pipeline"       },
-      { label: "Analytics",     href: "/corporate/dashboard", dashPage: "analytics"      },
-      { label: "Documents",     href: "/corporate/dashboard", dashPage: "docs"           },
+      { label: "Overview",      href: "/corporate/dashboard", dashPage: "overview"      },
+      { label: "Opportunities", href: "/corporate/dashboard", dashPage: "opportunities" },
+      { label: "Applicants",    href: "/corporate/dashboard", dashPage: "applicants"    },
+      { label: "Pipeline",      href: "/corporate/dashboard", dashPage: "pipeline"      },
+      { label: "Analytics",     href: "/corporate/dashboard", dashPage: "analytics"     },
+      { label: "Documents",     href: "/corporate/dashboard", dashPage: "docs"          },
     ];
   }
 
   if (role === "institute") {
     return [
-      { label: "Overview",      href: "/institute/dashboard", dashPage: "overview"       },
-      { label: "Programs",      href: "/institute/dashboard", dashPage: "programs"       },
-      { label: "Students",      href: "/institute/dashboard", dashPage: "students"       },
-      { label: "Applications",  href: "/institute/dashboard", dashPage: "applications"   },
-      { label: "Analytics",     href: "/institute/dashboard", dashPage: "analytics"      },
-      { label: "Documents",     href: "/institute/dashboard", dashPage: "docs"           },
+      { label: "Overview",     href: "/institute/dashboard", dashPage: "overview"      },
+      { label: "Programs",     href: "/institute/dashboard", dashPage: "programs"      },
+      { label: "Students",     href: "/institute/dashboard", dashPage: "students"      },
+      { label: "Applications", href: "/institute/dashboard", dashPage: "applications"  },
+      { label: "Analytics",    href: "/institute/dashboard", dashPage: "analytics"     },
+      { label: "Documents",    href: "/institute/dashboard", dashPage: "docs"          },
     ];
   }
 
@@ -12291,14 +12172,13 @@ function render() {
       return;
     }
 
-    if (resolvedRoute === "/demos") {
-      mount(pageDemos());
+    if (resolvedRoute === "/home") {
+      window.location.href = "index.html";
       return;
     }
 
-    if (resolvedRoute === "/home") {
-      // Show the v8 landing page, not the in-app home
-      if (typeof window.showLanding === 'function') window.showLanding();
+    if (resolvedRoute === "/demos") {
+      mount(pageDemos());
       return;
     }
 
@@ -12519,6 +12399,7 @@ function render() {
 function shell(role, contentNode) {
   const user = currentUser();
   const sidebarItems = getSidebarItems(role);
+  const isPartner = role === 'corporate' || role === 'institute';
   const pageTitle = getPageTitleForRoute(route);
   const displayName = getUserDisplayName(user);
   const profile = getUserProfile(user) || {};
@@ -12597,9 +12478,21 @@ function shell(role, contentNode) {
   main.appendChild(contentWrap);
 
   const app = document.createElement("div");
-  app.className = "appShell";
+  app.className = "appShell" + (isPartner ? " partnerShell" : "");
   app.appendChild(sidebar);
   app.appendChild(main);
+
+  // Partner sidebar: wire buttons to page-switcher
+  if (isPartner) {
+    sidebar.querySelectorAll("[data-partner-nav]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-dash-page");
+        if (window.__partnerSwitch) window.__partnerSwitch(page);
+        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+  }
 
   if (role === "student") {
     const mobileItems = getStudentMobileNavItems(route);
@@ -12645,13 +12538,4 @@ function shell(role, contentNode) {
 
 // Re-render after override registration.
 window.ydhRender = render;
-
-// On initial load: if we're on an app route, ensure dashboard is visible
-(function() {
-  var h = (location.hash || '').replace(/^#/, '').trim();
-  if (h && h !== '/home' && h !== '/' ) {
-    if (typeof window.showApp === 'function') window.showApp();
-  }
-})();
-
 render();
