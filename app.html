@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Youth Digital Hub</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+/* Seed demo users into localStorage before functionality.js boots */
+(function () {
+  var STORE = 'tvet_seta_mvp_store_v1';
+  try {
+    var raw   = localStorage.getItem(STORE);
+    var store = raw ? JSON.parse(raw) : {};
+    if (!Array.isArray(store.users)) store.users = [];
+    var demos = [
+      { id:'user-admin-demo',     name:'Demo Admin',       email:'admin@demo.co.za',     password:'password123', role:'admin' },
+      { id:'user-student-demo',   name:'Demo Student',     email:'student@demo.co.za',   password:'password123', role:'student' },
+      { id:'user-corporate-demo', name:'Standard Bank Talent Partnerships',
+        email:'corporate@demo.co.za', password:'password123', role:'corporate_partner',
+        institutionId:'standard-bank-talent-partnerships',
+        profile:{ organisationName:'Standard Bank Talent Partnerships',
+                  institutionId:'standard-bank-talent-partnerships' }},
+      { id:'user-institute-demo', name:'Wits Digital Campus',
+        email:'institute@demo.co.za', password:'password123', role:'institution_admin',
+        institutionId:'wits-digital-campus',
+        profile:{ organisationName:'Wits Digital Campus', institutionId:'wits-digital-campus' }}
+    ];
+    demos.forEach(function (d) {
+      if (!store.users.find(function (u) { return u.id === d.id; }))
+        store.users.push(d);
+    });
+    localStorage.setItem(STORE, JSON.stringify(store));
+  } catch (e) {}
+})();
+
+/* demoLogin — called by the /demos page */
+function demoLogin(role) {
+  var SKEY = 'tvet_seta_mvp_session_user_id';
+  var ids = {
+    student:   'user-student-demo',
+    corporate: 'user-corporate-demo',
+    institute: 'user-institute-demo',
+    admin:     'user-admin-demo'
+  };
+  var routes = {
+    student:   '/student/dashboard',
+    corporate: '/corporate/dashboard',
+    institute: '/institute/dashboard',
+    admin:     '/admin/corporate'
+  };
+  try { sessionStorage.setItem(SKEY, ids[role]); } catch (e) {}
+  location.hash = '#' + routes[role];
+}
+</script>
+
+<script src="https://cdn.lordicon.com/lordicon.js"></script>
+<script src="functionality.js"></script>
+
+</body>
+</html>
