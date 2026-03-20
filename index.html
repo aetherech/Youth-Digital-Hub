@@ -507,6 +507,68 @@ button.bfg-lg{
   .paths-h{font-size:clamp(1.9rem,7vw,2.6rem)}
 }
 
+
+/* =====================================================================
+   LANDING PAGE — LARGE TABLET LANDSCAPE (900px – 1280px)
+   Covers Android tablets in landscape that were missed by 500–900 range
+   ===================================================================== */
+@media (min-width: 900px) and (max-width: 1280px) {
+  /* Scale heading down — at 1024px, 9vw = 92px (too large) */
+  .hlh1 {
+    font-size: clamp(2.8rem, 5vw, 5.5rem) !important;
+    margin-bottom: 14px !important;
+    letter-spacing: -.035em !important;
+  }
+  /* Keep CTAs row compact */
+  .hlctas { gap: 10px !important; }
+  /* Nav links visible at this width but smaller */
+  nav { padding: 16px 32px !important; }
+}
+
+/* =====================================================================
+   MOBILE SECTION 2 — Extra fixes for the s2 text block
+   The JS fade handles cards disappearing but these rules ensure clean layout
+   ===================================================================== */
+@media (max-width: 768px) {
+  /* Section 2 text: sit on top of card layer with high z-index */
+  #s2 {
+    z-index: 12 !important;
+    background: rgba(255, 255, 255, 0.97) !important;
+    border-radius: 16px !important;
+    margin: 0 16px !important;
+    width: calc(100% - 32px) !important;
+    padding: 24px 20px !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+  }
+  /* Tighten s2 heading and body at mobile */
+  .s2h {
+    font-size: clamp(1.5rem, 6vw, 2rem) !important;
+    margin-bottom: 10px !important;
+  }
+  .s2p { font-size: .82rem !important; max-width: 100% !important; margin-bottom: 20px !important; }
+  .s2ct { flex-direction: column !important; gap: 10px !important; }
+  .s2ct a { width: 100% !important; justify-content: center !important; }
+
+  /* Hero: reduce mega scroll height slightly for snappier feel */
+  #mega { height: 360vh !important; }
+}
+
+/* =====================================================================
+   MOBILE HERO — single-card state: reduce empty space below CTAs
+   ===================================================================== */
+@media (max-width: 499px) {
+  /* Less padding so card below CTAs isn't so far away */
+  #hl { padding-top: 64px !important; }
+  .hlh1 { font-size: clamp(2.2rem, 10vw, 3.4rem) !important; }
+  /* Tighten CTA gap */
+  .hlctas { gap: 8px !important; }
+  .hlctas .bdk, .hlctas .blt, .hlctas .bfg, .hlctas .bol {
+    padding: 11px 22px !important;
+    font-size: .83rem !important;
+  }
+}
+
 /* =====================================================================
    LANDING PAGE — TABLET & MID-SCREEN FIXES (500px – 900px)
    Cards used to overlap the hero text; heading was too large.
@@ -988,7 +1050,12 @@ const stA={x:[0,0,0,0,0,0,0],y:[6,4,2,0,-2,-4,-6],r:[-3,-1.8,-.8,0,.8,1.8,3],s:[
 const stB={x:[-470,-300,-156,0,156,300,470],y:[48,14,-8,-16,-8,14,48],r:[-12,-6,-2,0,2,6,12],s:[1,1,1,1,1,1,1]};
 function getStC(){
   const vw=window.innerWidth;
-  const base=vw*.11;const gap=Math.min(vw*.052,72);
+  // On mobile/tablet push the whole fan further right so it clears the #s2 text block
+  const isMobile = vw < 768;
+  const isTablet = vw >= 768 && vw < 1200;
+  const baseMultiplier = isMobile ? 0.32 : isTablet ? 0.20 : 0.11;
+  const base=vw*baseMultiplier;
+  const gap=Math.min(vw*.052,72);
   return{x:[0,1,2,3,4,5,6].map(i=>base+(i*gap)),y:[-24,-6,10,24,10,-6,-24],r:[-6,-2,0,3,6,3,-3],s:[1,.95,.9,.85,.8,.75,.7]};
 }
 
@@ -1058,6 +1125,12 @@ function tick(){
 
   const s2in=eio(map(p,.70,.90));
   s2.style.opacity=s2in;s2.style.transform='translateX('+lerp(-20,0,s2in)+'px)';s2.style.pointerEvents=s2in>.5?'auto':'none';
+  // On mobile/tablet, fade out card fan as s2 text fades in to prevent overlap
+  if(window.innerWidth < 1024) {
+    cw.style.opacity = String(Math.max(0, 1 - s2in * 1.8));
+  } else {
+    cw.style.opacity = '1';
+  }
   [[s2ey,.72,.90],[s2h,.75,.93],[s2p,.78,.96],[s2ct,.81,.98]].forEach(([el,a,b])=>{
     if(!el)return;const t=eio(map(p,a,b));
     el.style.opacity=t;el.style.transform='translateY('+lerp(14,0,t)+'px)';
