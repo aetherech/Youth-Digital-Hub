@@ -15,7 +15,9 @@ const STORAGE_VERSION_KEY = "tvet_seta_storage_version";
 const DEBUG = true;
 const APP_STORAGE_PREFIXES = ["tvet_", "student_", "admin_", "applications_", "documents_", "guidance_"];
 const SHOW_DEMO_TOOLS = /localhost|127\.0\.0\.1/.test(String(location.hostname || ""));
-const ADMIN_ROLES = new Set(["admin", "super_admin", "institution_admin", "corporate_partner", "reviewer"]);
+const PLATFORM_ADMIN_ROLES = new Set(["admin", "super_admin", "reviewer"]);
+const PARTNER_WORKSPACE_ROLES = new Set(["institution_admin", "corporate_partner"]);
+const ADMIN_ROLES = new Set([...PLATFORM_ADMIN_ROLES, ...PARTNER_WORKSPACE_ROLES]);
 const APPLICATION_PIPELINE_STAGES = ["applied", "under_review", "shortlisted", "interview", "accepted", "rejected"];
 const PUBLIC_SIGNUP_ROLE = "student";
 
@@ -294,6 +296,30 @@ const demoUsers = [
     email: "student@demo.co.za",
     password: "password123",
     role: "student"
+  },
+  {
+    id: "user-corporate-demo",
+    name: "Standard Bank Talent Partnerships",
+    email: "corporate@demo.co.za",
+    password: "password123",
+    role: "corporate_partner",
+    institutionId: "standard-bank-talent-partnerships",
+    profile: {
+      organisationName: "Standard Bank Talent Partnerships",
+      institutionId: "standard-bank-talent-partnerships"
+    }
+  },
+  {
+    id: "user-institute-demo",
+    name: "Wits Digital Campus",
+    email: "institute@demo.co.za",
+    password: "password123",
+    role: "institution_admin",
+    institutionId: "wits-digital-campus",
+    profile: {
+      organisationName: "Wits Digital Campus",
+      institutionId: "wits-digital-campus"
+    }
   }
 ];
 
@@ -374,148 +400,608 @@ const opportunities = [
   {
     id: "opp-lear-001",
     type: "Learnership",
-    title: "Systems Development Learnership",
-    institution: "MICT SETA Partner Consortium",
+    title: "Banking Operations Learnership",
+    institution: "Standard Bank",
     location: "Gauteng",
-    sector: "IT",
+    sector: "Finance",
     closingDate: "2026-04-30",
     stipendOrValue: "R6,500/month",
-    requirements: ["Grade 12", "Basic coding literacy", "CV"],
-    description: "Work-integrated learnership for software support and junior development roles."
+    fundingAmount: "R6,500/month",
+    focusArea: "Banking Operations, Customer Service, Financial Administration",
+    badges: ["Open", "Banking"],
+    tags: ["Open", "Banking", "Operations"],
+    image: "images/Standard-Bank.jpg",
+    siteLocation: "Johannesburg",
+    requirements: ["Grade 12 / Matric", "Communication skills", "South African ID"],
+    description: "Entry-level banking operations learnership focused on customer support, branch administration, and service delivery.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-lear-002",
     type: "Learnership",
-    title: "Electrical Maintenance Learnership",
-    institution: "Eskom Technical Academy",
-    location: "Free State",
+    title: "Chemical Engineering Learnership",
+    institution: "Sasol",
+    location: "Mpumalanga",
     sector: "Engineering",
-    closingDate: "2026-05-20",
-    stipendOrValue: "R7,200/month",
-    requirements: ["N2 Electrical", "Medical fitness", "South African ID"],
-    description: "Practical electrical maintenance training linked to utility operations."
+    closingDate: "2026-05-25",
+    stipendOrValue: "R8,000/month",
+    fundingAmount: "R8,000/month",
+    focusArea: "Chemical Engineering, Plant Operations, Process Control",
+    badges: ["Open", "Engineering"],
+    tags: ["Open", "Engineering", "Chemical"],
+    image: "images/Sasol.jpeg",
+    siteLocation: "Secunda",
+    requirements: ["Matric with Mathematics and Physical Science", "Engineering interest", "CV"],
+    description: "Workplace-based chemical engineering learnership linked to plant operations and production support.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-lear-003",
     type: "Learnership",
-    title: "Business Administration Learnership",
-    institution: "Services SETA",
-    location: "Eastern Cape",
+    title: "Retail Management Learnership",
+    institution: "Shoprite Group",
+    location: "Western Cape",
     sector: "Business",
     closingDate: "2026-06-05",
-    stipendOrValue: "R5,800/month",
-    requirements: ["Grade 12", "Communication skills", "Computer literacy"],
-    description: "Entry pathway into office administration and business support functions."
+    stipendOrValue: "R5,500/month",
+    fundingAmount: "R5,500/month",
+    focusArea: "Retail Operations, Store Administration, Customer Experience",
+    badges: ["Open", "Retail"],
+    tags: ["Open", "Retail", "Management"],
+    image: "images/Shoprite.png",
+    siteLocation: "Cape Town",
+    requirements: ["Grade 12 / Matric", "Customer service mindset", "Willingness to work retail shifts"],
+    description: "Retail leadership learnership for students interested in store operations, supervision, and customer experience.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-int-001",
     type: "Internship",
-    title: "Municipal Finance Internship",
-    institution: "City of Johannesburg",
+    title: "Digital Marketing Internship",
+    institution: "Vodacom",
     location: "Gauteng",
-    sector: "Finance",
-    closingDate: "2026-05-15",
-    stipendOrValue: "R8,000/month",
-    requirements: ["N6 Financial Management", "South African citizen", "Academic transcript"],
-    description: "Internship for finance graduates supporting municipal budgeting and reporting."
+    sector: "Marketing",
+    closingDate: "2026-05-12",
+    stipendOrValue: "R7,200/month",
+    fundingAmount: "R7,200/month",
+    focusArea: "Digital Marketing, Campaign Analytics, Content Performance",
+    badges: ["Open", "Marketing"],
+    tags: ["Open", "Marketing", "Internship"],
+    image: "images/Vodacom.jpg",
+    siteLocation: "Midrand",
+    requirements: ["Marketing or media qualification", "Digital communication skills", "Portfolio or CV"],
+    description: "Hands-on internship supporting digital campaigns, reporting, and brand growth across Vodacom channels.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-int-002",
     type: "Internship",
-    title: "Laboratory Assistant Internship",
-    institution: "CSIR Youth Programme",
-    location: "Western Cape",
-    sector: "Science",
-    closingDate: "2026-06-25",
-    stipendOrValue: "R7,000/month",
-    requirements: ["Science qualification", "Lab safety awareness", "Reference letter"],
-    description: "Hands-on laboratory internship in testing and quality assurance environments."
+    title: "Software Development Internship",
+    institution: "MTN",
+    location: "Gauteng",
+    sector: "IT",
+    closingDate: "2026-06-28",
+    stipendOrValue: "R9,000/month",
+    fundingAmount: "R9,000/month",
+    focusArea: "Software Development, APIs, Product Engineering",
+    badges: ["Open", "Technology"],
+    tags: ["Open", "Technology", "Internship"],
+    image: "images/MTN.jpg",
+    siteLocation: "Johannesburg",
+    requirements: ["Software development qualification", "Portfolio or GitHub", "Problem-solving skills"],
+    description: "Engineering internship for emerging developers contributing to internal products and digital platforms.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-int-003",
     type: "Internship",
-    title: "Plumbing Workplace Internship",
-    institution: "Department of Public Works",
-    location: "North West",
-    sector: "Trades",
-    closingDate: "Rolling",
-    stipendOrValue: "R6,000/month",
-    requirements: ["Trade theory completion", "Practical logbook", "ID Copy"],
-    description: "Workplace exposure internship for plumbing graduates seeking artisan placement."
+    title: "Municipal Finance Internship",
+    institution: "City of Cape Town",
+    location: "Western Cape",
+    sector: "Finance",
+    closingDate: "2026-07-02",
+    stipendOrValue: "R6,200/month",
+    fundingAmount: "R6,200/month",
+    focusArea: "Municipal Finance, Budgeting, Public Administration",
+    badges: ["Open", "Public Service"],
+    tags: ["Open", "Public Service", "Finance"],
+    image: "images/City of Cape Town.jpg.webp",
+    siteLocation: "Cape Town",
+    requirements: ["Finance or public administration qualification", "Spreadsheet skills", "South African ID"],
+    description: "Internship in municipal finance supporting budgeting, reporting, and community-facing service functions.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-001",
     type: "Course",
-    title: "NCV Level 4: Electrical Infrastructure Construction",
-    institution: "Ekurhuleni East TVET College",
-    location: "Gauteng",
-    sector: "Engineering",
+    title: "Data Analytics Short Course",
+    institution: "UCT Online",
+    location: "National",
+    sector: "Data & Analytics",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["Grade 9 or equivalent", "Numeracy and literacy"],
-    description: "College programme covering electrical principles, installation, and maintenance."
+    stipendOrValue: "12 weeks",
+    fundingAmount: "12 weeks",
+    duration: "12 weeks",
+    certificationType: "Short Course Certificate",
+    focusArea: "Excel, SQL, Data Visualisation, Decision-making",
+    tags: ["Excel", "SQL", "Data Visualisation"],
+    image: "images/UCT Online.png",
+    requirements: ["Grade 12 recommended", "Basic numeracy", "Reliable internet access"],
+    description: "Practical online course introducing core analytics tools, dashboards, and decision-making frameworks.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-002",
     type: "Course",
-    title: "National Certificate: IT Support",
-    institution: "Tshwane North TVET College",
-    location: "Gauteng",
-    sector: "IT",
+    title: "AI & Machine Learning Foundations",
+    institution: "Wits Digital Campus",
+    location: "National",
+    sector: "Artificial Intelligence / Data Science",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["Grade 12 recommended", "Basic computer skills"],
-    description: "Course focused on helpdesk operations, hardware support, and troubleshooting."
+    stipendOrValue: "10 weeks",
+    fundingAmount: "10 weeks",
+    duration: "10 weeks",
+    certificationType: "Certificate of Completion",
+    focusArea: "Machine Learning, Python, AI Concepts",
+    tags: ["AI", "Python", "Machine Learning"],
+    image: "images/wits digital campus.jpg",
+    requirements: ["Grade 12 recommended", "Analytical mindset", "Laptop access"],
+    description: "Foundation course covering machine learning concepts, data handling, and practical AI problem solving.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-003",
     type: "Course",
-    title: "N6 Financial Management",
-    institution: "False Bay TVET College",
-    location: "Western Cape",
-    sector: "Finance",
+    title: "Software Engineering Bootcamp",
+    institution: "HyperionDev",
+    location: "National",
+    sector: "Computer Science / ICT",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["N5 Financial Management", "Academic transcript"],
-    description: "Advanced finance course preparing learners for accounting and admin careers."
+    stipendOrValue: "6 months",
+    fundingAmount: "6 months",
+    duration: "6 months",
+    certificationType: "Bootcamp Certificate",
+    focusArea: "JavaScript, Python, Git, Full-stack Development",
+    tags: ["JavaScript", "Python", "Git"],
+    image: "images/hyperiondev.png",
+    requirements: ["Basic computer literacy", "Problem-solving mindset", "Laptop access"],
+    description: "Immersive software engineering programme covering programming fundamentals, web development, and portfolio work.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-004",
     type: "Course",
-    title: "Occupational Certificate: Welding Assistant",
-    institution: "Majuba TVET College",
-    location: "KwaZulu-Natal",
-    sector: "Trades",
+    title: "Professional Foundations",
+    institution: "ALX Africa",
+    location: "National",
+    sector: "Business",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["Grade 10 or equivalent", "Safety orientation"],
-    description: "Trade-focused welding fundamentals and practical workshop skills."
+    stipendOrValue: "8 weeks",
+    fundingAmount: "8 weeks",
+    duration: "8 weeks",
+    certificationType: "Professional Certificate",
+    focusArea: "Communication, Productivity, Career Readiness",
+    tags: ["Communication", "Career Readiness", "Productivity"],
+    image: "images/alx_Africa_Business_Communities.png",
+    requirements: ["Open to all learners", "Commitment to coursework", "Reliable connectivity"],
+    description: "Career-readiness programme designed to build professional communication, productivity, and workplace confidence.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-005",
     type: "Course",
-    title: "National Certificate: Laboratory Practice",
-    institution: "Boland TVET College",
-    location: "Western Cape",
-    sector: "Science",
+    title: "IT Support Certificate",
+    institution: "Google Career Certificates",
+    location: "National",
+    sector: "Computer Science / ICT",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["Life Sciences", "Numeracy competency"],
-    description: "Laboratory techniques, sample handling, and quality-control practices."
+    stipendOrValue: "6 months",
+    fundingAmount: "6 months",
+    duration: "6 months",
+    certificationType: "Professional Certificate",
+    focusArea: "IT Support, Troubleshooting, Networking, Systems",
+    tags: ["IT Support", "Troubleshooting", "Networking"],
+    image: "images/google.webp",
+    requirements: ["No prior experience required", "Basic digital skills", "Internet access"],
+    description: "Beginner-friendly IT support programme covering troubleshooting, systems, networking, and customer service.",
+    verifiedPartner: true,
+    listingStatus: "open"
   },
   {
     id: "opp-crs-006",
     type: "Course",
-    title: "NCV Level 4: Office Administration",
-    institution: "Orbit TVET College",
-    location: "North West",
+    title: "Azure Fundamentals",
+    institution: "Microsoft Learn",
+    location: "National",
+    sector: "Computer Science / ICT",
+    closingDate: "Rolling",
+    stipendOrValue: "4 weeks",
+    fundingAmount: "4 weeks",
+    duration: "4 weeks",
+    certificationType: "Certification Prep",
+    focusArea: "Azure, Cloud Fundamentals, Infrastructure",
+    tags: ["Azure", "Cloud", "Infrastructure"],
+    image: "images/Microsoft Learn.png",
+    requirements: ["Basic cloud interest", "Self-paced study discipline", "Internet access"],
+    description: "Cloud fundamentals course introducing Azure services, infrastructure basics, and certification preparation.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-lear-004",
+    type: "Learnership",
+    title: "Mechanical Engineering Learnership",
+    institution: "Transnet",
+    location: "KwaZulu-Natal",
+    sector: "Engineering",
+    closingDate: "2026-06-12",
+    stipendOrValue: "R7,800/month",
+    fundingAmount: "R7,800/month",
+    focusArea: "Mechanical Engineering, Maintenance, Rail Operations",
+    badges: ["Open", "Engineering"],
+    tags: ["Open", "Engineering", "Rail"],
+    image: "images/transnet.png",
+    siteLocation: "Durban",
+    requirements: ["Matric with Maths and Science", "Mechanical aptitude", "South African ID"],
+    description: "Engineering learnership supporting rail and mechanical operations within a major logistics environment.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-lear-005",
+    type: "Learnership",
+    title: "Automotive Engineering Learnership",
+    institution: "Toyota South Africa",
+    location: "KwaZulu-Natal",
+    sector: "Engineering",
+    closingDate: "2026-07-18",
+    stipendOrValue: "R7,500/month",
+    fundingAmount: "R7,500/month",
+    focusArea: "Automotive Engineering, Production, Quality Systems",
+    badges: ["Open", "Automotive"],
+    tags: ["Open", "Automotive", "Engineering"],
+    image: "images/Toyota South Africa.jpg",
+    siteLocation: "Durban",
+    requirements: ["Matric with Maths and Science", "Interest in manufacturing", "CV"],
+    description: "Automotive engineering learnership exposing learners to plant production, quality, and technical operations.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-lear-006",
+    type: "Learnership",
+    title: "Electrical Technician Learnership",
+    institution: "Eskom",
+    location: "Free State",
+    sector: "Engineering",
+    closingDate: "2026-07-31",
+    stipendOrValue: "R6,800/month",
+    fundingAmount: "R6,800/month",
+    focusArea: "Electrical Maintenance, Energy Systems, Field Operations",
+    badges: ["Closing Soon", "Energy"],
+    tags: ["Closing Soon", "Energy", "Engineering"],
+    image: "images/eskom-logo_orig.png",
+    siteLocation: "Bloemfontein",
+    requirements: ["N2 Electrical or Matric with science", "Medical fitness", "South African ID"],
+    description: "Technical learnership for aspiring electrical technicians supporting energy and field maintenance work.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-int-004",
+    type: "Internship",
+    title: "Cloud Support Internship",
+    institution: "IBM South Africa",
+    location: "Gauteng",
+    sector: "Computer Science / ICT",
+    closingDate: "2026-08-08",
+    stipendOrValue: "R9,500/month",
+    fundingAmount: "R9,500/month",
+    focusArea: "Cloud Support, Enterprise Systems, Client Success",
+    badges: ["Open", "Cloud"],
+    tags: ["Open", "Cloud", "Technology"],
+    image: "images/IBM South Africa.png",
+    siteLocation: "Johannesburg",
+    requirements: ["IT or cloud qualification", "Customer support mindset", "CV"],
+    description: "Cloud support internship focused on troubleshooting, service delivery, and enterprise client environments.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-crs-007",
+    type: "Course",
+    title: "Business Strategy Certificate",
+    institution: "Coursera + University of London",
+    location: "National",
+    sector: "Business / Finance",
+    closingDate: "Rolling",
+    stipendOrValue: "10 weeks",
+    fundingAmount: "10 weeks",
+    duration: "10 weeks",
+    certificationType: "University Certificate",
+    focusArea: "Strategy, Leadership, Business Analysis",
+    tags: ["Strategy", "Leadership", "Business Analysis"],
+    image: "images/U_of_Londo_Coursera.png",
+    requirements: ["Open to graduates and working professionals", "Internet access", "Commitment to coursework"],
+    description: "Business strategy course introducing market positioning, leadership, and decision-making in modern organisations.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-crs-008",
+    type: "Course",
+    title: "Cloud Practitioner Certification",
+    institution: "AWS Training",
+    location: "National",
+    sector: "Computer Science / ICT",
+    closingDate: "Rolling",
+    stipendOrValue: "6 weeks",
+    fundingAmount: "6 weeks",
+    duration: "6 weeks",
+    certificationType: "Certification Prep",
+    focusArea: "AWS Cloud, Security, Billing, Architecture Basics",
+    tags: ["AWS", "Cloud", "Security"],
+    image: "images/AWS Training.png",
+    requirements: ["Basic computer literacy", "Internet access", "Self-paced study discipline"],
+    description: "Foundational AWS training covering cloud concepts, billing, security, and exam preparation.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-crs-009",
+    type: "Course",
+    title: "Digital Marketing Certificate",
+    institution: "IIE Varsity College",
+    location: "National",
+    sector: "Marketing",
+    closingDate: "Rolling",
+    stipendOrValue: "12 weeks",
+    fundingAmount: "12 weeks",
+    duration: "12 weeks",
+    certificationType: "Certificate",
+    focusArea: "Digital Marketing, Content Strategy, Campaign Analytics",
+    tags: ["Digital Marketing", "Analytics", "Content"],
+    image: "images/IIE Varsity College.png",
+    requirements: ["Open to school leavers and graduates", "Communication skills", "Internet access"],
+    description: "Digital marketing course covering campaign planning, content, paid media, and analytics fundamentals.",
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-crs-010",
+    type: "Course",
+    title: "Project Management Fundamentals",
+    institution: "UNISA Short Courses",
+    location: "National",
     sector: "Business",
     closingDate: "Rolling",
-    stipendOrValue: "-",
-    requirements: ["Grade 9 or equivalent", "English communication"],
-    description: "Administrative systems and office operations training for business support roles."
+    stipendOrValue: "10 weeks",
+    fundingAmount: "10 weeks",
+    duration: "10 weeks",
+    certificationType: "Short Course Certificate",
+    focusArea: "Project Planning, Stakeholder Management, Risk Control",
+    tags: ["Project Planning", "Stakeholder Management", "Risk"],
+    image: "images/unisa-short-courses.webp",
+    requirements: ["Open to all learners", "Basic workplace literacy", "Internet access"],
+    description: "Short course in practical project management with a focus on planning, delivery, and stakeholder management.",
+    verifiedPartner: true,
+    listingStatus: "open"
   }
 ];
+const CURATED_BURSARY_LISTING_OPPORTUNITIES = [
+  {
+    id: "opp-bur-nedbank",
+    type: "Bursary",
+    title: "Nedbank External Bursary Programme",
+    institution: "Nedbank Group",
+    provider: "Nedbank Group",
+    location: "National",
+    province: "National",
+    sector: "Finance & Business",
+    closingDate: "2026-08-31",
+    stipendOrValue: "Up to R120,000 per year",
+    fundingAmount: "Up to R120,000 per year",
+    focusArea: "Finance, Accounting, Economics, Data Science",
+    badges: ["Finance", "Applications Open"],
+    tags: ["Finance", "Applications Open"],
+    image: "images/nedbank.jpg",
+    ctaText: "View bursary",
+    description: "Financial support for high-performing students pursuing finance, economics, and data-focused degrees.",
+    requirements: ["South African citizen", "Strong academic results", "Relevant tertiary study programme"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-csir",
+    type: "Bursary",
+    title: "CSIR Data Science & AI Bursary",
+    institution: "Council for Scientific and Industrial Research",
+    provider: "Council for Scientific and Industrial Research",
+    location: "National",
+    province: "National",
+    sector: "Artificial Intelligence / Data Science",
+    closingDate: "2026-07-15",
+    stipendOrValue: "Full tuition + research support",
+    fundingAmount: "Full tuition + research support",
+    focusArea: "AI, Data Science, Engineering, Computer Science",
+    badges: ["STEM", "Research Programme"],
+    tags: ["STEM", "Research Programme"],
+    image: "images/csir.jpeg",
+    ctaText: "View bursary",
+    description: "Research-led bursary support for students advancing into AI, data science, and engineering pathways.",
+    requirements: ["South African citizen", "Strong STEM academic record", "Relevant tertiary qualification"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-absa",
+    type: "Bursary",
+    title: "Absa Fellowship Programme",
+    institution: "Absa Group",
+    provider: "Absa Group",
+    location: "National",
+    province: "National",
+    sector: "Finance / Economics",
+    closingDate: "2026-09-30",
+    stipendOrValue: "Full tuition + leadership programme",
+    fundingAmount: "Full tuition + leadership programme",
+    focusArea: "Finance, Economics, Actuarial Science, Data Analytics",
+    badges: ["Leadership", "Finance"],
+    tags: ["Leadership", "Finance"],
+    image: "images/Absa.copy.webp",
+    ctaText: "View bursary",
+    description: "A leadership-focused bursary supporting future finance and analytics professionals.",
+    requirements: ["South African citizen", "Academic excellence", "Leadership potential"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-transnet",
+    type: "Bursary",
+    title: "Transnet Engineering Bursary",
+    institution: "Transnet SOC Ltd",
+    provider: "Transnet SOC Ltd",
+    location: "National",
+    province: "National",
+    sector: "Engineering",
+    closingDate: "2026-07-31",
+    stipendOrValue: "Full tuition + internship pathway",
+    fundingAmount: "Full tuition + internship pathway",
+    focusArea: "Mechanical, Electrical, Civil, Industrial Engineering",
+    badges: ["Engineering", "Graduate Pipeline"],
+    tags: ["Engineering", "Graduate Pipeline"],
+    image: "images/transnet.png",
+    ctaText: "View bursary",
+    description: "Engineering bursary support with an internship pipeline into transport infrastructure careers.",
+    requirements: ["South African citizen", "Engineering study pathway", "Strong mathematics and science results"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-vodacom",
+    type: "Bursary",
+    title: "Vodacom Technology Bursary",
+    institution: "Vodacom Group",
+    provider: "Vodacom Group",
+    location: "National",
+    province: "National",
+    sector: "Computer Science / ICT",
+    closingDate: "2026-08-31",
+    stipendOrValue: "Up to R100,000 per year",
+    fundingAmount: "Up to R100,000 per year",
+    focusArea: "Computer Science, Information Systems, Data Science, Electronic Engineering",
+    badges: ["Technology", "Applications Open"],
+    tags: ["Technology", "Applications Open"],
+    image: "images/Vodacom.jpg",
+    ctaText: "View bursary",
+    description: "Technology bursary support for students building careers in ICT, data science, and engineering.",
+    requirements: ["South African citizen", "Strong academic results", "Relevant technology qualification"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-anglo-american",
+    type: "Bursary",
+    title: "Anglo American Mining Engineering Bursary",
+    institution: "Anglo American",
+    provider: "Anglo American",
+    location: "National",
+    province: "National",
+    sector: "Mining Engineering",
+    closingDate: "2026-06-30",
+    stipendOrValue: "Full tuition + graduate programme",
+    fundingAmount: "Full tuition + graduate programme",
+    focusArea: "Mining Engineering, Metallurgy, Geology, Environmental Science",
+    badges: ["Engineering", "Mining"],
+    tags: ["Engineering", "Mining"],
+    image: "images/anglo-americanlogo.jpg",
+    ctaText: "View bursary",
+    description: "Mining and earth sciences bursary with a graduate pipeline into Anglo American programmes.",
+    requirements: ["South African citizen", "Mining or earth sciences study path", "Strong STEM academic results"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-investec",
+    type: "Bursary",
+    title: "Investec Tertiary Bursary",
+    institution: "Investec",
+    provider: "Investec",
+    location: "National",
+    province: "National",
+    sector: "Finance / Investment Banking",
+    closingDate: "2026-09-30",
+    stipendOrValue: "Full tuition + mentorship",
+    fundingAmount: "Full tuition + mentorship",
+    focusArea: "Finance, Economics, Engineering, Computer Science",
+    badges: ["Finance", "Leadership"],
+    tags: ["Finance", "Leadership"],
+    image: "images/Investec.png",
+    ctaText: "View bursary",
+    description: "Tertiary bursary support paired with mentorship for future finance and technology talent.",
+    requirements: ["South African citizen", "Excellent academic results", "Relevant undergraduate study path"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-standard-bank",
+    type: "Bursary",
+    title: "Standard Bank Africa Bursary",
+    institution: "Standard Bank Group",
+    provider: "Standard Bank Group",
+    location: "National",
+    province: "National",
+    sector: "Finance / Data Science",
+    closingDate: "2026-09-15",
+    stipendOrValue: "Full tuition + laptop",
+    fundingAmount: "Full tuition + laptop",
+    focusArea: "Finance, Data Science, Actuarial Science, Economics",
+    badges: ["Finance", "Graduate Programme"],
+    tags: ["Finance", "Graduate Programme"],
+    image: "images/Standard-Bank.jpg",
+    ctaText: "View bursary",
+    description: "Bursary support for finance and data-driven disciplines with graduate programme exposure.",
+    requirements: ["South African citizen", "Strong quantitative results", "Relevant tertiary programme"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  },
+  {
+    id: "opp-bur-eskom",
+    type: "Bursary",
+    title: "Eskom Electrical Engineering Bursary",
+    institution: "Eskom Holdings",
+    provider: "Eskom Holdings",
+    location: "National",
+    province: "National",
+    sector: "Electrical Engineering",
+    closingDate: "2026-06-30",
+    stipendOrValue: "Full tuition + internship",
+    fundingAmount: "Full tuition + internship",
+    focusArea: "Electrical Engineering, Mechanical Engineering, Energy Studies",
+    badges: ["Engineering", "Energy"],
+    tags: ["Engineering", "Energy"],
+    image: "images/eskom-logo_orig.png",
+    ctaText: "View bursary",
+    description: "Engineering bursary support that connects students to energy-sector training and internships.",
+    requirements: ["South African citizen", "Engineering study path", "Strong mathematics and science results"],
+    verifiedPartner: true,
+    listingStatus: "open"
+  }
+];
+
+function getStaticOpportunityCatalogue() {
+  return [...CURATED_BURSARY_LISTING_OPPORTUNITIES, ...opportunities];
+}
 
 function defaultOpportunityStore() {
   return {
@@ -664,8 +1150,17 @@ function ensureOpportunityStore() {
 }
 
 function getOpportunityCatalogue() {
+  const staticCatalogue = Array.isArray(opportunities) ? opportunities : [];
   const stored = flattenOpportunityStore(store?.opportunities);
-  return stored.length ? stored : opportunities;
+  if (!stored.length) return staticCatalogue;
+
+  const merged = new Map(staticCatalogue.map((opportunity) => [opportunity.id, opportunity]));
+  stored.forEach((opportunity) => {
+    const existing = merged.get(opportunity.id) || {};
+    merged.set(opportunity.id, { ...existing, ...opportunity });
+  });
+
+  return Array.from(merged.values());
 }
 
 function upsertOpportunityRecord(rawOpportunity, options = {}) {
@@ -823,9 +1318,395 @@ function defaultInstitutions() {
   ];
 }
 
+function getWorkspaceHomeRoute(user, options = {}) {
+  if (!user) return "/home";
+
+  const role = String(user.role || "").trim().toLowerCase();
+  if (role === "corporate_partner") return "/corporate/dashboard";
+  if (role === "institution_admin") return "/institute/dashboard";
+  if (isPlatformAdminRole(role)) return "/admin/dashboard";
+  if (options.allowOnboarding !== false && isStudentOnboardingRequired(user)) return "/student/onboarding";
+  return "/student/dashboard";
+}
+
+function getSupplementalDemoStudents() {
+  return [
+    {
+      id: "user-student-seed-01",
+      name: "Lerato Dlamini",
+      email: "lerato.seed@ydh.local",
+      password: "password123",
+      role: "student",
+      profile: {
+        fullName: "Lerato Dlamini",
+        province: "Gauteng",
+        educationLevel: "Matric",
+        interests: ["Finance & Investment", "Accounting & Auditing", "Data & Analytics"],
+        onboarding: { completed: true }
+      }
+    },
+    {
+      id: "user-student-seed-02",
+      name: "Sipho Nkosi",
+      email: "sipho.seed@ydh.local",
+      password: "password123",
+      role: "student",
+      profile: {
+        fullName: "Sipho Nkosi",
+        province: "KwaZulu-Natal",
+        educationLevel: "TVET N6",
+        interests: ["Information Technology (Software)", "Data & Analytics", "Business Studies"],
+        onboarding: { completed: true }
+      }
+    }
+  ];
+}
+
+function getPartnerDemoInstitutions() {
+  return [
+    {
+      id: "standard-bank-talent-partnerships",
+      name: "Standard Bank Talent Partnerships",
+      type: "Corporate Partner",
+      contactPerson: "Recruitment Office",
+      contactEmail: "corporate@demo.co.za",
+      accreditation: "Corporate Employer",
+      status: "verified",
+      verified: true,
+      registrationDocuments: [],
+      submittedAt: "2026-02-01T09:00:00.000Z",
+      reviewedAt: "2026-02-03T09:00:00.000Z",
+      notes: "Demo employer workspace"
+    },
+    {
+      id: "wits-digital-campus",
+      name: "Wits Digital Campus",
+      type: "Institute / College",
+      contactPerson: "Programme Office",
+      contactEmail: "institute@demo.co.za",
+      accreditation: "University Provider",
+      status: "verified",
+      verified: true,
+      registrationDocuments: [],
+      submittedAt: "2026-02-05T09:00:00.000Z",
+      reviewedAt: "2026-02-06T09:00:00.000Z",
+      notes: "Demo institute workspace"
+    }
+  ];
+}
+
+function getPartnerDemoOpportunitySeedData() {
+  return [
+    {
+      id: "opp-corp-demo-001",
+      type: "Learnership",
+      title: "Banking Operations Learnership",
+      provider: "Standard Bank Talent Partnerships",
+      province: "Gauteng",
+      sector: "Finance",
+      closingDate: "2026-08-14",
+      stipendOrValue: "R6,500 / month",
+      description: "An entry-level banking operations learnership with branch exposure, compliance basics, and customer operations training.",
+      requirements: ["Matric certificate", "South African ID", "Strong communication skills"],
+      tags: ["Finance", "Customer service", "Operations"],
+      institutionId: "standard-bank-talent-partnerships",
+      logoUrl: "images/Standard-Bank.jpg",
+      listingStatus: "open"
+    },
+    {
+      id: "opp-corp-demo-002",
+      type: "Internship",
+      title: "Data Insights Internship",
+      provider: "Standard Bank Talent Partnerships",
+      province: "Johannesburg",
+      sector: "Data & Analytics",
+      closingDate: "2026-08-28",
+      stipendOrValue: "R8,200 / month",
+      description: "A practical internship for graduates building reporting, dashboarding, and analytics support skills in banking teams.",
+      requirements: ["Diploma or degree in analytics, finance, or IT", "Excel or Power BI exposure", "Presentation skills"],
+      tags: ["Analytics", "Power BI", "Banking"],
+      institutionId: "standard-bank-talent-partnerships",
+      logoUrl: "images/Standard-Bank.jpg",
+      listingStatus: "open"
+    },
+    {
+      id: "opp-corp-demo-003",
+      type: "Bursary",
+      title: "Future Finance Bursary",
+      provider: "Standard Bank Talent Partnerships",
+      province: "National",
+      sector: "Finance",
+      closingDate: "2026-09-10",
+      stipendOrValue: "Full tuition + device support",
+      description: "A bursary programme focused on finance, actuarial science, and economics pathways for high-potential learners.",
+      requirements: ["Grade 12 or equivalent", "Strong maths results", "Proof of household income"],
+      tags: ["Finance", "Bursary", "Talent pipeline"],
+      institutionId: "standard-bank-talent-partnerships",
+      logoUrl: "images/Standard-Bank.jpg",
+      listingStatus: "open"
+    },
+    {
+      id: "opp-inst-demo-001",
+      type: "Course",
+      title: "Data Analytics Foundations",
+      provider: "Wits Digital Campus",
+      province: "Online",
+      sector: "Data & Analytics",
+      closingDate: "Rolling",
+      stipendOrValue: "12 weeks",
+      description: "A short programme covering SQL, Excel analytics, storytelling with data, and portfolio-ready projects.",
+      requirements: ["Basic digital literacy", "Matric or equivalent"],
+      tags: ["Analytics", "SQL", "Excel"],
+      institutionId: "wits-digital-campus",
+      logoUrl: "images/wits digital campus.jpg",
+      listingStatus: "open"
+    },
+    {
+      id: "opp-inst-demo-002",
+      type: "Course",
+      title: "AI & Machine Learning Foundations",
+      provider: "Wits Digital Campus",
+      province: "Online",
+      sector: "Information Technology (Software)",
+      closingDate: "Rolling",
+      stipendOrValue: "10 weeks",
+      description: "An applied programme introducing machine-learning concepts, Python workflows, and responsible AI basics.",
+      requirements: ["Curiosity about AI", "Basic computer literacy"],
+      tags: ["AI", "Python", "Machine learning"],
+      institutionId: "wits-digital-campus",
+      logoUrl: "images/wits digital campus.jpg",
+      listingStatus: "open"
+    },
+    {
+      id: "opp-inst-demo-003",
+      type: "Course",
+      title: "Digital Business Communication",
+      provider: "Wits Digital Campus",
+      province: "Online",
+      sector: "Business",
+      closingDate: "Rolling",
+      stipendOrValue: "8 weeks",
+      description: "A communication and workplace-readiness course for students moving into internships, learnerships, and entry-level roles.",
+      requirements: ["Open to current and recent students"],
+      tags: ["Communication", "Professional skills", "Career readiness"],
+      institutionId: "wits-digital-campus",
+      logoUrl: "images/wits digital campus.jpg",
+      listingStatus: "open"
+    }
+  ];
+}
+
+function getPartnerDemoApplicationSeedData() {
+  return [
+    {
+      id: "app-corp-demo-001",
+      studentId: "user-student-demo",
+      opportunityId: "opp-corp-demo-001",
+      opportunityType: "Learnership",
+      status: "submitted",
+      createdAt: "2026-02-12T08:00:00.000Z",
+      updatedAt: "2026-02-13T10:00:00.000Z",
+      submittedAt: "2026-02-12T10:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-12T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-12T10:00:00.000Z" }
+      ],
+      tags: { shortlisted: false, interviewed: false, funded: false, graduated: false },
+      docsComplete: true,
+      docsIncomplete: false,
+      qualityScore: 81,
+      qualityReasons: ["Strong maths background and complete documents."],
+      score: 81,
+      fundedAt: "",
+      placementStatus: "Not placed",
+      employer: "Standard Bank Talent Partnerships",
+      placedAt: ""
+    },
+    {
+      id: "app-corp-demo-002",
+      studentId: "user-student-seed-01",
+      opportunityId: "opp-corp-demo-002",
+      opportunityType: "Internship",
+      status: "shortlisted",
+      createdAt: "2026-02-10T08:00:00.000Z",
+      updatedAt: "2026-02-14T09:00:00.000Z",
+      submittedAt: "2026-02-10T09:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-10T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-10T09:00:00.000Z" },
+        { status: "shortlisted", at: "2026-02-14T09:00:00.000Z" }
+      ],
+      tags: { shortlisted: true, interviewed: false, funded: false, graduated: false },
+      docsComplete: true,
+      docsIncomplete: false,
+      qualityScore: 88,
+      qualityReasons: ["Relevant analytics interest profile and strong written communication."],
+      score: 88,
+      fundedAt: "",
+      placementStatus: "Interviewing",
+      employer: "Standard Bank Talent Partnerships",
+      placedAt: ""
+    },
+    {
+      id: "app-corp-demo-003",
+      studentId: "user-student-seed-02",
+      opportunityId: "opp-corp-demo-003",
+      opportunityType: "Bursary",
+      status: "in_review",
+      createdAt: "2026-02-15T08:00:00.000Z",
+      updatedAt: "2026-02-16T11:00:00.000Z",
+      submittedAt: "2026-02-15T09:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-15T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-15T09:00:00.000Z" },
+        { status: "in_review", at: "2026-02-16T11:00:00.000Z" }
+      ],
+      tags: { shortlisted: false, interviewed: false, funded: false, graduated: false },
+      docsComplete: false,
+      docsIncomplete: true,
+      qualityScore: 74,
+      qualityReasons: ["Awaiting updated income documents for bursary review."],
+      score: 74,
+      fundedAt: "",
+      placementStatus: "Not placed",
+      employer: "Standard Bank Talent Partnerships",
+      placedAt: ""
+    },
+    {
+      id: "app-inst-demo-001",
+      studentId: "user-student-demo",
+      opportunityId: "opp-inst-demo-001",
+      opportunityType: "Course",
+      status: "submitted",
+      createdAt: "2026-02-18T08:00:00.000Z",
+      updatedAt: "2026-02-18T10:00:00.000Z",
+      submittedAt: "2026-02-18T10:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-18T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-18T10:00:00.000Z" }
+      ],
+      tags: { shortlisted: false, interviewed: false, funded: false, graduated: false },
+      docsComplete: true,
+      docsIncomplete: false,
+      qualityScore: 79,
+      qualityReasons: ["Strong profile fit for analytics foundations."],
+      score: 79,
+      fundedAt: "",
+      placementStatus: "Not placed",
+      employer: "Wits Digital Campus",
+      placedAt: ""
+    },
+    {
+      id: "app-inst-demo-002",
+      studentId: "user-student-seed-01",
+      opportunityId: "opp-inst-demo-002",
+      opportunityType: "Course",
+      status: "in_review",
+      createdAt: "2026-02-19T08:00:00.000Z",
+      updatedAt: "2026-02-20T10:00:00.000Z",
+      submittedAt: "2026-02-19T10:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-19T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-19T10:00:00.000Z" },
+        { status: "in_review", at: "2026-02-20T10:00:00.000Z" }
+      ],
+      tags: { shortlisted: false, interviewed: false, funded: false, graduated: false },
+      docsComplete: true,
+      docsIncomplete: false,
+      qualityScore: 83,
+      qualityReasons: ["Strong digital foundations and high readiness score."],
+      score: 83,
+      fundedAt: "",
+      placementStatus: "Not placed",
+      employer: "Wits Digital Campus",
+      placedAt: ""
+    },
+    {
+      id: "app-inst-demo-003",
+      studentId: "user-student-seed-02",
+      opportunityId: "opp-inst-demo-003",
+      opportunityType: "Course",
+      status: "shortlisted",
+      createdAt: "2026-02-21T08:00:00.000Z",
+      updatedAt: "2026-02-22T10:00:00.000Z",
+      submittedAt: "2026-02-21T10:00:00.000Z",
+      timeline: [
+        { status: "draft", at: "2026-02-21T08:00:00.000Z" },
+        { status: "submitted", at: "2026-02-21T10:00:00.000Z" },
+        { status: "shortlisted", at: "2026-02-22T10:00:00.000Z" }
+      ],
+      tags: { shortlisted: true, interviewed: false, funded: false, graduated: false },
+      docsComplete: false,
+      docsIncomplete: true,
+      qualityScore: 76,
+      qualityReasons: ["Good fit but awaiting one supporting document."],
+      score: 76,
+      fundedAt: "",
+      placementStatus: "Not placed",
+      employer: "Wits Digital Campus",
+      placedAt: ""
+    }
+  ];
+}
+
+function ensureWorkspaceDemoState(targetStore) {
+  if (!targetStore || typeof targetStore !== "object") return targetStore;
+
+  targetStore.users = Array.isArray(targetStore.users) ? targetStore.users.map((user) => normalizeUserRecord(user)) : [];
+  const existingUsers = new Set(targetStore.users.map((user) => String(user.id || "").trim().toLowerCase()));
+  const existingEmails = new Set(targetStore.users.map((user) => String(user.email || "").trim().toLowerCase()));
+
+  [...demoUsers, ...getSupplementalDemoStudents()].forEach((seedUser) => {
+    const seedId = String(seedUser.id || "").trim().toLowerCase();
+    const seedEmail = String(seedUser.email || "").trim().toLowerCase();
+    if (existingUsers.has(seedId) || existingEmails.has(seedEmail)) return;
+    targetStore.users.push(normalizeUserRecord({ ...seedUser }));
+    existingUsers.add(seedId);
+    existingEmails.add(seedEmail);
+  });
+
+  targetStore.institutions = Array.isArray(targetStore.institutions) ? targetStore.institutions : defaultInstitutions();
+  const existingInstitutions = new Set(targetStore.institutions.map((entry) => String(entry.id || "").trim().toLowerCase()));
+  getPartnerDemoInstitutions().forEach((institution) => {
+    const id = String(institution.id || "").trim().toLowerCase();
+    if (existingInstitutions.has(id)) return;
+    targetStore.institutions.push({ ...institution });
+    existingInstitutions.add(id);
+  });
+
+  targetStore.opportunities = normalizeOpportunityStore(targetStore.opportunities);
+  const existingOpportunityIds = new Set(flattenOpportunityStore(targetStore.opportunities).map((entry) => String(entry.id || "").trim()));
+  getPartnerDemoOpportunitySeedData().forEach((seedOpportunity) => {
+    if (existingOpportunityIds.has(seedOpportunity.id)) return;
+    const bucket = opportunityTypeToBucket(seedOpportunity.type || "");
+    const normalizedOpportunity = normalizeOpportunityRecord(seedOpportunity, bucket);
+    if (!normalizedOpportunity) return;
+    targetStore.opportunities[bucket].push(normalizedOpportunity);
+    existingOpportunityIds.add(normalizedOpportunity.id);
+  });
+
+  targetStore.applications = Array.isArray(targetStore.applications) ? targetStore.applications : [];
+  const validStudentIds = new Set(targetStore.users.filter((user) => String(user.role || "") === "student").map((user) => user.id));
+  const validOpportunityIds = new Set([
+    ...flattenOpportunityStore(targetStore.opportunities).map((entry) => entry.id),
+    ...getStaticOpportunityCatalogue().map((entry) => entry.id)
+  ]);
+  const existingApplicationIds = new Set(targetStore.applications.map((entry) => String(entry.id || "").trim()));
+
+  getPartnerDemoApplicationSeedData().forEach((application) => {
+    if (existingApplicationIds.has(application.id)) return;
+    if (!validStudentIds.has(application.studentId)) return;
+    if (!validOpportunityIds.has(application.opportunityId)) return;
+    targetStore.applications.push({ ...application });
+    existingApplicationIds.add(application.id);
+  });
+
+  return targetStore;
+}
+
 // Baseline store shape used on first load and during normalization fallbacks.
 function createDefaultStore() {
-  return {
+  const defaults = {
     users: demoUsers.map((user) => normalizeUserRecord({ ...user })),
     opportunities: defaultOpportunityStore(),
     applications: [],
@@ -867,6 +1748,8 @@ function createDefaultStore() {
       fraudReports: []
     }
   };
+
+  return ensureWorkspaceDemoState(defaults);
 }
 
 // Defensive store normalization to preserve backward compatibility with legacy data.
@@ -893,7 +1776,7 @@ function normalizeStore(data) {
       ? data.applications
           .map((app) => {
             if (!app || !app.studentId || !app.opportunityId) return null;
-const opportunity = normalizedOpportunityList.find((item) => item.id === app.opportunityId) || opportunities.find((item) => item.id === app.opportunityId) || null;
+const opportunity = normalizedOpportunityList.find((item) => item.id === app.opportunityId) || getStaticOpportunityCatalogue().find((item) => item.id === app.opportunityId) || null;
 const legacyMeta = legacyAppMeta[app.id] || {};
 const tags = {
   shortlisted: Boolean(app?.tags?.shortlisted ?? legacyMeta.shortlisted),
@@ -1094,7 +1977,7 @@ return {
       }
     : defaults.adminSecurity;
 
-  return normalized;
+  return ensureWorkspaceDemoState(normalized);
 }
 
 // Optional demo document metadata seed so checklist UIs have realistic initial state.
@@ -1241,6 +2124,9 @@ window.addEventListener("storage", (event) => {
 // Hash-router listener: re-render the matching page whenever URL hash changes.
 window.addEventListener("hashchange", () => {
   route = getRouteFromHash();
+  currentUserId = getSessionUserId();
+  // Tell the routing bridge to show the dashboard pane (safe no-op if bridge not loaded)
+  if (typeof window.showApp === 'function') window.showApp();
   render();
 });
 
@@ -1266,12 +2152,16 @@ function isAdminRole(role) {
   return ADMIN_ROLES.has(String(role || "").trim().toLowerCase());
 }
 
+function isPlatformAdminRole(role) {
+  return PLATFORM_ADMIN_ROLES.has(String(role || "").trim().toLowerCase());
+}
+
 function requireRole(role) {
   const user = requireAuth();
   if (!user) return null;
 
   if (role === "admin") {
-    if (!isAdminRole(user.role)) {
+    if (!isPlatformAdminRole(user.role)) {
       navigate("/student/dashboard");
       return null;
     }
@@ -1279,8 +2169,7 @@ function requireRole(role) {
   }
 
   if (user.role !== role) {
-    if (isAdminRole(user.role)) navigate("/admin/dashboard");
-    else navigate("/student/dashboard");
+    navigate(getWorkspaceHomeRoute(user));
     return null;
   }
 
@@ -1305,6 +2194,17 @@ function requireAdminAccess(allowedRoles = []) {
 
 function shouldShowDemoTools() {
   return SHOW_DEMO_TOOLS;
+}
+
+function ensureAdminRuntimeState() {
+  try {
+    store = normalizeStore(store && typeof store === "object" ? store : {});
+    saveStore(store);
+  } catch (error) {
+    console.error("[admin-runtime-state]", error);
+    store = createDefaultStore();
+    saveStore(store);
+  }
 }
 
 function logAuditEvent(action, details = {}) {
@@ -1415,7 +2315,7 @@ function isStudentOnboardingRequired(student) {
 }
 
 function getOpportunity(id) {
-  return getOpportunityCatalogue().find((opportunity) => opportunity.id === id) || null;
+  return getOpportunityCatalogue().find((opportunity) => opportunity.id === id) || CURATED_BURSARY_LISTING_OPPORTUNITIES.find((opportunity) => opportunity.id === id) || null;
 }
 
 function routeForOpportunityType(type) {
@@ -1552,6 +2452,15 @@ function getUserInitials(user) {
 function getUserPhotoDataUrl(user) {
   const profile = getUserProfile(user);
   return profile?.profilePhotoDataUrl || "";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function renderUserAvatar(user, className = "") {
@@ -1753,9 +2662,231 @@ function readImagePreview(file) {
 
 /** ---------- Career Guidance ---------- **/
 // Career Guidance answer defaults and normalization keep quiz state stable across saves/loads.
+const CAREER_GUIDANCE_GOAL_OPTIONS = [
+  {
+    value: "bursary",
+    label: "Find a bursary",
+    description: "Prioritise funding opportunities that support your studies."
+  },
+  {
+    value: "learnership",
+    label: "Find a learnership",
+    description: "Focus on practical programmes that help you earn while you learn."
+  },
+  {
+    value: "internship",
+    label: "Find an internship",
+    description: "Surface entry routes that build experience and workplace confidence."
+  },
+  {
+    value: "courses",
+    label: "Explore courses",
+    description: "Match me with courses and training pathways that build my next step."
+  },
+  {
+    value: "unsure",
+    label: "I'm not sure yet",
+    description: "Show me a balanced set of opportunities while I explore my options."
+  }
+];
+
+const CAREER_GUIDANCE_EDUCATION_OPTIONS = [
+  "Grade 9",
+  "Grade 10",
+  "Grade 11",
+  "Grade 12 / Matric",
+  "TVET Student",
+  "University Student",
+  "Graduate",
+  "Other"
+];
+
+const CAREER_GUIDANCE_INTEREST_OPTIONS = [
+  {
+    value: "IT / Technology",
+    label: "IT / Technology",
+    mappedValues: [
+      "IT",
+      "Information Technology (Software)",
+      "Cybersecurity",
+      "Data & Analytics",
+      "Networking & Cloud"
+    ]
+  },
+  {
+    value: "Engineering",
+    label: "Engineering",
+    mappedValues: [
+      "Engineering",
+      "Construction & Built Environment",
+      "Mechanical & Automotive",
+      "Electrical & Renewable Energy",
+      "Logistics & Supply Chain"
+    ]
+  },
+  {
+    value: "Business / Finance",
+    label: "Business / Finance",
+    mappedValues: [
+      "Business",
+      "Entrepreneurship & Startups",
+      "Marketing & Sales",
+      "Finance & Investment",
+      "Accounting & Auditing",
+      "Law & Compliance"
+    ]
+  },
+  {
+    value: "Health Sciences",
+    label: "Health Sciences",
+    mappedValues: ["Healthcare & Wellness", "Science"]
+  },
+  {
+    value: "Education",
+    label: "Education",
+    mappedValues: ["Education & Training"]
+  },
+  {
+    value: "Public Service",
+    label: "Public Service",
+    mappedValues: ["Public Service & Government"]
+  },
+  {
+    value: "Creative / Media",
+    label: "Creative / Media",
+    mappedValues: ["Design & Creative Media"]
+  },
+  {
+    value: "Science / Research",
+    label: "Science / Research",
+    mappedValues: ["Science", "Science & Research", "Agriculture & Food Systems"]
+  },
+  {
+    value: "Trades / Technical",
+    label: "Trades / Technical",
+    mappedValues: ["Trades", "Construction & Built Environment", "Mechanical & Automotive"]
+  },
+  {
+    value: "Other",
+    label: "Other",
+    mappedValues: []
+  }
+];
+
+const CAREER_GUIDANCE_PROVINCE_OPTIONS = ["All provinces", ...PROVINCES];
+
+function normalizeCareerGuidanceGoal(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return CAREER_GUIDANCE_GOAL_OPTIONS.some((option) => option.value === raw) ? raw : "";
+}
+
+function normalizeCareerGuidanceEducationLevel(value) {
+  const raw = String(value || "").trim();
+  return CAREER_GUIDANCE_EDUCATION_OPTIONS.includes(raw) ? raw : "";
+}
+
+function normalizeCareerGuidanceStepperProvince(value) {
+  const raw = String(value || "").trim();
+  return CAREER_GUIDANCE_PROVINCE_OPTIONS.includes(raw) ? raw : "";
+}
+
+function normalizeCareerGuidanceStepperInterests(values) {
+  if (!Array.isArray(values)) return [];
+  const allowed = new Set(CAREER_GUIDANCE_INTEREST_OPTIONS.map((option) => option.value));
+  const unique = [];
+
+  values.forEach((value) => {
+    const label = String(value || "").trim();
+    if (!label || !allowed.has(label) || unique.includes(label)) return;
+    unique.push(label);
+  });
+
+  return unique;
+}
+
+function mapStoredCareerInterestsToStepperSelections(values) {
+  if (!Array.isArray(values)) return [];
+
+  const matches = [];
+  values.forEach((entry) => {
+    const value = String(entry || "").trim();
+    const option = CAREER_GUIDANCE_INTEREST_OPTIONS.find((candidate) =>
+      candidate.value === value || candidate.mappedValues.includes(value)
+    );
+    if (option && !matches.includes(option.value)) {
+      matches.push(option.value);
+    }
+  });
+
+  return matches;
+}
+
+function getDefaultCareerGuidanceStepperState(user, answers = null) {
+  const profile = user?.profile || {};
+  const source = answers && typeof answers === "object" ? answers : {};
+  const sourceProvince = String(source.province || profile.province || "").trim();
+
+  return {
+    goal: normalizeCareerGuidanceGoal(source.goal || profile.goals || ""),
+    educationLevel: normalizeCareerGuidanceEducationLevel(source.educationLevel || profile.educationLevel || ""),
+    interests: normalizeCareerGuidanceStepperInterests(
+      mapStoredCareerInterestsToStepperSelections(source.interests || profile.interests || [])
+    ),
+    province: normalizeCareerGuidanceStepperProvince(
+      sourceProvince === "National" ? "All provinces" : sourceProvince
+    )
+  };
+}
+
+function getCareerGuidanceGoalDerivatives(goal) {
+  if (goal === "bursary") {
+    return {
+      workStyle: "Desk work",
+      preference: "stability",
+      availability: "full-time study",
+      timeframe: "6–12 months"
+    };
+  }
+
+  if (goal === "learnership") {
+    return {
+      workStyle: "Hands-on",
+      preference: "high earning potential",
+      availability: "learn-while-you-earn",
+      timeframe: "asap"
+    };
+  }
+
+  if (goal === "internship") {
+    return {
+      workStyle: "Mix",
+      preference: "high earning potential",
+      availability: "part-time",
+      timeframe: "3–6 months"
+    };
+  }
+
+  if (goal === "courses") {
+    return {
+      workStyle: "Desk work",
+      preference: "stability",
+      availability: "full-time study",
+      timeframe: "6–12 months"
+    };
+  }
+
+  return {
+    workStyle: "",
+    preference: "",
+    availability: "",
+    timeframe: ""
+  };
+}
+
 function getDefaultCareerQuizAnswers(user) {
   const profile = user?.profile || {};
   return {
+    goal: normalizeCareerGuidanceGoal(profile.goals || ""),
     educationLevel: profile.educationLevel || "",
     province: profile.province || "",
     interests: Array.isArray(profile.interests)
@@ -1788,10 +2919,39 @@ function normalizeCareerQuizAnswers(rawAnswers, user) {
     normalized[question.id] = question.options.includes(value) ? value : defaults[question.id];
   });
 
+  normalized.goal = normalizeCareerGuidanceGoal(answers.goal || defaults.goal);
   return normalized;
 }
 
+function deriveCareerGuidanceAnswersFromStepper(stepperState, user) {
+  const defaults = getDefaultCareerQuizAnswers(user);
+  const derivedGoal = getCareerGuidanceGoalDerivatives(stepperState?.goal || "");
+  const selectedInterests = normalizeCareerGuidanceStepperInterests(stepperState?.interests || []).flatMap((value) => {
+    const option = CAREER_GUIDANCE_INTEREST_OPTIONS.find((candidate) => candidate.value === value);
+    return option ? option.mappedValues : [];
+  });
+
+  return normalizeCareerQuizAnswers(
+    {
+      ...defaults,
+      goal: normalizeCareerGuidanceGoal(stepperState?.goal || ""),
+      educationLevel: normalizeCareerGuidanceEducationLevel(stepperState?.educationLevel || ""),
+      province:
+        stepperState?.province === "All provinces"
+          ? "National"
+          : normalizeCareerGuidanceStepperProvince(stepperState?.province || ""),
+      interests: Array.from(new Set(selectedInterests)),
+      workStyle: derivedGoal.workStyle || "",
+      preference: derivedGoal.preference || "",
+      availability: derivedGoal.availability || "",
+      timeframe: derivedGoal.timeframe || ""
+    },
+    user
+  );
+}
+
 function getCareerGuidanceRecord(studentId, user) {
+
   const rawRecord = store.careerGuidance?.[studentId];
   if (!rawRecord || typeof rawRecord !== "object") return null;
   return {
@@ -2646,7 +3806,7 @@ function computeCandidateScore({ application, student, opportunity }) {
 
 function buildApplicationRows(typeFilter = "all") {
   return [...store.applications]
-    .sort((first, second) => second.createdAt.localeCompare(first.createdAt))
+    .sort((first, second) => toTimestamp(second?.createdAt, 0) - toTimestamp(first?.createdAt, 0))
     .filter((application) => {
       const opportunity = getOpportunity(application.opportunityId);
       const opportunityType = OPPORTUNITY_TYPES.includes(application.opportunityType)
@@ -2689,6 +3849,35 @@ const score = {
       };
     })
     .filter((row) => canCurrentUserAccessRow(row));
+}
+
+function canCurrentUserAccessRow(row) {
+  const actor = currentUser();
+  if (!actor) return false;
+  if (!isAdminRole(actor.role)) return true;
+
+  const role = String(actor.role || "").trim().toLowerCase();
+  if (role === "admin" || role === "super_admin" || role === "reviewer") {
+    return true;
+  }
+
+  const opportunity = row?.opportunity || getOpportunity(row?.application?.opportunityId || "");
+  if (!opportunity) return false;
+
+  const institutionId = String(actor.institutionId || actor.profile?.institutionId || "").trim().toLowerCase();
+  const organisationName = String(actor.profile?.organisationName || actor.name || "").trim().toLowerCase();
+  const opportunityInstitutionId = String(opportunity.institutionId || "").trim().toLowerCase();
+  const opportunityProvider = String(opportunity.provider || opportunity.institution || "").trim().toLowerCase();
+
+  if (institutionId) {
+    return opportunityInstitutionId === institutionId;
+  }
+
+  if (organisationName) {
+    return opportunityProvider.includes(organisationName);
+  }
+
+  return false;
 }
 
 function ensureSeedStudentProfile(student, index) {
@@ -3247,22 +4436,54 @@ function getOpportunityProgressSummary(user, opportunity, application) {
   };
 }
 
+const CAREER_GUIDANCE_QUIZ_PHASES = [
+  { label: "Profile", startIndex: 0, endIndex: 1 },
+  { label: "Interests", startIndex: 2, endIndex: 3 },
+  { label: "Skills", startIndex: 4, endIndex: 6 },
+  { label: "Opportunities", startIndex: 7, endIndex: 8 },
+  { label: "Applications", startIndex: 9, endIndex: 9 }
+];
+
+function getCareerGuidanceQuizPhaseIndex(stepIndex) {
+  const safeIndex = Number.isFinite(stepIndex) ? stepIndex : 0;
+  const match = CAREER_GUIDANCE_QUIZ_PHASES.findIndex((phase) => safeIndex >= phase.startIndex && safeIndex <= phase.endIndex);
+  return match >= 0 ? match : 0;
+}
+
+function getCareerGuidanceQuizStepIndexForPhase(phaseIndex) {
+  const phase = CAREER_GUIDANCE_QUIZ_PHASES[phaseIndex] || CAREER_GUIDANCE_QUIZ_PHASES[0];
+  return phase.startIndex;
+}
+
 function renderQuizStepNavigator(totalSteps, currentStepIndex) {
-  const steps = Array.from({ length: totalSteps }, (_, index) => {
-    const isCompleted = index < currentStepIndex;
-    const isCurrent = index === currentStepIndex;
-    const stateClass = isCompleted ? "is-completed" : isCurrent ? "is-current" : "is-upcoming";
-    const stateLabel = isCurrent ? "current" : isCompleted ? "completed" : "upcoming";
+  const activePhaseIndex = getCareerGuidanceQuizPhaseIndex(currentStepIndex);
 
-    return `<div class="quizStepItem ${stateClass}" role="listitem" aria-label="Step ${index + 1} of ${totalSteps} - ${stateLabel}" ${isCurrent ? 'aria-current="step" data-quiz-step-current="true"' : ""}>
-      <span class="quizStepCircle">${isCompleted ? "✓" : index + 1}</span>
-    </div>`;
-  }).join("");
+  const indicators = CAREER_GUIDANCE_QUIZ_PHASES
+    .map((phase, index) => {
+      const isComplete = index < activePhaseIndex;
+      const isActive = index == activePhaseIndex;
+      const stateClass = isActive ? "is-active" : isComplete ? "is-complete" : "";
+      const ariaCurrent = isActive ? ' aria-current="step" data-quiz-step-current="true"' : "";
+      const buttonLabel = `${phase.label} step ${index + 1} of ${CAREER_GUIDANCE_QUIZ_PHASES.length}`;
+      const icon = isComplete
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>`
+        : isActive
+          ? `<span class="ydhStepperIndicatorDot"></span>`
+          : `<span class="ydhStepperIndicatorNumber">${index + 1}</span>`;
+      const connector = index < CAREER_GUIDANCE_QUIZ_PHASES.length - 1
+        ? `<div class="ydhStepperConnector ${index < activePhaseIndex ? "is-complete" : ""}"><div class="ydhStepperConnectorFill"></div></div>`
+        : "";
 
-  return `<div class="quizStepNavigator" aria-label="Quiz progress">
-    <div class="quizStepLabel">Step ${currentStepIndex + 1} of ${totalSteps}</div>
-    <div class="quizStepScroller" role="list">
-      ${steps}
+      return `<button type="button" class="ydhStepperIndicator ${stateClass}" data-career-phase-index="${index}" aria-label="${escapeHtml(buttonLabel)}"${ariaCurrent}>
+        <span class="ydhStepperIndicatorInner">${icon}</span>
+        <span class="ydhStepperIndicatorLabel">${escapeHtml(phase.label)}</span>
+      </button>${connector}`;
+    })
+    .join("");
+
+  return `<div class="ydhGuidanceStepper ydhGuidanceStepper--quiz" aria-label="Career guidance progress">
+    <div class="ydhGuidanceStepperIndicators" role="tablist">
+      ${indicators}
     </div>
   </div>`;
 }
@@ -3344,8 +4565,8 @@ function renderInlineProfileEditor(options = {}) {
         </div>
 
         <div class="mutedText inlineImpactNotice" id="inlineProfileEditorImpact" style="margin-top:12px;">Updates may change required documents for this application.</div>
-        <div id="inlineProfileEditorError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(error || "")}</div>
-        <div id="inlineProfileEditorNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;">${escapeHtml(notice || "")}</div>
+        <div id="inlineProfileEditorError" class="mutedText" style="color: var(--color-danger); margin-top:8px;">${escapeHtml(error || "")}</div>
+        <div id="inlineProfileEditorNotice" class="mutedText" style="color: var(--color-primary); margin-top:4px;">${escapeHtml(notice || "")}</div>
 
         <div class="row inlineProfileEditorActions" style="margin-top:12px; justify-content:space-between;">
           <a class="btn btnGhost" href="#/student/dashboard" data-inline-profile-open-settings="true">Open full profile settings</a>
@@ -3425,49 +4646,51 @@ function getStudentMobileNavItems(currentRoute) {
     normalized === "/student/bursaries" ||
     normalized === "/student/learnerships" ||
     normalized === "/student/courses" ||
-    currentRoute.startsWith("/student/opportunity/");
-  const isApplications =
+    currentRoute.startsWith("/student/opportunity/") ||
     currentRoute.startsWith("/student/apply/") ||
-    (normalized === "/student/dashboard" && dashboardView === "applications");
+    currentRoute.startsWith("/student/application/");
   const isProfile = normalized === "/student/dashboard" && dashboardView === "profile";
   const isDocuments = normalized === "/student/documents";
-  const isDashboard = normalized === "/student/dashboard" && !isApplications && !isProfile;
+  const isDashboard = normalized === "/student/dashboard" && !isProfile;
 
   return [
     {
       label: "Dashboard",
       href: "/student/dashboard",
-      icon: "⌂",
+      iconSrc: "https://cdn.lordicon.com/jeuxydnh.json",
       view: "dashboard",
       active: isDashboard
     },
     {
       label: "Opportunities",
       href: "/student/bursaries",
-      icon: "◎",
+      iconSrc: "https://cdn.lordicon.com/rpviwvwn.json",
       active: isOpportunities
-    },
-    {
-      label: "Applications",
-      href: "/student/dashboard",
-      icon: "▣",
-      view: "applications",
-      active: isApplications
     },
     {
       label: "Documents",
       href: "/student/documents",
-      icon: "▤",
+      iconSrc: "https://cdn.lordicon.com/hmpomorl.json",
       active: isDocuments
     },
     {
       label: "Profile",
       href: "/student/dashboard",
-      icon: "◉",
+      iconSrc: "https://cdn.lordicon.com/kdduutaw.json",
       view: "profile",
       active: isProfile
     }
   ];
+}
+
+function renderStudentMobileNavIcon(item) {
+  return `<lord-icon
+    class="mobileBottomNavLordIcon"
+    src="${escapeHtml(item.iconSrc || '')}"
+    trigger="click"
+    colors="primary:#F59E0B,secondary:#F59E0B"
+    style="width:30px;height:30px">
+  </lord-icon>`;
 }
 
 function getAdminMobileNavIcon(label, href) {
@@ -3519,9 +4742,11 @@ function shell(role, contentNode) {
   const displayName = getUserDisplayName(user);
   const profile = getUserProfile(user) || {};
   const firstName = getUserNameParts(user || {}).firstName || (displayName || "Student").split(" ")[0] || "Student";
+  const isPartner = role === "corporate" || role === "institute";
 
+  // For partner roles the sidebar items carry a dashPage key (no real navigation)
   const sidebar = el(`<aside class="sidebar">
-    <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:#555;">NATIONAL TVET & SETA MVP</div>
+    <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:var(--color-text-muted);">NATIONAL TVET & SETA MVP</div>
     <div style="margin-top:6px; font-weight:700; text-transform:uppercase;">${role} panel</div>
     ${
       user
@@ -3536,14 +4761,21 @@ function shell(role, contentNode) {
     }
     <div style="margin-top:12px; display:grid; gap:8px;">
       ${sidebarItems
-        .map((item) => {
-          const active = isRouteActive(
+        .map((item, idx) => {
+          const active = isPartner ? idx === 0 : isRouteActive(
             role === "student" ? resolveStudentNavRoute(route) : route,
             item.href
           );
+          if (isPartner && item.dashPage) {
+            return `<button type="button" class="tab ${active ? "active" : ""}" data-dash-page="${item.dashPage}" data-partner-nav="1">${item.label}</button>`;
+          }
           return `<a class="tab ${active ? "active" : ""}" href="#${item.href}">${item.label}</a>`;
         })
         .join("")}
+    </div>
+    <div style="margin-top:auto; padding-top:16px; display:flex; flex-direction:column; gap:8px;">
+      <button class="btn btnGhost" id="btnRoleSidebar" style="width:100%;">Role switch</button>
+      <button class="btn btnPrimary" id="btnLogoutSidebar" style="width:100%;">Logout</button>
     </div>
   </aside>`);
 
@@ -3568,6 +4800,10 @@ function shell(role, contentNode) {
     navigate("/home");
   };
 
+  // Sidebar logout/role-switch buttons (partner sidebar has these too)
+  sidebar.querySelector("#btnRoleSidebar")?.addEventListener("click", () => { logout(); navigate("/login"); });
+  sidebar.querySelector("#btnLogoutSidebar")?.addEventListener("click", () => { logout(); navigate("/home"); });
+
   const mobileHeader =
     role === "student"
       ? el(`<header class="mobileTopHeader">
@@ -3583,7 +4819,7 @@ function shell(role, contentNode) {
       : null;
 
   const main = document.createElement("div");
-  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""}`.trim();
+  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""} ${isPartner ? "hasPartnerMobileNav" : ""}`.trim();
   if (mobileHeader) {
     main.appendChild(mobileHeader);
   }
@@ -3594,9 +4830,24 @@ function shell(role, contentNode) {
   main.appendChild(contentWrap);
 
   const app = document.createElement("div");
-  app.className = "appShell";
+  app.className = `appShell ${isPartner ? "partnerShell" : ""}`.trim();
   app.appendChild(sidebar);
   app.appendChild(main);
+
+  // ─── Partner sidebar: wire clicks to the page-switcher exposed by the dashboard ───
+  if (isPartner) {
+    sidebar.querySelectorAll("[data-partner-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-dash-page");
+        if (window.__partnerSwitch && typeof window.__partnerSwitch === "function") {
+          window.__partnerSwitch(page);
+        }
+        // Sync active state in sidebar
+        sidebar.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+  }
 
   if (role === "student") {
     const mobileItems = getStudentMobileNavItems(route);
@@ -3605,9 +4856,11 @@ function shell(role, contentNode) {
         .map(
           (item) => `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}" ${
             item.view ? `data-mobile-view="${item.view}"` : ""
-          }>
-            <span class="mobileBottomNavItemIcon">${item.icon}</span>
-            <span>${item.label}</span>
+          } ${item.active ? 'aria-current="page"' : ''}>
+            <span class="mobileBottomNavItemInner">
+              <span class="mobileBottomNavItemIcon">${renderStudentMobileNavIcon(item)}</span>
+              <span class="mobileBottomNavItemLabel">${item.label}</span>
+            </span>
           </a>`
         )
         .join("")}
@@ -3626,12 +4879,7 @@ function shell(role, contentNode) {
         const targetRoute = href.replace("#", "") || "/";
         if (targetRoute === route && targetRoute === "/student/dashboard") {
           event.preventDefault();
-          const targetId =
-            view === "applications"
-              ? "dashboardApplicationsSection"
-              : view === "profile"
-                ? "dashboardProfileSection"
-                : "dashboardHeroSection";
+          const targetId = view === "profile" ? "dashboardProfileSection" : "dashboardHeroSection";
           const targetNode = document.getElementById(targetId);
           if (targetNode) {
             targetNode.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3730,7 +4978,64 @@ function shell(role, contentNode) {
     }
   }
 
+  // ─── Partner (corporate / institute) mobile bottom nav ───────────────
+  if (isPartner) {
+    const partnerBottomNav = el(`<nav class="mobileBottomNav mobileBottomNavPartner" aria-label="Partner navigation">
+      ${sidebarItems.map((item, idx) => `
+        <button type="button" class="mobileBottomNavItem ${idx === 0 ? "active" : ""}"
+          data-dash-page="${item.dashPage}" data-partner-mobile-nav="1">
+          <span class="mobileBottomNavItemIcon">${getPartnerMobileIcon(item.dashPage)}</span>
+          <span class="mobileBottomNavItemLabel">${item.label}</span>
+        </button>`).join("")}
+    </nav>`);
+    partnerBottomNav.querySelectorAll("[data-partner-mobile-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-dash-page");
+        if (window.__partnerSwitch) window.__partnerSwitch(page);
+        partnerBottomNav.querySelectorAll(".mobileBottomNavItem").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        sidebar.querySelector(`[data-dash-page="${page}"]`)?.classList.add("active");
+      });
+    });
+    app.appendChild(partnerBottomNav);
+  }
+
   return app;
+}
+
+function getPartnerMobileIcon(page) {
+  const icons = {
+    overview: "◈", opportunities: "▥", applicants: "◎", pipeline: "◔",
+    analytics: "◉", programs: "▣", students: "◎", applications: "▥", docs: "▤"
+  };
+  return icons[page] || "•";
+}
+
+// ─── Shared detail-view modal for partner dashboards ─────────────────────────
+function openPartnerModal(title, html) {
+  let existing = document.getElementById("partnerDetailModal");
+  if (existing) existing.remove();
+  const overlay = el(`<div id="partnerDetailModal" style="
+      position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);
+      display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="
+        background:var(--color-surface);border-radius:var(--radius-lg);
+        max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:28px;
+        box-shadow:0 24px 64px rgba(0,0,0,.22);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <b style="font-size:18px;font-weight:800;">${escapeHtml(title)}</b>
+        <button class="btn btnGhost" id="partnerModalClose" style="padding:6px 12px;">✕ Close</button>
+      </div>
+      <div id="partnerModalBody">${html}</div>
+    </div>
+  </div>`);
+  overlay.querySelector("#partnerModalClose").onclick = () => overlay.remove();
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", esc); }
+  });
+  document.body.appendChild(overlay);
 }
 
 function metricTile(label, value, hint = "") {
@@ -3742,27 +5047,1221 @@ function metricTile(label, value, hint = "") {
 }
 
 /** ---------- Actions ---------- **/
-function login(email, password, role = "") {
-  const normalizedEmail = email.trim().toLowerCase();
-  const normalizedRole = String(role || "").trim().toLowerCase();
-  const user = store.users.find(
-    (entry) =>
-      entry.email.toLowerCase() === normalizedEmail &&
-      entry.password === password &&
-      (!normalizedRole || entry.role === normalizedRole)
-  );
+function pageCorporateDashboard() {
+  const user = requireRole("corporate_partner");
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
 
-  if (!user) {
-    return {
-      ok: false,
-      error: normalizedRole ? "Invalid credentials or incorrect role selected." : "Invalid email or password."
-    };
+  // ═══════════════════════════════════════════════
+  //  RICH MOCK DATA
+  // ═══════════════════════════════════════════════
+  const CORP_OPPS = [
+    { id:'co1', title:'Banking Operations Learnership', company:'Standard Bank', type:'Learnership', province:'Gauteng', sector:'Finance', closing:'2026-06-30', status:'open', stipend:'R6,500/month', views:342, applications:0 },
+    { id:'co2', title:'Digital Marketing Internship', company:'Vodacom', type:'Internship', province:'Gauteng', sector:'Marketing', closing:'2026-05-31', status:'open', stipend:'R8,000/month', views:215, applications:0 },
+    { id:'co3', title:'IT Support Internship', company:'Google SA', type:'Internship', province:'Western Cape', sector:'Technology', closing:'2026-07-15', status:'open', stipend:'R9,500/month', views:480, applications:0 },
+    { id:'co4', title:'Finance Graduate Programme', company:'Deloitte', type:'Graduate', province:'Gauteng', sector:'Finance', closing:'2026-08-31', status:'open', stipend:'R18,000/month', views:620, applications:0 },
+    { id:'co5', title:'Data Analytics Learnership', company:'Nedbank', type:'Learnership', province:'Gauteng', sector:'Data & Analytics', closing:'2026-06-15', status:'open', stipend:'R7,800/month', views:390, applications:0 },
+    { id:'co6', title:'Cloud Engineering Internship', company:'MTN Group', type:'Internship', province:'KwaZulu-Natal', sector:'Technology', closing:'2026-09-01', status:'open', stipend:'R9,000/month', views:275, applications:0 },
+    { id:'co7', title:'Risk & Compliance Learnership', company:'PwC', type:'Learnership', province:'Western Cape', sector:'Finance', closing:'2026-05-15', status:'closing soon', stipend:'R8,500/month', views:188, applications:0 },
+    { id:'co8', title:'Engineering Bursary Programme', company:'Anglo American', type:'Bursary', province:'Limpopo', sector:'Engineering', closing:'2026-10-31', status:'open', stipend:'R85,000/year', views:512, applications:0 },
+    { id:'co9', title:'FinTech Innovation Internship', company:'Absa Bank', type:'Internship', province:'Gauteng', sector:'Technology', closing:'2026-07-31', status:'open', stipend:'R10,500/month', views:440, applications:0 },
+    { id:'co10', title:'Health Operations Learnership', company:'Discovery', type:'Learnership', province:'Gauteng', sector:'Healthcare', closing:'2026-06-01', status:'open', stipend:'R7,200/month', views:295, applications:0 },
+  ];
+
+  const CORP_APPLICANTS = [
+    { id:'ca1',  name:'Thabo Nkosi',          email:'thabo.nkosi@email.co.za',        phone:'071 234 5678', province:'Gauteng',       education:'Matric',    skills:['Finance','Data Analytics','MS Excel'],        oppId:'co1', status:'accepted',   score:87 },
+    { id:'ca2',  name:'Ayanda Dlamini',        email:'ayanda.d@email.co.za',           phone:'082 345 6789', province:'KwaZulu-Natal', education:'TVET N4',   skills:['Marketing','Social Media','Canva'],            oppId:'co2', status:'reviewing',  score:74 },
+    { id:'ca3',  name:'Sipho Mthembu',         email:'sipho.m@email.co.za',            phone:'063 456 7890', province:'Gauteng',       education:'Diploma',   skills:['IT Support','Networking','Python'],            oppId:'co3', status:'accepted',   score:91 },
+    { id:'ca4',  name:'Naledi Sithole',        email:'naledi.s@email.co.za',           phone:'076 567 8901', province:'Western Cape',  education:'Degree',    skills:['Finance','Accounting','Analysis'],             oppId:'co4', status:'interviewed',score:83 },
+    { id:'ca5',  name:'Luyanda Khumalo',       email:'luyanda.k@email.co.za',          phone:'071 678 9012', province:'Gauteng',       education:'TVET N6',   skills:['Data Analytics','SQL','Power BI'],             oppId:'co5', status:'accepted',   score:89 },
+    { id:'ca6',  name:'Zanele Mokoena',        email:'zanele.m@email.co.za',           phone:'083 789 0123', province:'KwaZulu-Natal', education:'Matric',    skills:['Cloud','Azure','Networking'],                  oppId:'co6', status:'applied',    score:65 },
+    { id:'ca7',  name:'Kagiso Tau',            email:'kagiso.t@email.co.za',           phone:'072 890 1234', province:'Western Cape',  education:'Diploma',   skills:['Compliance','Risk Management','Law'],          oppId:'co7', status:'rejected',   score:58 },
+    { id:'ca8',  name:'Nompumelelo Zulu',      email:'nompumelelo.z@email.co.za',      phone:'061 901 2345', province:'Limpopo',       education:'Matric',    skills:['Engineering','Mathematics','Physics'],         oppId:'co8', status:'reviewing',  score:71 },
+    { id:'ca9',  name:'Bongani Cele',          email:'bongani.c@email.co.za',          phone:'079 012 3456', province:'Gauteng',       education:'Degree',    skills:['FinTech','Python','API Design'],               oppId:'co9', status:'interviewed',score:85 },
+    { id:'ca10', name:'Phiwayinkosi Dube',     email:'phiwayinkosi.d@email.co.za',     phone:'082 123 4567', province:'Gauteng',       education:'Diploma',   skills:['Healthcare','Administration','MS Office'],     oppId:'co10',status:'applied',    score:68 },
+    { id:'ca11', name:'Amahle Ngema',          email:'amahle.n@email.co.za',           phone:'071 234 5679', province:'Eastern Cape',  education:'TVET N4',   skills:['Finance','Budgeting','Excel'],                 oppId:'co1', status:'applied',    score:70 },
+    { id:'ca12', name:'Sifiso Buthelezi',      email:'sifiso.b@email.co.za',           phone:'063 345 6789', province:'KwaZulu-Natal', education:'Matric',    skills:['Marketing','Content Creation','SEO'],          oppId:'co2', status:'accepted',   score:82 },
+    { id:'ca13', name:'Thandeka Gumede',       email:'thandeka.g@email.co.za',         phone:'083 456 7890', province:'Gauteng',       education:'Degree',    skills:['Python','Machine Learning','SQL'],             oppId:'co3', status:'interviewed',score:88 },
+    { id:'ca14', name:'Mthokozisi Mthethwa',   email:'mthokozisi.m@email.co.za',       phone:'072 567 8901', province:'Mpumalanga',    education:'Diploma',   skills:['Accounting','Tax','SARS'],                     oppId:'co4', status:'reviewing',  score:76 },
+    { id:'ca15', name:'Nokwanda Zikode',       email:'nokwanda.z@email.co.za',         phone:'079 678 9012', province:'Western Cape',  education:'TVET N6',   skills:['Analytics','Tableau','R'],                    oppId:'co5', status:'applied',    score:63 },
+    { id:'ca16', name:'Siphelele Ntuli',       email:'siphelele.n@email.co.za',        phone:'061 789 0123', province:'Gauteng',       education:'Matric',    skills:['Cloud','AWS','Linux'],                         oppId:'co6', status:'reviewing',  score:72 },
+    { id:'ca17', name:'Nkosinathi Hadebe',     email:'nkosinathi.h@email.co.za',       phone:'082 890 1234', province:'Free State',    education:'Diploma',   skills:['Risk','Compliance','FICA'],                    oppId:'co7', status:'accepted',   score:80 },
+    { id:'ca18', name:'Lungelo Mthembu',       email:'lungelo.m2@email.co.za',         phone:'071 901 2345', province:'Limpopo',       education:'Matric',    skills:['Mechanical','AutoCAD','Engineering'],          oppId:'co8', status:'applied',    score:66 },
+    { id:'ca19', name:'Simangele Msweli',      email:'simangele.ms@email.co.za',       phone:'063 012 3456', province:'Gauteng',       education:'Degree',    skills:['Blockchain','FinTech','APIs'],                 oppId:'co9', status:'reviewing',  score:79 },
+    { id:'ca20', name:'Musa Khoza',            email:'musa.k@email.co.za',             phone:'083 123 4567', province:'KwaZulu-Natal', education:'TVET N4',   skills:['Operations','Logistics','Health'],             oppId:'co10',status:'rejected',   score:55 },
+    { id:'ca21', name:'Gugulethu Mthembu',     email:'gugulethu.m@email.co.za',        phone:'079 234 5678', province:'Gauteng',       education:'Matric',    skills:['Banking','Teller','Finance'],                  oppId:'co1', status:'reviewing',  score:73 },
+    { id:'ca22', name:'Sibongile Xulu',        email:'sibongile.x@email.co.za',        phone:'072 345 6789', province:'KwaZulu-Natal', education:'Diploma',   skills:['Digital Marketing','PPC','Analytics'],         oppId:'co2', status:'applied',    score:69 },
+    { id:'ca23', name:'Nomvula Ntanzi',        email:'nomvula.n@email.co.za',          phone:'061 456 7890', province:'Eastern Cape',  education:'TVET N6',   skills:['Cloud','GCP','DevOps'],                       oppId:'co3', status:'applied',    score:61 },
+    { id:'ca24', name:'Zakhele Mthethwa',      email:'zakhele.mt@email.co.za',         phone:'082 567 8901', province:'Gauteng',       education:'Degree',    skills:['Finance','Investment','CFA'],                  oppId:'co4', status:'accepted',   score:94 },
+    { id:'ca25', name:'Nokuthula Hlongwane',   email:'nokuthula.h@email.co.za',        phone:'071 678 9011', province:'Western Cape',  education:'Diploma',   skills:['Data','Visualization','Python'],               oppId:'co5', status:'interviewed',score:86 },
+    { id:'ca26', name:'Siyabonga Ntuli',       email:'siyabonga.n@email.co.za',        phone:'063 789 0122', province:'Limpopo',       education:'Matric',    skills:['Networking','Azure','Support'],                oppId:'co6', status:'accepted',   score:78 },
+    { id:'ca27', name:'Thabisile Dlamini',     email:'thabisile.d@email.co.za',        phone:'079 890 1233', province:'Mpumalanga',    education:'TVET N4',   skills:['FICA','POPIA','Compliance'],                   oppId:'co7', status:'reviewing',  score:67 },
+    { id:'ca28', name:'Mphathi Majola',        email:'mphathi.m@email.co.za',          phone:'083 901 2344', province:'Northern Cape', education:'Matric',    skills:['Civil','Survey','Engineering'],                oppId:'co8', status:'applied',    score:60 },
+    { id:'ca29', name:'Lungile Msomi',         email:'lungile.ms@email.co.za',         phone:'072 012 3455', province:'Gauteng',       education:'Degree',    skills:['Mobile Dev','React Native','APIs'],            oppId:'co9', status:'accepted',   score:92 },
+    { id:'ca30', name:'Hlengiwe Mthembu',      email:'hlengiwe.mt@email.co.za',        phone:'061 123 4566', province:'KwaZulu-Natal', education:'Diploma',   skills:['Medical Admin','Health','Billing'],            oppId:'co10',status:'reviewing',  score:71 },
+  ];
+
+  CORP_OPPS.forEach(o => { o.applications = CORP_APPLICANTS.filter(a => a.oppId === o.id).length; });
+
+  const CORP_DOC_TYPES = ['ID Copy','Matric Certificate','CV','Proof of Address','TVET Transcript'];
+  const CORP_DOCS_INITIAL = CORP_APPLICANTS.slice(0, 14).map((a, i) => ({
+    id: 'cdoc-' + a.id, applicantId: a.id, applicantName: a.name,
+    docType: CORP_DOC_TYPES[i % 5], status: 'Pending',
+    uploaded: '2026-0' + (Math.floor(i / 5) + 1) + '-' + String((i % 28) + 1).padStart(2, '0')
+  }));
+
+  // ── Live mutable state ─────────────────────────────────────────────────
+  let liveOpps = [...CORP_OPPS];
+  let liveDocs = CORP_DOCS_INITIAL.map(d => ({...d}));
+
+  // ── Build outer shell with inner nav ──────────────────────────────────
+  const node = el(`<div class="dashMultiPage">
+    <div class="dashInnerNav">
+      <button class="dashInnerNavBtn active" data-nav="overview">Overview</button>
+      <button class="dashInnerNavBtn" data-nav="opportunities">Opportunities</button>
+      <button class="dashInnerNavBtn" data-nav="applicants">Applicants</button>
+      <button class="dashInnerNavBtn" data-nav="pipeline">Pipeline</button>
+      <button class="dashInnerNavBtn" data-nav="analytics">Analytics</button>
+      <button class="dashInnerNavBtn" data-nav="docs">Documents</button>
+    </div>
+    <div id="corpPgOverview"      class="dashPage"></div>
+    <div id="corpPgOpportunities" class="dashPage" style="display:none;"></div>
+    <div id="corpPgApplicants"    class="dashPage" style="display:none;"></div>
+    <div id="corpPgPipeline"      class="dashPage" style="display:none;"></div>
+    <div id="corpPgAnalytics"     class="dashPage" style="display:none;"></div>
+    <div id="corpPgDocs"          class="dashPage" style="display:none;"></div>
+  </div>`);
+
+  const corpPageMap = { overview:'corpPgOverview', opportunities:'corpPgOpportunities', applicants:'corpPgApplicants', pipeline:'corpPgPipeline', analytics:'corpPgAnalytics', docs:'corpPgDocs' };
+
+  function corpSwitch(name) {
+    node.querySelectorAll('.dashPage').forEach(p => { p.style.display = 'none'; });
+    node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+    const target = node.querySelector('#' + corpPageMap[name]);
+    if (target) target.style.display = '';
+    // Sync sidebar and mobile bottom nav
+    const shell = node.closest('.appShell');
+    if (shell) {
+      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-dash-page') === name);
+      });
+    }
+  }
+  window.__partnerSwitch = corpSwitch;
+  node.querySelectorAll('.dashInnerNavBtn').forEach(btn => btn.addEventListener('click', () => corpSwitch(btn.dataset.nav)));
+
+  // ════════════════════════════════════════
+  //  PAGE: OVERVIEW
+  // ════════════════════════════════════════
+  function renderCorpOverview() {
+    const pg = node.querySelector('#corpPgOverview');
+    if (!pg) return;
+    const total = CORP_APPLICANTS.length;
+    const accepted = CORP_APPLICANTS.filter(a => a.status === 'accepted').length;
+    const inPipeline = CORP_APPLICANTS.filter(a => ['reviewing','interviewed'].includes(a.status)).length;
+    const rate = Math.round((accepted / Math.max(1, total)) * 100);
+    const recent = CORP_APPLICANTS.slice(0, 8);
+
+    const skillMap = {};
+    CORP_APPLICANTS.forEach(a => (a.skills||[]).forEach(s => { skillMap[s] = (skillMap[s]||0)+1; }));
+    const topSkills = Object.entries(skillMap).sort((a,b) => b[1]-a[1]).slice(0, 8);
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Corporate Overview</h2><p class="mutedText">Your hiring workspace at a glance.</p></div>
+      <div class="adminMetricGrid">
+        ${metricTile('Total Opportunities', String(liveOpps.length), 'Roles in your portfolio')}
+        ${metricTile('Total Applicants', String(total), 'Across all opportunities')}
+        ${metricTile('Active Pipelines', String(inPipeline), 'Under review or interview')}
+        ${metricTile('Acceptance Rate', rate + '%', accepted + ' applicants accepted')}
+      </div>
+      <div class="grid cols-2">
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Applicant Status Breakdown</div>
+          <div class="adminBarChart">
+            ${[['applied','Applied','var(--color-primary)'],['reviewing','Reviewing','#8B5CF6'],['interviewed','Interviewed','var(--color-warning)'],['accepted','Accepted','var(--color-success)'],['rejected','Rejected','var(--color-danger)']].map(([key,label,color]) => {
+              const cnt = CORP_APPLICANTS.filter(a => a.status === key).length;
+              return `<div class="adminBarChartItem"><span>${label}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((cnt/Math.max(1,total))*100)}%; background:${color};"></div></div><b>${cnt}</b></div>`;
+            }).join('')}
+          </div>
+        </section>
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Top Skills in Talent Pool</div>
+          <div class="tagCloud">
+            ${topSkills.map(([s,c]) => `<span class="tagCloudItem">${escapeHtml(s)} <b>(${c})</b></span>`).join('')}
+          </div>
+        </section>
+      </div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:14px;">Recent Applicants</div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Name</th><th>Opportunity</th><th>Province</th><th>Score</th><th>Status</th></tr></thead>
+            <tbody>
+              ${recent.map(a => {
+                const opp = liveOpps.find(o => o.id === a.oppId);
+                const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
+                return `<tr>
+                  <td><b>${escapeHtml(a.name)}</b><div class="mutedText" style="font-size:12px;">${escapeHtml(a.email)}</div></td>
+                  <td>${escapeHtml(opp?.title||'—')}</td>
+                  <td>${escapeHtml(a.province)}</td>
+                  <td><b>${a.score}%</b></td>
+                  <td><span class="badge ${bc}">${escapeHtml(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
   }
 
-  currentUserId = user.id;
-  setSessionUserId(user.id);
-  return { ok: true, user };
+  // ════════════════════════════════════════
+  //  PAGE: OPPORTUNITIES
+  // ════════════════════════════════════════
+  function renderCorpOpportunities() {
+    const pg = node.querySelector('#corpPgOpportunities');
+    if (!pg) return;
+    let formOpen = false;
+    let formError = '';
+
+    function rebuild() {
+      pg.innerHTML = `<div class="grid">
+        <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div><h2 style="margin:0; font-size:22px;">Posted Opportunities</h2><p class="mutedText" style="margin:4px 0 0;">Manage your organisation's listings.</p></div>
+          <button type="button" class="btn btnPrimary" id="corpAddOppBtn">+ Add Opportunity</button>
+        </div>
+        ${formOpen ? `<section class="card" style="background:var(--color-surface);">
+          <div style="font-weight:700; margin-bottom:14px;">New Opportunity</div>
+          <div class="grid cols-2" style="gap:10px;">
+            <div class="field"><label><b>Title</b></label><input class="input" id="nOppTitle" placeholder="e.g. Data Analyst Internship"/></div>
+            <div class="field"><label><b>Company</b></label><input class="input" id="nOppCompany" placeholder="e.g. Standard Bank"/></div>
+            <div class="field"><label><b>Type</b></label><select class="input select" id="nOppType"><option>Internship</option><option>Learnership</option><option>Bursary</option><option>Graduate</option></select></div>
+            <div class="field"><label><b>Province</b></label><select class="input select" id="nOppProv"><option value="">Select...</option>${PROVINCES.map(p=>`<option>${p}</option>`).join('')}<option>National</option></select></div>
+            <div class="field"><label><b>Sector</b></label><input class="input" id="nOppSector" placeholder="e.g. Technology"/></div>
+            <div class="field"><label><b>Stipend / Value</b></label><input class="input" id="nOppStipend" placeholder="e.g. R8,000/month"/></div>
+            <div class="field"><label><b>Closing Date</b></label><input class="input" type="date" id="nOppClosing"/></div>
+          </div>
+          <div id="nOppError" style="color:var(--color-danger);font-size:12px;margin-top:6px;">${escapeHtml(formError)}</div>
+          <div class="row" style="justify-content:flex-end; margin-top:12px; gap:8px;">
+            <button class="btn btnGhost" type="button" id="corpCancelOppBtn">Cancel</button>
+            <button class="btn btnPrimary" type="button" id="corpSaveOppBtn">Add Opportunity</button>
+          </div>
+        </section>` : ''}
+        <section class="card">
+          <div style="overflow-x:auto;">
+            <table class="table">
+              <thead><tr><th>Opportunity</th><th>Type</th><th>Province</th><th>Closing</th><th>Views</th><th>Applicants</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                ${liveOpps.map(opp => `<tr>
+                  <td><b>${escapeHtml(opp.title)}</b><div class="mutedText" style="font-size:12px;">${escapeHtml(opp.company)} • ${escapeHtml(opp.stipend)}</div></td>
+                  <td>${escapeHtml(opp.type)}</td>
+                  <td>${escapeHtml(opp.province)}</td>
+                  <td>${escapeHtml(opp.closing)}</td>
+                  <td>${opp.views}</td>
+                  <td><b>${opp.applications}</b></td>
+                  <td><span class="badge ${opp.status==='open'?'badgeGreen':opp.status==='closing soon'?'badgeOrange':'badgeBlue'}">${escapeHtml(opp.status.charAt(0).toUpperCase()+opp.status.slice(1))}</span></td>
+                  <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-opp="${escapeHtml(opp.id)}">View Opportunity</button></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>`;
+
+      pg.querySelector('#corpAddOppBtn')?.addEventListener('click', () => { formOpen = true; formError = ''; rebuild(); });
+      pg.querySelector('#corpCancelOppBtn')?.addEventListener('click', () => { formOpen = false; rebuild(); });
+      pg.querySelector('#corpSaveOppBtn')?.addEventListener('click', () => {
+        const company = String(pg.querySelector('#nOppCompany')?.value||'').trim();
+        if (!title) { formError = 'Title is required.'; rebuild(); return; }
+        if (!company) { formError = 'Company is required.'; rebuild(); return; }
+        liveOpps.unshift({ id:'co'+(liveOpps.length+1), title, company,
+          type: String(pg.querySelector('#nOppType')?.value||'Internship'),
+          province: String(pg.querySelector('#nOppProv')?.value||'National'),
+          sector: String(pg.querySelector('#nOppSector')?.value||'General'),
+          stipend: String(pg.querySelector('#nOppStipend')?.value||'—'),
+          closing: String(pg.querySelector('#nOppClosing')?.value||'Rolling'),
+          status: 'open', views: 0, applications: 0 });
+        formOpen = false; formError = '';
+        rebuild();
+        renderCorpOverview();
+        renderCorpAnalytics();
+      });
+    }
+    rebuild();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: APPLICANTS
+  // ════════════════════════════════════════
+  function renderCorpApplicants() {
+    const pg = node.querySelector('#corpPgApplicants');
+    if (!pg) return;
+
+    pg.innerHTML = `<div class="grid">
+      <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div><h2 style="margin:0; font-size:22px;">Talent Roster</h2><p class="mutedText" style="margin:4px 0 0;">${CORP_APPLICANTS.length} applicants across all opportunities.</p></div>
+        <button type="button" class="btn btnGhost" id="corpExportBtn">Export CSV</button>
+      </div>
+      <section class="card">
+        <div class="row" style="flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+          <input id="caQ" class="input" placeholder="Search name, email, skill..." style="flex:1; min-width:180px;"/>
+          <select id="caProv" class="input select" style="min-width:150px;">
+            <option value="">All provinces</option>
+            ${PROVINCES.map(p=>`<option value="${p}">${p}</option>`).join('')}
+          </select>
+          <select id="caStat" class="input select" style="min-width:140px;">
+            <option value="">All statuses</option>
+            <option value="applied">Applied</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="interviewed">Interviewed</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select id="caOpp" class="input select" style="min-width:180px;">
+            <option value="">All opportunities</option>
+            ${liveOpps.map(o=>`<option value="${o.id}">${escapeHtml(o.title)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Name</th><th>Province</th><th>Education</th><th>Skills</th><th>Opportunity</th><th>Score</th><th>Status</th><th></th></tr></thead>
+            <tbody id="caTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
+
+    function rebuildRoster() {
+      const q = (pg.querySelector('#caQ')?.value||'').toLowerCase();
+      const prov = pg.querySelector('#caProv')?.value||'';
+      const stat = pg.querySelector('#caStat')?.value||'';
+      const opp  = pg.querySelector('#caOpp')?.value||'';
+      const filtered = CORP_APPLICANTS.filter(a =>
+        (!q || a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.skills||[]).join(' ').toLowerCase().includes(q)) &&
+        (!prov || a.province===prov) && (!stat || a.status===stat) && (!opp || a.oppId===opp)
+      );
+      const tbody = pg.querySelector('#caTbody');
+      if (!tbody) return;
+      tbody.innerHTML = filtered.length ? filtered.map(a => {
+        const op = liveOpps.find(o=>o.id===a.oppId);
+        const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
+        return `<tr>
+          <td><b>${escapeHtml(a.name)}</b><div class="mutedText" style="font-size:11px;">${escapeHtml(a.email)}</div></td>
+          <td>${escapeHtml(a.province)}</td>
+          <td>${escapeHtml(a.education)}</td>
+          <td class="mutedText" style="font-size:11px;">${escapeHtml((a.skills||[]).join(', '))}</td>
+          <td>${escapeHtml(op?.title||'—')}</td>
+          <td><b>${a.score}%</b></td>
+          <td><span class="badge ${bc}">${escapeHtml(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-applicant="${escapeHtml(a.id)}">View Applicant</button></td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="8" style="text-align:center; padding:20px;" class="mutedText">No applicants match your filters.</td></tr>`;
+      // Wire view buttons
+      tbody.querySelectorAll('[data-view-applicant]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const a = CORP_APPLICANTS.find(x => x.id === btn.getAttribute('data-view-applicant'));
+          if (!a) return;
+          const op = liveOpps.find(o => o.id === a.oppId);
+          const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
+          openPartnerModal('Applicant Profile', `
+            <div style="display:grid;gap:16px;">
+              <div style="display:flex;gap:12px;align-items:center;">
+                <div style="width:52px;height:52px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(a.name.charAt(0))}</div>
+                <div><div style="font-size:18px;font-weight:800;">${escapeHtml(a.name)}</div><div class="mutedText" style="font-size:13px;">${escapeHtml(a.email)}</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Phone</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.phone)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.province)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.education)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Match Score</div><div style="font-size:22px;font-weight:800;color:var(--color-primary);margin-top:4px;">${a.score}%</div></div>
+              </div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(a.skills||[]).map(s=>`<span class="badge badgeBlue">${escapeHtml(s)}</span>`).join('')}</div></div>
+              <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Applied For</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(op?.title||'—')}</div></div>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <div class="mutedText" style="font-size:13px;">Status:</div>
+                <span class="badge ${bc}" style="font-size:13px;">${escapeHtml(a.status.charAt(0).toUpperCase()+a.status.slice(1))}</span>
+              </div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Documents</div>
+                <div style="font-size:13px;color:var(--color-text-muted);">ID Copy · Matric Certificate · CV</div>
+              </div>
+            </div>`);
+        });
+      });
+    }
+
+    ['#caQ','#caProv','#caStat','#caOpp'].forEach(sel => pg.querySelector(sel)?.addEventListener(sel==='#caQ'?'input':'change', rebuildRoster));
+    pg.querySelector('#corpExportBtn')?.addEventListener('click', () => {
+      downloadCsv('talent_roster.csv', CORP_APPLICANTS.map(a => ({
+        name:a.name, email:a.email, phone:a.phone, province:a.province, education:a.education,
+        skills:(a.skills||[]).join('; '), opportunity:liveOpps.find(o=>o.id===a.oppId)?.title||'',
+        score:a.score+'%', status:a.status
+      })));
+    });
+    rebuildRoster();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: PIPELINE
+  // ════════════════════════════════════════
+  function renderCorpPipeline() {
+    const pg = node.querySelector('#corpPgPipeline');
+    if (!pg) return;
+    const stages = [
+      { key:'applied',    label:'Applied',    color:'#1A4731' },
+      { key:'reviewing',  label:'Reviewed',   color:'#8B5CF6' },
+      { key:'interviewed',label:'Interviewed',color:'#D97706' },
+      { key:'accepted',   label:'Accepted',   color:'#22C55E' },
+    ];
+    const counts = stages.map(s => CORP_APPLICANTS.filter(a=>a.status===s.key).length);
+    const maxC = Math.max(1, counts[0]);
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Application Pipeline</h2><p class="mutedText">Candidate progression through your hiring funnel.</p></div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:18px;">Hiring Funnel</div>
+        <div class="corpFunnel">
+          ${stages.map((s,i) => `
+            <div class="corpFunnelStep">
+              <div class="corpFunnelBar" style="width:${Math.max(22,Math.round((counts[i]/maxC)*100))}%; background:${s.color};">
+                <span class="corpFunnelLabel">${s.label}</span>
+                <span class="corpFunnelCount">${counts[i]}</span>
+              </div>
+              ${i < stages.length-1 ? `<div style="font-size:11px; padding:3px 0 3px 16px; color:var(--color-text-muted);">▼ ${Math.max(0,counts[i]-counts[i+1])} dropped off</div>` : ''}
+            </div>`).join('')}
+        </div>
+      </section>
+      <div class="grid cols-2">
+        ${stages.map((s,i) => {
+          const apps = CORP_APPLICANTS.filter(a => a.status === s.key);
+          return `<section class="card">
+            <div class="row" style="justify-content:space-between; margin-bottom:12px;">
+              <div style="font-weight:700;">${s.label}</div>
+              <span class="badge" style="background:${s.color}22; color:${s.color}; border-color:${s.color}44;">${apps.length}</span>
+            </div>
+            ${apps.length ? apps.slice(0,6).map(a => {
+              const op = liveOpps.find(o=>o.id===a.oppId);
+              const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
+              return `<div style="padding:10px; border:1px solid var(--color-border); border-radius:12px; margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                  <div>
+                    <div style="font-weight:700; font-size:13px;">${escapeHtml(a.name)}</div>
+                    <div class="mutedText" style="font-size:11px; margin-top:2px;">${escapeHtml(op?.title||'—')}</div>
+                    <div class="mutedText" style="font-size:11px;">${escapeHtml(a.province)} • ${a.score}%</div>
+                  </div>
+                  <button class="btn btnGhost" style="padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;" data-view-pipeline-app="${a.id}">View</button>
+                </div>
+              </div>`;
+            }).join('') + (apps.length > 6 ? `<div class="mutedText" style="font-size:12px; padding:4px 0;">+${apps.length-6} more</div>` : '')
+            : `<div class="mutedText" style="font-size:13px;">No applicants at this stage.</div>`}
+          </section>`;
+        }).join('')}
+      </div>
+    </div>`;
+    // Wire pipeline "View" buttons
+    pg.querySelectorAll('[data-view-pipeline-app]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const a = CORP_APPLICANTS.find(x => x.id === btn.getAttribute('data-view-pipeline-app'));
+        if (!a) return;
+        const op = liveOpps.find(o => o.id === a.oppId);
+        const bc = a.status==='accepted'?'badgeGreen':a.status==='rejected'?'badgeOrange':a.status==='interviewed'?'badgeBlue':'';
+        openPartnerModal('Pipeline Applicant', `
+          <div style="display:grid;gap:14px;">
+            <div style="display:flex;gap:12px;align-items:center;">
+              <div style="width:48px;height:48px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800;flex-shrink:0;">${escapeHtml(a.name.charAt(0))}</div>
+              <div><div style="font-size:17px;font-weight:800;">${escapeHtml(a.name)}</div><div class="mutedText">${escapeHtml(a.email)}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Stage</div><div style="font-weight:700;margin-top:4px;"><span class="badge ${bc}">${escapeHtml(a.status)}</span></div></div>
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Score</div><div style="font-size:20px;font-weight:800;color:var(--color-primary);margin-top:4px;">${a.score}%</div></div>
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.province)}</div></div>
+              <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.education)}</div></div>
+            </div>
+            <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(a.skills||[]).map(s=>`<span class="badge badgeBlue">${escapeHtml(s)}</span>`).join('')}</div></div>
+            <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Applied For</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(op?.title||'—')}</div></div>
+          </div>`);
+      });
+    });
+  }
+    const pg = node.querySelector('#corpPgAnalytics');
+    if (!pg) return;
+
+    const provMap = {};
+    CORP_APPLICANTS.forEach(a => { provMap[a.province] = (provMap[a.province]||0)+1; });
+    const maxProv = Math.max(1,...Object.values(provMap));
+
+    const skillMap = {};
+    CORP_APPLICANTS.forEach(a => (a.skills||[]).forEach(s => { skillMap[s]=(skillMap[s]||0)+1; }));
+    const topSkills = Object.entries(skillMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const maxSkill = Math.max(1,...topSkills.map(([,c])=>c));
+
+    const oppMetrics = liveOpps.filter(o=>o.applications>0).map(o => {
+      const apps = CORP_APPLICANTS.filter(a=>a.oppId===o.id);
+      const acc = apps.filter(a=>a.status==='accepted').length;
+      const rej = apps.filter(a=>a.status==='rejected').length;
+      return { title: o.title.length>32?o.title.slice(0,30)+'…':o.title, total:apps.length, acc, rej, pend:apps.length-acc-rej };
+    });
+
+    const months = ['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'];
+    const mCounts = [4,7,11,9,14,12];
+    const maxM = Math.max(...mCounts);
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Analytics</h2><p class="mutedText">Insights across your hiring pipeline.</p></div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Applications Over Time (Last 6 Months)</div>
+        <div class="adminLineBars">
+          ${months.map((m,i) => `<div class="adminLineBarItem"><span>${m}</span><div class="adminLineBarTrack"><div class="adminLineBarFill" style="width:${Math.round((mCounts[i]/maxM)*100)}%;"></div></div><b>${mCounts[i]}</b></div>`).join('')}
+        </div>
+      </section>
+      <div class="grid cols-2">
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Province Distribution</div>
+          <div class="adminBarChart">
+            ${Object.entries(provMap).sort((a,b)=>b[1]-a[1]).map(([p,c]) => `<div class="adminBarChartItem"><span>${escapeHtml(p)}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((c/maxProv)*100)}%;"></div></div><b>${c}</b></div>`).join('')}
+          </div>
+        </section>
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Talent Signals (Top Skills)</div>
+          <div class="adminBarChart">
+            ${topSkills.map(([s,c]) => `<div class="adminBarChartItem"><span>${escapeHtml(s)}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((c/maxSkill)*100)}%; background:#8B5CF6;"></div></div><b>${c}</b></div>`).join('')}
+          </div>
+        </section>
+      </div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Success Rate per Opportunity</div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Opportunity</th><th>Total</th><th>Accepted</th><th>Rejected</th><th>Pending</th><th>Rate</th></tr></thead>
+            <tbody>
+              ${oppMetrics.map(o => `<tr>
+                <td>${escapeHtml(o.title)}</td>
+                <td>${o.total}</td>
+                <td><span class="badge badgeGreen">${o.acc}</span></td>
+                <td><span class="badge badgeOrange">${o.rej}</span></td>
+                <td><span class="badge badgeBlue">${o.pend}</span></td>
+                <td><b>${Math.round((o.acc/Math.max(1,o.total))*100)}%</b></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: DOCUMENTS
+  // ════════════════════════════════════════
+  function renderCorpDocs() {
+    const pg = node.querySelector('#corpPgDocs');
+    if (!pg) return;
+
+    function rebuildDocTable() {
+      const wrap = pg.querySelector('#corpDocWrap');
+      if (!wrap) return;
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="table">
+        <thead><tr><th>Applicant</th><th>Document Type</th><th>Uploaded</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${liveDocs.map(d => `<tr>
+            <td><b>${escapeHtml(d.applicantName)}</b></td>
+            <td>${escapeHtml(d.docType)}</td>
+            <td>${escapeHtml(d.uploaded)}</td>
+            <td><span class="badge ${d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue'}">${d.status}</span></td>
+            <td><div class="row" style="gap:6px;flex-wrap:wrap;">
+              <button class="btn btnGhost" data-view-doc="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">View Document</button>
+              ${d.status==='Pending'
+                ? `<button class="btn btnGhost" data-cdv="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Approve</button><button class="btn btnGhost" data-cdr="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Reject</button>`
+                : `<span class="mutedText" style="font-size:12px;">Done</span>`}
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+      wrap.querySelectorAll('[data-view-doc]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = liveDocs.find(x => x.id === btn.getAttribute('data-view-doc'));
+          if (!d) return;
+          const sc = d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue';
+          openPartnerModal('Document Review', `
+            <div style="display:grid;gap:14px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.applicantName)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Document Type</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
+              </div>
+              <div style="background:var(--color-background);border-radius:var(--radius-md);padding:24px;text-align:center;border:2px dashed var(--color-border);">
+                <div style="font-size:32px;margin-bottom:8px;">📄</div>
+                <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(d.docType)}</div>
+                <div class="mutedText" style="font-size:12px;">Document preview not available in demo mode</div>
+              </div>
+              ${d.status==='Pending' ? `<div class="row" style="gap:10px;justify-content:flex-end;">
+                <button class="btn btnGhost" onclick="document.getElementById('partnerDetailModal')?.remove();" data-cdv-modal="${d.id}">Approve</button>
+                <button class="btn btnGhost" style="color:var(--color-danger);" onclick="document.getElementById('partnerDetailModal')?.remove();" data-cdr-modal="${d.id}">Reject</button>
+              </div>` : ''}
+            </div>`);
+        });
+      });
+      wrap.querySelectorAll('[data-cdv]').forEach(btn => {
+        btn.addEventListener('click', () => { const d=liveDocs.find(d=>d.id===btn.getAttribute('data-cdv')); if(d) d.status='Verified'; rebuildDocTable(); });
+      });
+      wrap.querySelectorAll('[data-cdr]').forEach(btn => {
+        btn.addEventListener('click', () => { const d=liveDocs.find(d=>d.id===btn.getAttribute('data-cdr')); if(d) d.status='Rejected'; rebuildDocTable(); });
+      });
+    }
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Document Verification</h2><p class="mutedText">Review and approve applicant documents.</p></div>
+      <div class="adminMetricGrid">
+        ${metricTile('Total', String(liveDocs.length), 'Documents submitted')}
+        ${metricTile('Pending', String(liveDocs.filter(d=>d.status==='Pending').length), 'Awaiting review')}
+        ${metricTile('Verified', String(liveDocs.filter(d=>d.status==='Verified').length), 'Approved')}
+        ${metricTile('Rejected', String(liveDocs.filter(d=>d.status==='Rejected').length), 'Needs resubmission')}
+      </div>
+      <section class="card"><div id="corpDocWrap"></div></section>
+    </div>`;
+    rebuildDocTable();
+  }
+
+  // ── Initial renders ────────────────────────────────────────────────────
+  renderCorpOverview();
+  renderCorpOpportunities();
+  renderCorpApplicants();
+  renderCorpPipeline();
+  renderCorpAnalytics();
+  renderCorpDocs();
+
+  return shell("corporate", node);
 }
+
+function pageInstituteDashboard() {
+  const user = requireRole("institution_admin");
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  // ═══════════════════════════════════════════════
+  //  RICH MOCK DATA
+  // ═══════════════════════════════════════════════
+  const INST_PROGRAMS = [
+    { id:'p1',  name:'Data Analytics Certificate',      refNo:'DAC-2026-01', category:'Technology',   start:'2026-04-01', end:'2026-09-30', capacity:30, enrolled:22, applications:28 },
+    { id:'p2',  name:'Software Development NQF 4',      refNo:'SWD-2026-02', category:'Technology',   start:'2026-03-15', end:'2026-11-30', capacity:25, enrolled:18, applications:22 },
+    { id:'p3',  name:'Business Administration NQF 5',   refNo:'BUS-2026-03', category:'Business',     start:'2026-05-01', end:'2026-10-31', capacity:40, enrolled:31, applications:35 },
+    { id:'p4',  name:'Cyber Security Fundamentals',     refNo:'CYB-2026-04', category:'Technology',   start:'2026-04-15', end:'2026-08-31', capacity:20, enrolled:14, applications:19 },
+    { id:'p5',  name:'Cloud Computing Practitioner',    refNo:'CLD-2026-05', category:'Technology',   start:'2026-06-01', end:'2026-11-30', capacity:20, enrolled:11, applications:16 },
+    { id:'p6',  name:'Digital Marketing Certificate',   refNo:'DMK-2026-06', category:'Marketing',    start:'2026-04-01', end:'2026-07-31', capacity:35, enrolled:27, applications:32 },
+    { id:'p7',  name:'Electrical Engineering NQF 3',    refNo:'ELE-2026-07', category:'Engineering',  start:'2026-03-01', end:'2026-12-31', capacity:30, enrolled:24, applications:30 },
+    { id:'p8',  name:'Hospitality & Tourism NQF 4',     refNo:'HOS-2026-08', category:'Hospitality',  start:'2026-05-15', end:'2026-11-15', capacity:25, enrolled:17, applications:21 },
+    { id:'p9',  name:'Accounting Fundamentals NQF 4',   refNo:'ACC-2026-09', category:'Finance',      start:'2026-04-01', end:'2026-10-31', capacity:30, enrolled:26, applications:33 },
+    { id:'p10', name:'Project Management Certificate',  refNo:'PMG-2026-10', category:'Business',     start:'2026-06-15', end:'2026-09-30', capacity:25, enrolled:12, applications:15 },
+  ];
+
+  const INST_STUDENTS = [
+    { id:'st1',  name:'Thabo Mokoena',       email:'thabo.m@student.co.za',    phone:'071 111 2222', province:'Gauteng',       education:'Matric',    interests:['Data Analytics','IT','Finance'],      progId:'p1',  status:'Accepted',  funded:true },
+    { id:'st2',  name:'Ayanda Cele',          email:'ayanda.c@student.co.za',   phone:'082 222 3333', province:'KwaZulu-Natal', education:'TVET N4',   interests:['Software Development','Python','Web'],progId:'p2',  status:'Accepted',  funded:true },
+    { id:'st3',  name:'Sipho Dlamini',        email:'sipho.d@student.co.za',    phone:'063 333 4444', province:'Gauteng',       education:'Diploma',   interests:['Business','Management','Strategy'],   progId:'p3',  status:'Pending',   funded:false },
+    { id:'st4',  name:'Naledi Khumalo',       email:'naledi.k@student.co.za',   phone:'076 444 5555', province:'Western Cape',  education:'Matric',    interests:['Cybersecurity','Networking','IT'],    progId:'p4',  status:'Accepted',  funded:true },
+    { id:'st5',  name:'Lungelo Mthembu',      email:'lungelo.mt@student.co.za', phone:'071 555 6666', province:'Gauteng',       education:'TVET N6',   interests:['Cloud','DevOps','Azure'],             progId:'p5',  status:'Pending',   funded:false },
+    { id:'st6',  name:'Zanele Sithole',       email:'zanele.s@student.co.za',   phone:'083 666 7777', province:'Gauteng',       education:'Matric',    interests:['Marketing','Social Media','Content'], progId:'p6',  status:'Accepted',  funded:true },
+    { id:'st7',  name:'Kagiso Nkosi',         email:'kagiso.n@student.co.za',   phone:'072 777 8888', province:'Limpopo',       education:'Matric',    interests:['Electrical','Engineering','Physics'], progId:'p7',  status:'Accepted',  funded:false },
+    { id:'st8',  name:'Nompumelelo Buthelezi',email:'nompumelelo.b@student.co.za',phone:'061 888 9999',province:'KwaZulu-Natal', education:'Diploma',   interests:['Hospitality','Tourism','Events'],    progId:'p8',  status:'Pending',   funded:false },
+    { id:'st9',  name:'Bongani Tau',          email:'bongani.t@student.co.za',  phone:'079 999 1111', province:'Gauteng',       education:'TVET N4',   interests:['Accounting','Finance','Tax'],         progId:'p9',  status:'Accepted',  funded:true },
+    { id:'st10', name:'Phiwe Hadebe',         email:'phiwe.h@student.co.za',    phone:'082 111 2222', province:'Mpumalanga',    education:'Matric',    interests:['Project Management','Leadership'],    progId:'p10', status:'Waitlisted',funded:false },
+    { id:'st11', name:'Amahle Zulu',          email:'amahle.z@student.co.za',   phone:'071 222 3333', province:'Eastern Cape',  education:'Matric',    interests:['Data Analytics','Statistics','R'],    progId:'p1',  status:'Accepted',  funded:true },
+    { id:'st12', name:'Sifiso Gumede',        email:'sifiso.g@student.co.za',   phone:'063 333 5555', province:'KwaZulu-Natal', education:'TVET N6',   interests:['Software Dev','JavaScript','Node'],   progId:'p2',  status:'Rejected',  funded:false },
+    { id:'st13', name:'Thandeka Msweli',      email:'thandeka.ms@student.co.za',phone:'083 444 6666', province:'Gauteng',       education:'Degree',    interests:['Strategy','Consulting','Finance'],    progId:'p3',  status:'Accepted',  funded:true },
+    { id:'st14', name:'Mthokozisi Dube',      email:'mthokozisi.d@student.co.za',phone:'072 555 7777',province:'Western Cape',  education:'Matric',    interests:['Cybersecurity','Ethical Hacking'],   progId:'p4',  status:'Pending',   funded:false },
+    { id:'st15', name:'Nokwanda Ntuli',       email:'nokwanda.n@student.co.za', phone:'079 666 8888', province:'Gauteng',       education:'Diploma',   interests:['Cloud','AWS','Infrastructure'],       progId:'p5',  status:'Accepted',  funded:true },
+    { id:'st16', name:'Siphelele Majola',     email:'siphelele.m@student.co.za',phone:'061 777 9999', province:'North West',    education:'Matric',    interests:['Digital Marketing','SEO','PPC'],      progId:'p6',  status:'Accepted',  funded:false },
+    { id:'st17', name:'Nkosinathi Xulu',      email:'nkosinathi.x@student.co.za',phone:'082 888 1111',province:'Limpopo',       education:'TVET N4',   interests:['Electrical','Renewable Energy'],     progId:'p7',  status:'Accepted',  funded:true },
+    { id:'st18', name:'Lungile Mthethwa',     email:'lungile.mt@student.co.za', phone:'071 999 2222', province:'KwaZulu-Natal', education:'Matric',    interests:['Hospitality','Food & Beverage'],     progId:'p8',  status:'Accepted',  funded:true },
+    { id:'st19', name:'Simangele Hlongwane',  email:'simangele.h@student.co.za',phone:'063 111 3333', province:'Gauteng',       education:'TVET N6',   interests:['Accounting','Auditing','SARS'],       progId:'p9',  status:'Pending',   funded:false },
+    { id:'st20', name:'Gugulethu Mthembu',    email:'gugulethu.mt@student.co.za',phone:'083 222 4444',province:'Free State',    education:'Degree',    interests:['Project Management','Agile','PMI'],  progId:'p10', status:'Accepted',  funded:true },
+    { id:'st21', name:'Sibongile Ntanzi',     email:'sibongile.n@student.co.za',phone:'072 333 5555', province:'Gauteng',       education:'Matric',    interests:['Data Science','Python','ML'],         progId:'p1',  status:'Accepted',  funded:true },
+    { id:'st22', name:'Nomvula Msomi',        email:'nomvula.ms@student.co.za', phone:'079 444 6666', province:'Eastern Cape',  education:'TVET N4',   interests:['React','Frontend','UX'],             progId:'p2',  status:'Pending',   funded:false },
+    { id:'st23', name:'Zakhele Zikode',       email:'zakhele.z@student.co.za',  phone:'061 555 7777', province:'Western Cape',  education:'Diploma',   interests:['Operations','Strategy','Business'],  progId:'p3',  status:'Accepted',  funded:true },
+    { id:'st24', name:'Nokuthula Khoza',      email:'nokuthula.kh@student.co.za',phone:'082 666 8888',province:'KwaZulu-Natal', education:'Matric',    interests:['Network Security','CCNA'],           progId:'p4',  status:'Rejected',  funded:false },
+    { id:'st25', name:'Siyabonga Mncwango',   email:'siyabonga.mn@student.co.za',phone:'071 777 9999',province:'Gauteng',       education:'TVET N6',   interests:['Cloud','GCP','Terraform'],            progId:'p5',  status:'Accepted',  funded:true },
+  ];
+
+  const APP_STATUSES = ['Pending','Accepted','Rejected','Waitlisted'];
+  const INST_APPS = INST_STUDENTS.map((s, i) => ({
+    id: 'app-' + s.id,
+    studentId: s.id,
+    studentName: s.name,
+    programId: s.progId,
+    programName: (INST_PROGRAMS.find(p => p.id === s.progId)||{}).name || '—',
+    status: s.status,
+    funded: s.funded,
+    createdAt: '2026-0' + (Math.floor(i / 8) + 1) + '-' + String((i % 28) + 1).padStart(2, '0'),
+    province: s.province,
+    education: s.education,
+  }));
+
+  const INST_DOCS = INST_STUDENTS.slice(0, 15).map((s, i) => ({
+    id: 'idoc-' + s.id,
+    studentId: s.id,
+    studentName: s.name,
+    docType: ['ID Copy','Matric Certificate','TVET Transcript','Proof of Address','Proof of Income'][i % 5],
+    status: 'Pending',
+    uploaded: '2026-0' + (Math.floor(i / 5) + 1) + '-' + String((i % 28) + 1).padStart(2, '0'),
+  }));
+
+  // ── Live mutable state ─────────────────────────────────────────────────
+  let livePrograms = [...INST_PROGRAMS];
+  let liveDocs = INST_DOCS.map(d => ({...d}));
+
+  // ── Build outer shell with inner nav ──────────────────────────────────
+  const node = el(`<div class="dashMultiPage">
+    <div class="dashInnerNav">
+      <button class="dashInnerNavBtn active" data-nav="overview">Overview</button>
+      <button class="dashInnerNavBtn" data-nav="programs">Programs</button>
+      <button class="dashInnerNavBtn" data-nav="students">Students</button>
+      <button class="dashInnerNavBtn" data-nav="applications">Applications</button>
+      <button class="dashInnerNavBtn" data-nav="analytics">Analytics</button>
+      <button class="dashInnerNavBtn" data-nav="docs">Documents</button>
+    </div>
+    <div id="instPgOverview"      class="dashPage"></div>
+    <div id="instPgPrograms"      class="dashPage" style="display:none;"></div>
+    <div id="instPgStudents"      class="dashPage" style="display:none;"></div>
+    <div id="instPgApplications"  class="dashPage" style="display:none;"></div>
+    <div id="instPgAnalytics"     class="dashPage" style="display:none;"></div>
+    <div id="instPgDocs"          class="dashPage" style="display:none;"></div>
+  </div>`);
+
+  const instPageMap = { overview:'instPgOverview', programs:'instPgPrograms', students:'instPgStudents', applications:'instPgApplications', analytics:'instPgAnalytics', docs:'instPgDocs' };
+
+  function instSwitch(name) {
+    node.querySelectorAll('.dashPage').forEach(p => { p.style.display = 'none'; });
+    node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+    const target = node.querySelector('#' + instPageMap[name]);
+    if (target) target.style.display = '';
+    // Sync sidebar and mobile bottom nav
+    const shell = node.closest('.appShell');
+    if (shell) {
+      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-dash-page') === name);
+      });
+    }
+  }
+  window.__partnerSwitch = instSwitch;
+  node.querySelectorAll('.dashInnerNavBtn').forEach(btn => btn.addEventListener('click', () => instSwitch(btn.dataset.nav)));
+
+  // ════════════════════════════════════════
+  //  PAGE: OVERVIEW
+  // ════════════════════════════════════════
+  function renderInstOverview() {
+    const pg = node.querySelector('#instPgOverview');
+    if (!pg) return;
+
+    const totalStudents = INST_STUDENTS.length;
+    const funded = INST_STUDENTS.filter(s => s.funded).length;
+    const nonFunded = totalStudents - funded;
+    const totalApps = INST_APPS.length;
+    const totalProgs = livePrograms.length;
+    const fundedPct = Math.round((funded / Math.max(1, totalStudents)) * 100);
+    const circumference = 2 * Math.PI * 15.915;
+    const fundedArc = (funded / Math.max(1, totalStudents)) * circumference;
+
+    const activeThisMonth = INST_APPS.filter(a => a.status !== 'Rejected').length;
+    const completedCount = INST_STUDENTS.filter(s => s.status === 'Accepted' && s.funded).length;
+    const completionRate = Math.round((completedCount / Math.max(1, totalStudents)) * 100);
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Institute Overview</h2><p class="mutedText">Your programme workspace at a glance.</p></div>
+      <div class="adminMetricGrid">
+        ${metricTile('Total Programs', String(totalProgs), 'Active in your workspace')}
+        ${metricTile('Total Students', String(totalStudents), 'In your talent pool')}
+        ${metricTile('Total Applications', String(totalApps), 'Across all programmes')}
+        ${metricTile('Funded Students', funded + ' / ' + totalStudents, fundedPct + '% funded')}
+      </div>
+      <div class="adminMetricGrid">
+        ${metricTile('Active This Month', String(activeThisMonth), 'Students with recent activity')}
+        ${metricTile('Applications Started', String(totalApps), 'Total across all programs')}
+        ${metricTile('Completion Rate', completionRate + '%', completedCount + ' enrolled & funded')}
+        ${metricTile('Open Programs', String(livePrograms.length), 'Currently accepting intake')}
+      </div>
+      <div class="grid cols-2">
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:16px;">Funded vs Non-Funded</div>
+          <div class="instFundedRow">
+            <div class="instDonutWrap">
+              <svg viewBox="0 0 36 36" class="instDonut">
+                <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--color-border)" stroke-width="3.5"/>
+                <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--color-primary)" stroke-width="3.5"
+                  stroke-dasharray="${fundedArc.toFixed(2)} ${(circumference - fundedArc).toFixed(2)}"
+                  stroke-dashoffset="${(circumference * 0.25).toFixed(2)}" stroke-linecap="round"/>
+                <text x="18" y="19.5" text-anchor="middle" style="font-size:5px; font-weight:700; fill:var(--color-text-primary);">${fundedPct}%</text>
+              </svg>
+            </div>
+            <div class="instFundedLegend">
+              <div class="instFundedLegendItem"><span class="instLegendDot" style="background:var(--color-primary);"></span><span>Funded</span><b>${funded}</b></div>
+              <div class="instFundedLegendItem"><span class="instLegendDot" style="background:var(--color-border);"></span><span>Non-funded</span><b>${nonFunded}</b></div>
+              <div class="instFundedLegendItem mutedText" style="font-size:12px;"><span>Total</span><b>${totalStudents}</b></div>
+            </div>
+          </div>
+        </section>
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Application Status Breakdown</div>
+          <div class="adminBarChart">
+            ${[['Accepted','var(--color-success)'],['Pending','var(--color-primary)'],['Rejected','var(--color-danger)'],['Waitlisted','#8B5CF6']].map(([stat,color]) => {
+              const cnt = INST_APPS.filter(a=>a.status===stat).length;
+              return `<div class="adminBarChartItem"><span>${stat}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((cnt/Math.max(1,totalApps))*100)}%; background:${color};"></div></div><b>${cnt}</b></div>`;
+            }).join('')}
+          </div>
+        </section>
+      </div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:14px;">Top Programs by Applications</div>
+        <div class="adminBarChart">
+          ${livePrograms.sort((a,b)=>b.applications-a.applications).slice(0,6).map(p => `<div class="adminBarChartItem"><span>${escapeHtml(p.name.length>32?p.name.slice(0,30)+'…':p.name)}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((p.applications/Math.max(1,livePrograms[0]?.applications||1))*100)}%;"></div></div><b>${p.applications}</b></div>`).join('')}
+        </div>
+      </section>
+    </div>`;
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: PROGRAMS
+  // ════════════════════════════════════════
+  function renderInstPrograms() {
+    const pg = node.querySelector('#instPgPrograms');
+    if (!pg) return;
+    let formOpen = false;
+    let formError = '';
+
+    function rebuild() {
+      pg.innerHTML = `<div class="grid">
+        <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div><h2 style="margin:0; font-size:22px;">Program Management</h2><p class="mutedText" style="margin:4px 0 0;">${livePrograms.length} programs in your workspace.</p></div>
+          <button type="button" class="btn btnPrimary" id="instAddProgBtn">+ Create Program</button>
+        </div>
+        ${formOpen ? `<section class="card" style="background:var(--color-surface);">
+          <div style="font-weight:700; margin-bottom:14px;">New Program</div>
+          <div class="grid cols-2" style="gap:10px;">
+            <div class="field"><label><b>Program Name</b></label><input class="input" id="nProgName" placeholder="e.g. Data Analytics Certificate"/></div>
+            <div class="field"><label><b>Reference Number</b></label><input class="input" id="nProgRef" placeholder="e.g. DAC-2026-11"/></div>
+            <div class="field"><label><b>Category</b></label><input class="input" id="nProgCat" placeholder="e.g. Technology, Finance"/></div>
+            <div class="field"><label><b>Capacity</b></label><input class="input" type="number" id="nProgCap" value="25" min="1"/></div>
+            <div class="field"><label><b>Start Date</b></label><input class="input" type="date" id="nProgStart"/></div>
+            <div class="field"><label><b>End Date</b></label><input class="input" type="date" id="nProgEnd"/></div>
+          </div>
+          <div id="nProgError" style="color:var(--color-danger);font-size:12px;margin-top:6px;">${escapeHtml(formError)}</div>
+          <div class="row" style="justify-content:flex-end; margin-top:12px; gap:8px;">
+            <button class="btn btnGhost" type="button" id="instCancelProgBtn">Cancel</button>
+            <button class="btn btnPrimary" type="button" id="instSaveProgBtn">Create Program</button>
+          </div>
+        </section>` : ''}
+        <section class="card">
+          <div style="overflow-x:auto;">
+            <table class="table">
+              <thead><tr><th>Program Name</th><th>Ref #</th><th>Category</th><th>Start</th><th>End</th><th>Capacity</th><th>Enrolled</th><th>Applications</th></tr></thead>
+              <tbody>
+                ${livePrograms.map(p => `<tr>
+                  <td><b>${escapeHtml(p.name)}</b></td>
+                  <td class="mutedText" style="font-size:12px;">${escapeHtml(p.refNo)}</td>
+                  <td>${escapeHtml(p.category)}</td>
+                  <td>${escapeHtml(p.start||'—')}</td>
+                  <td>${escapeHtml(p.end||'—')}</td>
+                  <td>${p.capacity}</td>
+                  <td><b>${p.enrolled}</b></td>
+                  <td>${p.applications}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>`;
+
+      pg.querySelector('#instAddProgBtn')?.addEventListener('click', () => { formOpen = true; formError = ''; rebuild(); });
+      pg.querySelector('#instCancelProgBtn')?.addEventListener('click', () => { formOpen = false; rebuild(); });
+      pg.querySelector('#instSaveProgBtn')?.addEventListener('click', () => {
+        const name = String(pg.querySelector('#nProgName')?.value||'').trim();
+        const refNo = String(pg.querySelector('#nProgRef')?.value||'').trim();
+        const category = String(pg.querySelector('#nProgCat')?.value||'').trim();
+        const capacity = parseInt(pg.querySelector('#nProgCap')?.value||'25', 10);
+        const start = String(pg.querySelector('#nProgStart')?.value||'').trim();
+        const end = String(pg.querySelector('#nProgEnd')?.value||'').trim();
+        if (!name) { formError = 'Program name is required.'; rebuild(); return; }
+        if (!refNo) { formError = 'Reference number is required.'; rebuild(); return; }
+        if (livePrograms.some(p => p.refNo === refNo)) { formError = 'Reference number must be unique.'; rebuild(); return; }
+        livePrograms.unshift({ id:'p'+(livePrograms.length+1), name, refNo, category:category||'General', start:start||'—', end:end||'—', capacity:capacity||25, enrolled:0, applications:0 });
+        formOpen = false; formError = '';
+        rebuild();
+        renderInstOverview();
+        renderInstAnalytics();
+      });
+    }
+    rebuild();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: STUDENTS
+  // ════════════════════════════════════════
+  function renderInstStudents() {
+    const pg = node.querySelector('#instPgStudents');
+    if (!pg) return;
+
+    pg.innerHTML = `<div class="grid">
+      <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div><h2 style="margin:0; font-size:22px;">Student Profiles</h2><p class="mutedText" style="margin:4px 0 0;">${INST_STUDENTS.length} students in your talent pool.</p></div>
+        <button type="button" class="btn btnGhost" id="instExportStudentsBtn">Export CSV</button>
+      </div>
+      <section class="card">
+        <div class="row" style="flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+          <input id="stQ" class="input" placeholder="Search name or email..." style="flex:1; min-width:180px;"/>
+          <select id="stProv" class="input select" style="min-width:150px;">
+            <option value="">All provinces</option>
+            ${PROVINCES.map(p=>`<option value="${p}">${p}</option>`).join('')}
+          </select>
+          <select id="stStat" class="input select" style="min-width:140px;">
+            <option value="">All statuses</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Pending">Pending</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Waitlisted">Waitlisted</option>
+          </select>
+          <select id="stProg" class="input select" style="min-width:180px;">
+            <option value="">All programs</option>
+            ${livePrograms.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Name</th><th>Student #</th><th>Province</th><th>Education</th><th>Program</th><th>Status</th><th>Funded</th><th></th></tr></thead>
+            <tbody id="stTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
+
+    function rebuildStudents() {
+      const q = (pg.querySelector('#stQ')?.value||'').toLowerCase();
+      const prov = pg.querySelector('#stProv')?.value||'';
+      const stat = pg.querySelector('#stStat')?.value||'';
+      const prog = pg.querySelector('#stProg')?.value||'';
+      const filtered = INST_STUDENTS.filter(s =>
+        (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)) &&
+        (!prov || s.province===prov) && (!stat || s.status===stat) && (!prog || s.progId===prog)
+      );
+      const tbody = pg.querySelector('#stTbody');
+      if (!tbody) return;
+      tbody.innerHTML = filtered.length ? filtered.map(s => {
+        const prog = livePrograms.find(p=>p.id===s.progId);
+        const bc = s.status==='Accepted'?'badgeGreen':s.status==='Rejected'?'badgeOrange':s.status==='Waitlisted'?'badgeBlue':'';
+        return `<tr>
+          <td><b>${escapeHtml(s.name)}</b><div class="mutedText" style="font-size:11px;">${escapeHtml(s.email)}</div></td>
+          <td class="mutedText" style="font-size:11px;">${s.id.slice(-6).toUpperCase()}</td>
+          <td>${escapeHtml(s.province)}</td>
+          <td>${escapeHtml(s.education)}</td>
+          <td>${escapeHtml(prog?.name||'—')}</td>
+          <td><span class="badge ${bc}">${escapeHtml(s.status)}</span></td>
+          <td><span class="badge ${s.funded?'badgeGreen':'badgeOrange'}">${s.funded?'Yes':'No'}</span></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-inst-student="${escapeHtml(s.id)}">View Student</button></td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="8" style="text-align:center;padding:20px;" class="mutedText">No students match filters.</td></tr>`;
+      tbody.querySelectorAll('[data-view-inst-student]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const s = INST_STUDENTS.find(x => x.id === btn.getAttribute('data-view-inst-student'));
+          if (!s) return;
+          const prog = livePrograms.find(p => p.id === s.progId);
+          const bc = s.status==='Accepted'?'badgeGreen':s.status==='Rejected'?'badgeOrange':s.status==='Waitlisted'?'badgeBlue':'';
+          openPartnerModal('Student Profile', `
+            <div style="display:grid;gap:14px;">
+              <div style="display:flex;gap:12px;align-items:center;">
+                <div style="width:52px;height:52px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800;flex-shrink:0;">${escapeHtml(s.name.charAt(0))}</div>
+                <div><div style="font-size:18px;font-weight:800;">${escapeHtml(s.name)}</div><div class="mutedText">${escapeHtml(s.email)}</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student #</div><div style="font-weight:700;margin-top:4px;">${s.id.slice(-6).toUpperCase()}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Phone</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.phone||'—')}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Province</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.province)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Education</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(s.education)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${bc}">${escapeHtml(s.status)}</span></div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Funded</div><div style="margin-top:4px;"><span class="badge ${s.funded?'badgeGreen':'badgeOrange'}">${s.funded?'Yes':'No'}</span></div></div>
+              </div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Interests</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${(s.interests||[]).map(i=>`<span class="badge badgeBlue">${escapeHtml(i)}</span>`).join('')}</div></div>
+              <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Enrolled Program</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(prog?.name||'Not assigned')}</div></div>
+            </div>`);
+        });
+      });
+    }
+
+    ['#stQ','#stProv','#stStat','#stProg'].forEach(sel => pg.querySelector(sel)?.addEventListener(sel==='#stQ'?'input':'change', rebuildStudents));
+    pg.querySelector('#instExportStudentsBtn')?.addEventListener('click', () => {
+      downloadCsv('students.csv', INST_STUDENTS.map(s => ({
+        name:s.name, email:s.email, phone:s.phone, province:s.province,
+        education:s.education, interests:s.interests.join('; '),
+        program:livePrograms.find(p=>p.id===s.progId)?.name||'',
+        status:s.status, funded:s.funded?'Yes':'No'
+      })));
+    });
+    rebuildStudents();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: APPLICATIONS
+  // ════════════════════════════════════════
+        program:livePrograms.find(p=>p.id===s.progId)?.name||'',
+        status:s.status, funded:s.funded?'Yes':'No'
+      })));
+    });
+    rebuildStudents();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: APPLICATIONS
+  // ════════════════════════════════════════
+  function renderInstApplications() {
+    const pg = node.querySelector('#instPgApplications');
+    if (!pg) return;
+
+    pg.innerHTML = `<div class="grid">
+      <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div><h2 style="margin:0; font-size:22px;">Applications</h2><p class="mutedText" style="margin:4px 0 0;">${INST_APPS.length} applications across all programs.</p></div>
+        <button type="button" class="btn btnGhost" id="instExportAppsBtn">Export CSV</button>
+      </div>
+      <div class="adminMetricGrid">
+        ${['Accepted','Pending','Rejected','Waitlisted'].map(stat => {
+          const cnt = INST_APPS.filter(a=>a.status===stat).length;
+          const color = stat==='Accepted'?'var(--color-success)':stat==='Rejected'?'var(--color-danger)':stat==='Waitlisted'?'#8B5CF6':'var(--color-primary)';
+          return `<div class="card"><div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">${stat}</div><div style="font-size:28px; font-weight:700; margin-top:8px; color:${color};">${cnt}</div></div>`;
+        }).join('')}
+      </div>
+      <section class="card">
+        <div class="row" style="flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+          <input id="apQ" class="input" placeholder="Search student or program..." style="flex:1; min-width:180px;"/>
+          <select id="apStat" class="input select" style="min-width:140px;">
+            <option value="">All statuses</option>
+            <option>Accepted</option><option>Pending</option><option>Rejected</option><option>Waitlisted</option>
+          </select>
+          <select id="apProg" class="input select" style="min-width:180px;">
+            <option value="">All programs</option>
+            ${livePrograms.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead><tr><th>Student</th><th>Program</th><th>Province</th><th>Date</th><th>Status</th><th>Funded</th><th></th></tr></thead>
+            <tbody id="apTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
+
+    function rebuildApps() {
+      const q = (pg.querySelector('#apQ')?.value||'').toLowerCase();
+      const stat = pg.querySelector('#apStat')?.value||'';
+      const prog = pg.querySelector('#apProg')?.value||'';
+      const filtered = INST_APPS.filter(a =>
+        (!q || a.studentName.toLowerCase().includes(q) || a.programName.toLowerCase().includes(q)) &&
+        (!stat || a.status===stat) && (!prog || a.programId===prog)
+      );
+      const tbody = pg.querySelector('#apTbody');
+      if (!tbody) return;
+      tbody.innerHTML = filtered.length ? filtered.map(a => {
+        const bc = a.status==='Accepted'?'badgeGreen':a.status==='Rejected'?'badgeOrange':a.status==='Waitlisted'?'badgeBlue':'';
+        return `<tr>
+          <td><b>${escapeHtml(a.studentName)}</b><div class="mutedText" style="font-size:11px;">${escapeHtml(a.province)}</div></td>
+          <td>${escapeHtml(a.programName)}</td>
+          <td>${escapeHtml(a.province)}</td>
+          <td>${escapeHtml(a.createdAt)}</td>
+          <td><span class="badge ${bc}">${escapeHtml(a.status)}</span></td>
+          <td><span class="badge ${a.funded?'badgeGreen':'badgeOrange'}">${a.funded?'Yes':'No'}</span></td>
+          <td><button class="btn btnGhost" style="padding:4px 10px;font-size:12px;white-space:nowrap;" data-view-inst-app="${escapeHtml(a.id)}">View Applicant</button></td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="7" style="text-align:center;padding:20px;" class="mutedText">No applications match filters.</td></tr>`;
+      tbody.querySelectorAll('[data-view-inst-app]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const a = INST_APPS.find(x => x.id === btn.getAttribute('data-view-inst-app'));
+          if (!a) return;
+          const bc = a.status==='Accepted'?'badgeGreen':a.status==='Rejected'?'badgeOrange':a.status==='Waitlisted'?'badgeBlue':'';
+          openPartnerModal('Application Detail', `
+            <div style="display:grid;gap:14px;">
+              <div style="display:flex;gap:12px;align-items:center;">
+                <div style="width:48px;height:48px;border-radius:50%;background:var(--color-primary);color:#fff;display:grid;place-items:center;font-size:18px;font-weight:800;flex-shrink:0;">${escapeHtml(a.studentName.charAt(0))}</div>
+                <div><div style="font-size:17px;font-weight:800;">${escapeHtml(a.studentName)}</div><div class="mutedText">${escapeHtml(a.province)}</div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Program</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.programName)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Applied</div><div style="font-weight:600;margin-top:4px;">${escapeHtml(a.createdAt)}</div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${bc}">${escapeHtml(a.status)}</span></div></div>
+                <div class="card" style="padding:10px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Funded</div><div style="margin-top:4px;"><span class="badge ${a.funded?'badgeGreen':'badgeOrange'}">${a.funded?'Yes':'No'}</span></div></div>
+              </div>
+              <div><div class="mutedText" style="font-size:11px;text-transform:uppercase;margin-bottom:6px;">Documents Submitted</div><div style="font-size:13px;color:var(--color-text-muted);">ID Copy · Academic Transcript · Proof of Address</div></div>
+            </div>`);
+        });
+      });
+    }
+
+    ['#apQ','#apStat','#apProg'].forEach(sel => pg.querySelector(sel)?.addEventListener(sel==='#apQ'?'input':'change', rebuildApps));
+    pg.querySelector('#instExportAppsBtn')?.addEventListener('click', () => {
+      downloadCsv('applications.csv', INST_APPS.map(a => ({
+        student:a.studentName, program:a.programName, province:a.province,
+        date:a.createdAt, status:a.status, funded:a.funded?'Yes':'No'
+      })));
+    });
+    rebuildApps();
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: ANALYTICS
+  // ════════════════════════════════════════
+  function renderInstAnalytics() {
+    const pg = node.querySelector('#instPgAnalytics');
+    if (!pg) return;
+
+    const months = ['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'];
+    const mCounts = [5,9,12,14,10,16];
+    const maxM = Math.max(...mCounts);
+
+    const provMap = {};
+    INST_STUDENTS.forEach(s => { provMap[s.province]=(provMap[s.province]||0)+1; });
+    const maxProv = Math.max(1,...Object.values(provMap));
+
+    const eduMap = {};
+    INST_STUDENTS.forEach(s => { eduMap[s.education]=(eduMap[s.education]||0)+1; });
+    const maxEdu = Math.max(1,...Object.values(eduMap));
+
+    const interestMap = {};
+    INST_STUDENTS.forEach(s => (s.interests||[]).forEach(i => { interestMap[i]=(interestMap[i]||0)+1; }));
+    const topInterests = Object.entries(interestMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+    const progDemand = livePrograms.map(p => ({ name:p.name.length>30?p.name.slice(0,28)+'…':p.name, apps:p.applications })).sort((a,b)=>b.apps-a.apps);
+    const maxApps = Math.max(1,...progDemand.map(p=>p.apps));
+
+    const funnelStages = ['Started','Submitted','Reviewed','Accepted','Enrolled'];
+    const funnelCounts = [INST_APPS.length, INST_APPS.filter(a=>a.status!=='Pending').length+INST_APPS.length/2|0, INST_APPS.filter(a=>['Accepted','Rejected','Waitlisted'].includes(a.status)).length, INST_APPS.filter(a=>a.status==='Accepted').length, INST_APPS.filter(a=>a.funded).length];
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Analytics</h2><p class="mutedText">Programme-level insights across students and applications.</p></div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Monthly Application Trend</div>
+        <div class="adminLineBars">
+          ${months.map((m,i) => `<div class="adminLineBarItem"><span>${m}</span><div class="adminLineBarTrack"><div class="adminLineBarFill" style="width:${Math.round((mCounts[i]/maxM)*100)}%;"></div></div><b>${mCounts[i]}</b></div>`).join('')}
+        </div>
+      </section>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Application Funnel</div>
+        <div class="corpFunnel">
+          ${funnelStages.map((stage,i) => {
+            const cnt = funnelCounts[i]||0;
+            const width = Math.max(22,Math.round((cnt/Math.max(1,funnelCounts[0]))*100));
+            const colors=['#1A4731','#22623F','#2B8A4E','#3AAF61','#4FCB7A'];
+            return `<div class="corpFunnelStep"><div class="corpFunnelBar" style="width:${width}%; background:${colors[i]};"><span class="corpFunnelLabel">${stage}</span><span class="corpFunnelCount">${cnt}</span></div></div>`;
+          }).join('')}
+        </div>
+      </section>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Applications by Program</div>
+        <div class="adminBarChart">
+          ${progDemand.map(p => `<div class="adminBarChartItem"><span>${escapeHtml(p.name)}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((p.apps/maxApps)*100)}%;"></div></div><b>${p.apps}</b></div>`).join('')}
+        </div>
+      </section>
+      <div class="grid cols-2">
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Top Provinces</div>
+          <div class="instProvinceList">
+            ${Object.entries(provMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([p,c],i) => `<div class="instProvinceItem">
+              <span class="instProvinceRank">#${i+1}</span><span>${escapeHtml(p)}</span>
+              <div class="instProvBar"><div class="instProvBarFill" style="width:${Math.round((c/maxProv)*100)}%;"></div></div><b>${c}</b>
+            </div>`).join('')}
+          </div>
+        </section>
+        <section class="card">
+          <div style="font-weight:700; margin-bottom:12px;">Education Levels</div>
+          <div class="adminBarChart">
+            ${Object.entries(eduMap).sort((a,b)=>b[1]-a[1]).map(([e,c]) => `<div class="adminBarChartItem"><span>${escapeHtml(e)}</span><div class="adminBarTrack"><div class="adminBarFill" style="width:${Math.round((c/maxEdu)*100)}%; background:#8B5CF6;"></div></div><b>${c}</b></div>`).join('')}
+          </div>
+        </section>
+      </div>
+      <section class="card">
+        <div style="font-weight:700; margin-bottom:12px;">Top Student Interests</div>
+        <div class="tagCloud">
+          ${topInterests.map(([interest,count]) => `<span class="tagCloudItem" style="font-size:${Math.min(15,10+count)}px;">${escapeHtml(interest)} <b>(${count})</b></span>`).join('')}
+        </div>
+      </section>
+    </div>`;
+  }
+
+  // ════════════════════════════════════════
+  //  PAGE: DOCUMENTS
+  // ════════════════════════════════════════
+  function renderInstDocs() {
+    const pg = node.querySelector('#instPgDocs');
+    if (!pg) return;
+
+    function rebuildDocTable() {
+      const wrap = pg.querySelector('#instDocWrap');
+      if (!wrap) return;
+      wrap.innerHTML = `<div style="overflow-x:auto;"><table class="table">
+        <thead><tr><th>Student</th><th>Document Type</th><th>Uploaded</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${liveDocs.map(d => `<tr>
+            <td><b>${escapeHtml(d.studentName)}</b></td>
+            <td>${escapeHtml(d.docType)}</td>
+            <td>${escapeHtml(d.uploaded)}</td>
+            <td><span class="badge ${d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue'}">${d.status}</span></td>
+            <td><div class="row" style="gap:6px;flex-wrap:wrap;">
+              <button class="btn btnGhost" data-view-inst-doc="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">View Document</button>
+              ${d.status==='Pending'
+                ? `<button class="btn btnGhost" data-idv="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Approve</button><button class="btn btnGhost" data-idr="${d.id}" type="button" style="padding:5px 10px; font-size:12px;">Reject</button>`
+                : `<span class="mutedText" style="font-size:12px;">Done</span>`}
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+      wrap.querySelectorAll('[data-view-inst-doc]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = liveDocs.find(x => x.id === btn.getAttribute('data-view-inst-doc'));
+          if (!d) return;
+          const sc = d.status==='Verified'?'badgeGreen':d.status==='Rejected'?'badgeOrange':'badgeBlue';
+          openPartnerModal('Document Review', `
+            <div style="display:grid;gap:14px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Student</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.studentName)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Document Type</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.docType)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Uploaded</div><div style="font-weight:700;margin-top:4px;">${escapeHtml(d.uploaded)}</div></div>
+                <div class="card" style="padding:12px;"><div class="mutedText" style="font-size:11px;text-transform:uppercase;">Status</div><div style="margin-top:4px;"><span class="badge ${sc}">${d.status}</span></div></div>
+              </div>
+              <div style="background:var(--color-background);border-radius:var(--radius-md);padding:24px;text-align:center;border:2px dashed var(--color-border);">
+                <div style="font-size:32px;margin-bottom:8px;">📄</div>
+                <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(d.docType)}</div>
+                <div class="mutedText" style="font-size:12px;">Document preview not available in demo mode</div>
+              </div>
+              ${d.status==='Pending' ? `<div class="row" style="gap:10px;justify-content:flex-end;">
+                <button class="btn btnGhost" onclick="document.getElementById('partnerDetailModal')?.remove();">Approve</button>
+                <button class="btn btnGhost" style="color:var(--color-danger);" onclick="document.getElementById('partnerDetailModal')?.remove();">Reject</button>
+              </div>` : ''}
+            </div>`);
+        });
+      });
+      wrap.querySelectorAll('[data-idv]').forEach(btn => {
+        btn.addEventListener('click', () => { const d=liveDocs.find(d=>d.id===btn.getAttribute('data-idv')); if(d) d.status='Verified'; rebuildDocTable(); });
+      });
+      wrap.querySelectorAll('[data-idr]').forEach(btn => {
+        btn.addEventListener('click', () => { const d=liveDocs.find(d=>d.id===btn.getAttribute('data-idr')); if(d) d.status='Rejected'; rebuildDocTable(); });
+      });
+    }
+
+    pg.innerHTML = `<div class="grid">
+      <div class="cardHeader"><h2 style="font-size:22px;">Document Verification</h2><p class="mutedText">Review and approve student documents.</p></div>
+      <div class="adminMetricGrid">
+        ${metricTile('Total', String(liveDocs.length), 'Documents submitted')}
+        ${metricTile('Pending', String(liveDocs.filter(d=>d.status==='Pending').length), 'Awaiting review')}
+        ${metricTile('Verified', String(liveDocs.filter(d=>d.status==='Verified').length), 'Approved')}
+        ${metricTile('Rejected', String(liveDocs.filter(d=>d.status==='Rejected').length), 'Needs resubmission')}
+      </div>
+      <section class="card"><div id="instDocWrap"></div></section>
+    </div>`;
+    rebuildDocTable();
+  }
+
+  // ── Initial renders ────────────────────────────────────────────────────
+  renderInstOverview();
+  renderInstPrograms();
+  renderInstStudents();
+  renderInstApplications();
+  renderInstAnalytics();
+  renderInstDocs();
+
+  return shell("institute", node);
+}
+
 
 function register(name, email, password, role) {
   const normalizedName = name.trim();
@@ -4141,13 +6640,33 @@ function renderStepper(steps = [], activeStep = 1, options = {}) {
 function renderScrollStack(steps = []) {
   return `<div class="ydhScrollStack">
     ${steps
-      .map(
-        (step, index) => `<article class="ydhScrollCard" data-reveal="true" style="--stack-order:${index};">
+      .map((step, index) => {
+        const mediaImage = String(step.mediaImage || "").trim();
+        const mediaTitle = String(step.mediaTitle || step.title || `Step ${index + 1}`).trim();
+        const mediaHint = String(step.mediaHint || "").trim();
+
+        return `<article class="ydhScrollCard" data-reveal="true" style="--stack-order:${index};">
           <div class="ydhScrollIndex">${index + 1}</div>
           <h3>${escapeHtml(step.title || "")}</h3>
           <p>${escapeHtml(step.description || "")}</p>
-        </article>`
-      )
+          <div class="ydhScrollMedia${mediaImage ? " has-image" : ""}">
+            ${mediaImage
+              ? `<img class="ydhScrollMediaImage" src="${escapeHtml(mediaImage)}" alt="" />`
+              : `<div class="ydhScrollMediaCanvas" aria-hidden="true">
+                  <span class="ydhScrollMediaBadge">${escapeHtml(mediaTitle)}</span>
+                  <div class="ydhScrollMediaLines">
+                    <span class="ydhScrollMediaLine is-wide"></span>
+                    <span class="ydhScrollMediaLine"></span>
+                  </div>
+                  <div class="ydhScrollMediaTiles">
+                    <span class="ydhScrollMediaTile"></span>
+                    <span class="ydhScrollMediaTile is-strong"></span>
+                  </div>
+                </div>`}
+            ${mediaHint ? `<div class="ydhScrollMediaNote">${escapeHtml(mediaHint)}</div>` : ""}
+          </div>
+        </article>`;
+      })
       .join("")}
   </div>`;
 }
@@ -4167,21 +6686,368 @@ function renderReflectiveCards(cards = []) {
   </div>`;
 }
 
+function compactOpportunityProfileInterests(values = []) {
+  const labelMap = new Map();
+
+  CAREER_GUIDANCE_INTEREST_OPTIONS.forEach((option) => {
+    labelMap.set(option.value, option.label);
+    labelMap.set(option.label, option.label);
+    (Array.isArray(option.mappedValues) ? option.mappedValues : []).forEach((value) => {
+      labelMap.set(String(value || "").trim(), option.label);
+    });
+  });
+
+  const normalized = [];
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return;
+    const label = labelMap.get(raw) || raw;
+    if (!normalized.includes(label)) normalized.push(label);
+  });
+
+  return normalized.slice(0, 3).join(" · ") || "Add interests to sharpen your matches";
+}
+
+function getOpportunityProfileCareerGoal(student, guidanceRecord = null) {
+  const profile = getUserProfile(student) || {};
+  const storedGoal = String(profile.goals || "").trim();
+  const normalizedGoal = normalizeCareerGuidanceGoal(storedGoal);
+  const goalCopy = {
+    bursary: "Focused on funded study opportunities",
+    learnership: "Looking for a learnership pathway",
+    internship: "Building toward internship opportunities",
+    courses: "Exploring skills and course pathways",
+    unsure: "Exploring the best next step"
+  };
+
+  if (normalizedGoal && goalCopy[normalizedGoal]) return goalCopy[normalizedGoal];
+  if (storedGoal) return storedGoal;
+
+  const guidanceCategory = String(guidanceRecord?.result?.topCategory || "").trim();
+  const guidanceCopy = {
+    IT: "Aspiring Software Developer",
+    Engineering: "Aspiring Engineer",
+    Business: "Aspiring Business Professional",
+    Science: "Aspiring Data & Research Professional",
+    Trades: "Aspiring Technical Specialist"
+  };
+
+  return guidanceCopy[guidanceCategory] || "Building my opportunity pathway";
+}
+
+function renderOpportunityProfileCard(props = {}) {
+  const studentName = String(props.studentName || "Student Name").trim() || "Student Name";
+  const careerGoal =
+    String(props.careerGoal || "Building my opportunity pathway").trim() || "Building my opportunity pathway";
+  const educationLevel = String(props.educationLevel || "Complete your profile").trim() || "Complete your profile";
+  const interests =
+    String(props.interests || "Add interests to sharpen your matches").trim() ||
+    "Add interests to sharpen your matches";
+  const province = String(props.province || "All provinces").trim() || "All provinces";
+  const matchCount = Math.max(0, Number.parseInt(props.matchCount, 10) || 0);
+  const applicationCount = Math.max(0, Number.parseInt(props.applicationCount, 10) || 0);
+  const profileCompletion = Math.min(100, Math.max(0, Number.parseInt(props.profileCompletion, 10) || 0));
+  const profileImage = String(props.profileImage || "").trim();
+  const uploadInputId = String(props.uploadInputId || "opportunityProfileUpload").trim() || "opportunityProfileUpload";
+  const platformLabel = String(props.platformLabel || "Youth Digital Hub").trim() || "Youth Digital Hub";
+  const hasImage = Boolean(profileImage);
+
+  return `<section class="rc-card" data-rc-profile-card="true">
+    <div class="rc-bg-gradient" data-rc-bg-gradient="true"${hasImage ? ' style="opacity:0;"' : ""}></div>
+    <img class="rc-bg-image" data-rc-bg-image="true" src="${hasImage ? escapeHtml(profileImage) : ""}" alt="${hasImage ? escapeHtml(`${studentName} profile photo`) : ""}"${hasImage ? "" : ' style="display:none;"'} />
+    <div class="rc-tint"></div>
+    <div class="rc-sheen"></div>
+    <div class="rc-border"></div>
+
+    <input
+      type="file"
+      id="${escapeHtml(uploadInputId)}"
+      class="rc-file-input"
+      data-rc-file-input="true"
+      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+    />
+
+    <div class="rc-content">
+      <div class="rc-header">
+        <div class="rc-brand">
+          <span class="rc-brand-dot"></span>
+          ${escapeHtml(platformLabel)}
+        </div>
+        <button class="rc-share-btn" type="button" data-rc-share-profile="true" title="Share profile">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="rc-image-zone">
+        <div class="rc-empty-prompt" data-rc-empty-prompt="true"${hasImage ? ' style="display:none;"' : ""}>
+          <div class="rc-empty-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+          </div>
+          <p class="rc-empty-title">Upload a photo</p>
+          <p class="rc-empty-sub">Personalise your Youth Digital Hub profile</p>
+          <button class="rc-upload-btn" type="button" data-rc-upload-main="true">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Upload Image
+          </button>
+        </div>
+      </div>
+
+      <div class="rc-lower">
+        <div class="rc-identity-row">
+          <div class="rc-identity">
+            <p class="rc-name">${escapeHtml(studentName)}</p>
+            <p class="rc-goal">${escapeHtml(careerGoal)}</p>
+          </div>
+          <div class="rc-photo-actions" data-rc-photo-actions="true"${hasImage ? ' style="display:flex;"' : ' style="display:none;"'}>
+            <button class="rc-icon-btn" type="button" data-rc-change-photo="true" title="Change photo">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </button>
+            <button class="rc-icon-btn danger" type="button" data-rc-remove-photo="true" title="Remove photo">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14H6L5 6"></path>
+                <path d="M10 11v6M14 11v6"></path>
+                <path d="M9 6V4h6v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="rc-divider"></div>
+
+        <div class="rc-details">
+          <div class="rc-detail-row">
+            <span class="rc-label">Education Level</span>
+            <span class="rc-value">${escapeHtml(educationLevel)}</span>
+          </div>
+          <div class="rc-detail-row">
+            <span class="rc-label">Interests</span>
+            <span class="rc-value rc-value--sm">${escapeHtml(interests)}</span>
+          </div>
+          <div class="rc-detail-row">
+            <span class="rc-label">Province</span>
+            <span class="rc-value">${escapeHtml(province)}</span>
+          </div>
+        </div>
+
+        <div class="rc-divider"></div>
+
+        <div class="rc-insights">
+          <div class="rc-insight-chip">
+            <span class="rc-insight-label">Recommended Matches</span>
+            <span class="rc-insight-value">${escapeHtml(`${matchCount} Opportunities`)}</span>
+          </div>
+          <div class="rc-insight-chip">
+            <span class="rc-insight-label">Application Status</span>
+            <span class="rc-insight-value">${escapeHtml(`${applicationCount} Started`)}</span>
+          </div>
+          <div class="rc-insight-chip rc-progress-chip">
+            <div class="rc-progress-meta">
+              <span class="rc-insight-label">Profile Completion</span>
+              <span class="rc-insight-value">${escapeHtml(`${profileCompletion}%`)}</span>
+            </div>
+            <div class="rc-progress-track">
+              <div class="rc-progress-fill" style="width:${escapeHtml(String(profileCompletion))}%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+
+
+function renderLandingOpportunityIdentityCard(profile = {}) {
+  const studentName = String(profile.studentName || "Student Name").trim() || "Student Name";
+  const careerGoal = String(profile.careerGoal || "Future-ready student").trim() || "Future-ready student";
+  const educationLevel = String(profile.educationLevel || "Education level pending").trim() || "Education level pending";
+  const interests = Array.isArray(profile.interests) ? profile.interests.filter(Boolean).slice(0, 3) : [];
+  const province = String(profile.province || "South Africa").trim() || "South Africa";
+  const profileCompletion = Math.min(100, Math.max(0, Number.parseInt(profile.profileCompletion, 10) || 0));
+  const readinessScore = String(profile.readinessScore || "8.8/10").trim() || "8.8/10";
+  const image = String(profile.profileImage || "").trim();
+  const shareItems = [
+    {
+      label: "WhatsApp",
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.3-4.5A8.5 8.5 0 1 1 20.5 11.5Z"></path><path d="M8.6 9.2c.2-.4.5-.4.8-.4h.6c.2 0 .4.1.5.4l.7 1.8c.1.2.1.4 0 .6l-.3.5c-.1.2-.1.3 0 .4.3.6.8 1.1 1.3 1.5.5.4 1.1.7 1.7 1 .1 0 .3 0 .4-.1l.5-.6c.2-.2.4-.2.6-.1l1.7.8c.3.1.4.3.4.5v.5c0 .3-.1.7-.4.9-.4.3-.9.5-1.5.5-.9 0-1.9-.3-3-.9a10.4 10.4 0 0 1-3-2.5 8.2 8.2 0 0 1-1.8-3.4c-.1-.7 0-1.3.3-1.8Z"></path></svg>`
+    },
+    {
+      label: "LinkedIn",
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6Z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>`
+    },
+    {
+      label: "Copy Link",
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l2.8-2.8a5 5 0 0 0-7.1-7.1L10 4"></path><path d="M14 11a5 5 0 0 0-7.1 0l-2.8 2.8a5 5 0 0 0 7.1 7.1L14 20"></path></svg>`
+    }
+  ];
+
+  return `<article class="landingShareProfileCard" data-reveal="true">
+    <div class="landingShareProfilePhotoWrap">
+      <div class="landingShareProfilePortrait">
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(`${studentName} profile photo`)}" />
+      </div>
+    </div>
+
+    <div class="landingShareProfileSheet">
+      <div class="landingShareProfileHeader">
+        <div class="landingShareProfileIntro">
+          <span class="landingShareProfileEyebrow">Student opportunity profile</span>
+          <h3>${escapeHtml(studentName)}</h3>
+          <p>${escapeHtml(careerGoal)}</p>
+        </div>
+      </div>
+
+      <div class="landingShareProfileMeta">
+        <span>${escapeHtml(educationLevel)}</span>
+        <span>${escapeHtml(province)}</span>
+      </div>
+
+      <div class="landingShareProfileSection">
+        <div class="landingShareProfileSectionHead">
+          <span>Profile Strength</span>
+          <strong>${escapeHtml(`${profileCompletion}% Complete`)}</strong>
+        </div>
+        <div class="landingShareProfileProgress" aria-hidden="true">
+          <span style="width:${escapeHtml(String(profileCompletion))}%;"></span>
+        </div>
+      </div>
+
+      <div class="landingShareProfileFooter">
+        <article class="landingShareProfileStat">
+          <span>Opportunity readiness</span>
+          <strong>${escapeHtml(readinessScore)}</strong>
+        </article>
+        <article class="landingShareProfileStat landingShareProfileStat--match">
+          <span>Matched opportunities</span>
+          <div class="landingShareProfileTags">
+            ${interests.map((interest) => `<span>${escapeHtml(interest)}</span>`).join("")}
+          </div>
+        </article>
+      </div>
+
+      <div class="landingShareProfileShareRow" aria-label="Share destinations">
+        ${shareItems
+          .map(
+            (item) => `<span class="landingShareProfileIcon" title="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}">${item.icon}</span>`
+          )
+          .join("")}
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderLandingOpportunityPlannerCard() {
+  const steps = [
+    { step: 'Step 1', title: 'Complete your profile', duration: '5 minutes', state: 'is-active' },
+    { step: 'Step 2', title: 'Upload academic results', duration: '3 minutes', state: '' },
+    { step: 'Step 3', title: 'Explore matching bursaries', duration: '10 minutes', state: '' },
+    { step: 'Step 4', title: 'Submit your first application', duration: '5 minutes', state: '' }
+  ];
+
+  return `<article class="landingPlannerCard" data-reveal="true">
+    <div class="landingPlannerIntro">
+      <span class="landingPlannerLabel">Opportunity Planner</span>
+      <h3>Opportunity Planner</h3>
+      <p>A simple view showing the steps that prepare you for real opportunities.</p>
+    </div>
+
+    <div class="landingPlannerBoard">
+      <div class="landingPlannerBoardHeader">
+        <div>
+          <strong>Good Morning Monde</strong>
+          <span>Profile Strength: 15% Complete</span>
+        </div>
+        <span class="landingPlannerPill">Today</span>
+      </div>
+
+      <div class="landingPlannerSteps" role="list">
+        ${steps
+          .map(
+            (item) => `<div class="landingPlannerStep ${item.state}" role="listitem">
+              <div class="landingPlannerStepMeta">
+                <span>${escapeHtml(item.step)}</span>
+                <strong>${escapeHtml(item.title)}</strong>
+              </div>
+              <span class="landingPlannerStepDuration">${escapeHtml(item.duration)}</span>
+            </div>`
+          )
+          .join('')}
+      </div>
+    </div>
+  </article>`;
+}
+
 function renderTiltedCards(cards = [], options = {}) {
   const className = options.className ? ` ${options.className}` : "";
   const actionLabel = options.actionLabel || "View";
   const actionHref = options.actionHref || "#/login";
+
   return `<div class="ydhTiltGrid${className}">
     ${cards
-      .map(
-        (card) => `<article class="ydhTiltCard" data-tilt-card="true">
-          <span class="ydhTiltType">${escapeHtml(card.type || "")}</span>
-          <h3>${escapeHtml(card.title || "")}</h3>
-          <p>${escapeHtml(card.provider || "")}</p>
-          <div class="ydhTiltMeta">${escapeHtml(card.province || "")}</div>
-          <a class="btn btnGhost" href="${escapeHtml(card.href || actionHref)}">${escapeHtml(card.actionLabel || actionLabel)}</a>
-        </article>`
-      )
+      .map((card, index) => {
+        const opportunity = {
+          id: String(card.id || `landing-opp-${index + 1}`),
+          type: String(card.type || "Course"),
+          title: String(card.title || "Opportunity preview"),
+          provider: String(card.provider || card.institution || "Youth Digital Hub"),
+          institution: String(card.provider || card.institution || "Youth Digital Hub"),
+          location: String(card.province || card.location || "National"),
+          province: String(card.province || card.location || "National"),
+          sector: String(card.sector || "Opportunity Access"),
+          fundingAmount: String(card.fundingAmount || card.value || "See details"),
+          stipendOrValue: String(card.stipendOrValue || card.value || "See details"),
+          duration: String(card.duration || "Flexible"),
+          certificationType: String(card.certificationType || "Certificate"),
+          focusArea: String(card.focusArea || "See details"),
+          closingDate: String(card.closingDate || "Rolling"),
+          nqfLevel: String(card.nqfLevel || ""),
+          requirements: Array.isArray(card.requirements) ? card.requirements : [],
+          description: String(card.description || ""),
+          image: String(card.image || ""),
+          badges: Array.isArray(card.badges) ? card.badges : [],
+          tags: Array.isArray(card.tags) ? card.tags : []
+        };
+
+        const lifecycle = {
+          statusLabel: String(card.statusLabel || "Open"),
+          statusClass: String(card.statusClass || "statusPill statusOpen"),
+          cardVariantClass: "",
+          isInProgress: false,
+          isSubmitted: false,
+          isClosed: false,
+          isComplete: false
+        };
+
+        return renderStudentOpportunityCard(opportunity, {
+          student: null,
+          application: null,
+          recommended: Boolean(card.recommended),
+          lifecycle,
+          action: {
+            label: String(card.actionLabel || actionLabel || "View").trim() || "View",
+            href: String(card.href || actionHref || "#/login").trim() || "#/login"
+          },
+          previewMode: true
+        });
+      })
       .join("")}
   </div>`;
 }
@@ -4377,6 +7243,28 @@ function initializeLandingInteractions(node) {
     button.addEventListener("click", createClickSpark);
   });
 
+  const landingProfileCard = node.querySelector('#verified-profile [data-rc-profile-card="true"]');
+  if (landingProfileCard) {
+    const shareButton = landingProfileCard.querySelector('[data-rc-share-profile="true"]');
+    shareButton?.addEventListener('click', async () => {
+      const shareUrl = `${location.origin || ""}${location.pathname || ""}#/signup`;
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Youth Digital Hub',
+            text: 'Preview the Youth Digital Hub opportunity profile.',
+            url: shareUrl
+          });
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+        }
+      } catch (_error) {
+      }
+    });
+  }
+
   applyInteractiveCardMotion(node, "[data-reflective-card]");
   applyInteractiveCardMotion(node, "[data-tilt-card]");
 
@@ -4384,44 +7272,163 @@ function initializeLandingInteractions(node) {
 }
 
 // Public landing page render function.
+
+// ─── /demos — Role selection page ────────────────────────────────────────────
+function pageDemos() {
+  const node = el(`<div class="demosPage"></div>`);
+
+  node.innerHTML = `
+    <div class="demosWrap">
+      <!-- Back to landing -->
+      <a href="#/home" class="demosBack">
+        <span style="font-size:18px;">←</span> Back to home
+      </a>
+
+      <div class="demosHero">
+        <div class="demosEyebrow">Youth Digital Hub</div>
+        <h1 class="demosTitle">Try the Platform</h1>
+        <p class="demosSub">Explore the full experience as any role — no sign-up required. Pick a workspace below and dive straight in.</p>
+      </div>
+
+      <div class="demosGrid">
+
+        <!-- Student -->
+        <button class="demosCard demosCard--student" data-demo="student" type="button">
+          <div class="demosCardIcon">🎓</div>
+          <div class="demosCardBody">
+            <div class="demosCardTitle">Student Demo</div>
+            <div class="demosCardDesc">Explore your personalised dashboard, apply for bursaries, learnerships and internships, and track your applications.</div>
+            <ul class="demosCardFeats">
+              <li>AI career quiz &amp; matching</li>
+              <li>Bursary &amp; learnership listings</li>
+              <li>Application tracking</li>
+              <li>Document management</li>
+            </ul>
+          </div>
+          <div class="demosCardCta">Enter Student Demo →</div>
+        </button>
+
+        <!-- Corporate -->
+        <button class="demosCard demosCard--corporate" data-demo="corporate" type="button">
+          <div class="demosCardIcon">🏢</div>
+          <div class="demosCardBody">
+            <div class="demosCardTitle">Corporate Partner Demo</div>
+            <div class="demosCardDesc">Post internship and learnership opportunities, review applicants, manage your talent pipeline, and verify documents.</div>
+            <ul class="demosCardFeats">
+              <li>Post &amp; manage opportunities</li>
+              <li>Applicant profiles &amp; scoring</li>
+              <li>Hiring pipeline view</li>
+              <li>Document verification</li>
+            </ul>
+          </div>
+          <div class="demosCardCta">Enter Corporate Demo →</div>
+        </button>
+
+        <!-- Institute -->
+        <button class="demosCard demosCard--institute" data-demo="institute" type="button">
+          <div class="demosCardIcon">🏫</div>
+          <div class="demosCardBody">
+            <div class="demosCardTitle">Institute Demo</div>
+            <div class="demosCardDesc">Manage student enrolments, oversee funding applications, track program analytics, and review student documents.</div>
+            <ul class="demosCardFeats">
+              <li>Program &amp; enrolment management</li>
+              <li>Student profiles</li>
+              <li>Funding application oversight</li>
+              <li>Analytics &amp; reporting</li>
+            </ul>
+          </div>
+          <div class="demosCardCta">Enter Institute Demo →</div>
+        </button>
+
+        <!-- Admin -->
+        <button class="demosCard demosCard--admin" data-demo="admin" type="button">
+          <div class="demosCardIcon">⚙️</div>
+          <div class="demosCardBody">
+            <div class="demosCardTitle">Platform Admin Demo</div>
+            <div class="demosCardDesc">The full operator view — manage all institutions, opportunities, users, bursary pipelines, and system analytics across the entire platform.</div>
+            <ul class="demosCardFeats">
+              <li>Full platform oversight</li>
+              <li>Institution management</li>
+              <li>User &amp; role management</li>
+              <li>System analytics</li>
+            </ul>
+          </div>
+          <div class="demosCardCta">Enter Admin Demo →</div>
+        </button>
+
+      </div>
+
+      <div class="demosFooter">
+        <span>Ready to create your real account?</span>
+        <a href="#/signup" class="btn btnPrimary" style="display:inline-flex;align-items:center;gap:6px;">Create Free Profile →</a>
+        <a href="#/login" class="btn btnGhost">Already have an account? Login</a>
+      </div>
+    </div>`;
+
+  // Wire demo card clicks
+  const demoRoutes = {
+    student:   '/student/dashboard',
+    corporate: '/corporate/dashboard',
+    institute: '/institute/dashboard',
+    admin:     '/admin/corporate'
+  };
+  const demoIds = {
+    student:   'user-student-demo',
+    corporate: 'user-corporate-demo',
+    institute: 'user-institute-demo',
+    admin:     'user-admin-demo'
+  };
+
+  node.querySelectorAll('[data-demo]').forEach(card => {
+    card.addEventListener('click', () => {
+      const role = card.getAttribute('data-demo');
+      const userId = demoIds[role];
+      const target = demoRoutes[role];
+      if (!userId || !target) return;
+      // Use the global demoLogin defined in the routing bridge
+      if (typeof window.demoLogin === 'function') {
+        window.demoLogin(role);
+      } else {
+        // Fallback
+        try { sessionStorage.setItem(SESSION_KEY, userId); } catch(e) {}
+        currentUserId = userId;
+        if (typeof window.showApp === 'function') window.showApp();
+        navigate(target);
+      }
+    });
+  });
+
+  return node;
+}
+
 function pageHome() {
-  const heroCards = [
-    {
-      type: "Featured bursary",
-      title: "Mechanical Engineering Bursary",
-      provider: "National Skills Fund",
-      province: "Gauteng"
-    },
-    {
-      type: "Featured learnership",
-      title: "Electrical Trade Learnership",
-      provider: "Coastal Industry Group",
-      province: "KwaZulu-Natal"
-    },
-    {
-      type: "Featured short course",
-      title: "IT Support Fundamentals",
-      provider: "Digital Skills Academy",
-      province: "Western Cape"
-    }
-  ];
+  const landingProfileImage = "images/Monde Image.jpeg";
+  const landingPhoneMockup = "images/iPhone 15.png";
 
   const howItWorksSteps = [
     {
       title: "Create your profile",
-      description: "Build your learner profile with your province, education level, and goals."
+      description: "Build your learner profile with your province, education level, and goals.",
+      mediaTitle: "Profile setup",
+      mediaHint: "Photo, province, education level"
     },
     {
       title: "Discover opportunities",
-      description: "Find bursaries, learnerships, and courses matched to your profile."
+      description: "Find bursaries, learnerships, and courses matched to your profile.",
+      mediaTitle: "Matched opportunities",
+      mediaHint: "Bursaries, learnerships, short courses"
     },
     {
       title: "Apply with confidence",
-      description: "Submit applications using saved information and document vault support."
+      description: "Submit applications using saved information and document vault support.",
+      mediaTitle: "Document vault",
+      mediaHint: "Ready files for faster applications"
     },
     {
       title: "Track your progress",
-      description: "Monitor statuses, get updates, and stay on top of next actions."
+      description: "Monitor statuses, get updates, and stay on top of next actions.",
+      mediaTitle: "Status tracker",
+      mediaHint: "Live progress and next actions"
     }
   ];
 
@@ -4442,47 +7449,89 @@ function pageHome() {
 
   const opportunityCards = [
     {
+      id: "landing-bursary-nedbank",
       type: "Bursary",
-      title: "STEM Future Bursary",
-      provider: "Youth Skills Trust",
-      province: "Eastern Cape",
-      href: "#/login",
-      actionLabel: "Apply"
+      title: "Nedbank External Bursary Programme",
+      provider: "Nedbank Group",
+      province: "Gauteng",
+      sector: "Finance & Business",
+      fundingAmount: "Up to R120,000 per year",
+      closingDate: "2026-08-31",
+      focusArea: "Finance, Accounting, Economics, Data Science",
+      badges: ["Finance", "Applications Open"],
+      image: "images/nedbank.jpg",
+      href: "#/signup",
+      actionLabel: "Create profile",
+      recommended: true
     },
     {
-      type: "Engineering Learnership",
-      title: "Industrial Technician Programme",
-      provider: "Metro Engineering Group",
-      province: "Limpopo",
-      href: "#/login",
-      actionLabel: "Apply"
+      id: "landing-internship-mtn",
+      type: "Internship",
+      title: "Software Development Internship",
+      provider: "MTN South Africa",
+      province: "Johannesburg",
+      stipendOrValue: "R9,000 / month",
+      closingDate: "2026-07-18",
+      nqfLevel: "NQF 5+",
+      requirements: ["Software or ICT qualification"],
+      badges: ["Technology", "Paid"],
+      image: "images/MTN.jpg",
+      href: "#/signup",
+      actionLabel: "Start journey",
+      statusLabel: "Closing soon",
+      statusClass: "statusPill statusWarning"
     },
     {
-      type: "IT Short Course",
-      title: "Cloud Support Fast Track",
-      provider: "CodeBridge Institute",
-      province: "Western Cape",
-      href: "#/login",
-      actionLabel: "Apply"
+      id: "landing-course-hyperiondev",
+      type: "Course",
+      title: "Software Engineering Bootcamp",
+      provider: "HyperionDev",
+      province: "Online",
+      duration: "16 weeks",
+      certificationType: "Bootcamp Certificate",
+      focusArea: "Software engineering, Git, JavaScript, portfolio work",
+      tags: ["Software Engineering", "Portfolio", "Mentorship"],
+      badges: ["Online", "Mentored"],
+      image: "images/hyperiondev.png",
+      href: "#/signup",
+      actionLabel: "Explore platform"
     }
   ];
 
   const partnerCards = [
     {
-      type: "SETA Partner",
-      title: "Sector Skills Pipeline",
-      provider: "MerSETA Collaboration",
-      province: "National",
-      href: "#/signup",
-      actionLabel: "Partner"
-    },
-    {
+      id: "landing-partner-standard-bank",
       type: "Employer Network",
       title: "Verified Talent Access",
-      provider: "FutureWork Employers",
+      provider: "Standard Bank Talent Partnerships",
       province: "National",
+      sector: "Hiring & Placement",
+      fundingAmount: "Verified talent pipeline",
+      closingDate: "Rolling",
+      focusArea: "Shortlists, applicant tracking, partner dashboards",
+      badges: ["Employer Network", "Verified"],
+      image: "images/Standard-Bank.jpg",
       href: "#/signup",
-      actionLabel: "Join"
+      actionLabel: "Partner with us",
+      statusLabel: "Verified partner",
+      statusClass: "statusPill statusSubmitted"
+    },
+    {
+      id: "landing-partner-transnet",
+      type: "SETA Partner",
+      title: "Sector Skills Pipeline",
+      provider: "Transnet + Skills Development Partners",
+      province: "National",
+      sector: "Skills Development",
+      fundingAmount: "Placement reporting",
+      closingDate: "Rolling",
+      focusArea: "Learnership pipelines, reporting, intake planning",
+      badges: ["SETA Partner", "National"],
+      image: "images/transnet.png",
+      href: "#/signup",
+      actionLabel: "Learn more",
+      statusLabel: "Active network",
+      statusClass: "statusPill statusOpen"
     }
   ];
 
@@ -4527,18 +7576,60 @@ function pageHome() {
 
     <main class="landingMain">
       <section class="landingHero" id="home">
-        <div class="landingHeroCopy" style="position:relative;">
-          <div class="landingTagline">Connecting TVET students to real opportunities.</div>
-          <h1>Find bursaries, learnerships, and courses in one place.</h1>
-          <p>Youth Digital Hub helps students and graduates across South Africa discover opportunities, manage documents, and track applications.</p>
-          <div class="landingHeroCtas">
-            <a class="btn btnPrimary sparkButton" href="#/signup">Get Started</a>
-            <a class="btn btnGhost" href="#/login">Login</a>
-            <button type="button" class="btn btnGhost sparkButton" data-scroll-target="opportunity-showcase">Explore Opportunities</button>
+        <div class="landingHeroStage">
+          <div class="landingHeroLead">
+            <div class="landingHeroCopy">
+              <div class="landingHeroEyebrow"><span class="landingHeroEyebrowDot"></span>South Africa's Student Platform</div>
+              <h1><span>Every Opportunity,</span><span>One Platform</span></h1>
+              <p>Discover bursaries, learnerships, internships, and courses in one place. Youth Digital Hub connects young people to real opportunities that shape their future.</p>
+              <div class="landingHeroCtas">
+                <a class="btn btnPrimary sparkButton" href="#/signup">Get Started Free</a>
+                <button type="button" class="btn btnGhost sparkButton" data-scroll-target="opportunity-showcase">Explore Opportunities</button>
+              </div>
+            </div>
+
+            <div class="landingHeroVisual" data-reveal="true">
+              <div class="landingHeroDeviceGlow" aria-hidden="true"></div>
+              <img class="landingHeroPhone" src="${landingPhoneMockup}" alt="Youth Digital Hub dashboard shown on a phone" />
+            </div>
+
+            <div class="landingHeroSupport" data-reveal="true">
+              <div class="landingHeroSupportMarker" aria-hidden="true">+</div>
+              <p>Youth Digital Hub gives students one trusted place to discover, prepare for, and act on real opportunities.</p>
+              <div class="landingHeroTrust">
+                <div class="landingHeroAvatarGroup" aria-hidden="true">
+                  <span class="landingHeroAvatar landingHeroAvatar--photo"><img src="${landingProfileImage}" alt="" /></span>
+                  <span class="landingHeroAvatar">TN</span>
+                  <span class="landingHeroAvatar">LP</span>
+                  <span class="landingHeroAvatar">AM</span>
+                </div>
+                <div class="landingHeroTrustCopy">
+                  <strong>10,000+</strong>
+                  <span>students discovering opportunities</span>
+                </div>
+              </div>
+            </div>
           </div>
-          ${renderBubbleMenu(bubbleActions)}
+
+          <div class="landingHeroPanel">
+            <div class="landingHeroBackdrop" aria-hidden="true">
+              <div class="landingHeroBackdropTrack">
+                <span>YOUTH DIGITAL HUB • YOUTH DIGITAL HUB • YOUTH DIGITAL HUB</span>
+                <span>YOUTH DIGITAL HUB • YOUTH DIGITAL HUB • YOUTH DIGITAL HUB</span>
+              </div>
+            </div>
+            <div class="landingHeroPanelCopy">
+              <p>Partnering with top institutions and corporates to connect young South Africans with real career-shaping opportunities.</p>
+              <div class="landingHeroPartnerRow" aria-label="Partner categories">
+                <span class="landingHeroPartnerPill">NSFAS</span>
+                <span class="landingHeroPartnerPill">TVET Colleges</span>
+                <span class="landingHeroPartnerPill">SETA</span>
+                <span class="landingHeroPartnerPill">Corporates</span>
+                <span class="landingHeroPartnerPill">Institutes</span>
+              </div>
+            </div>
+          </div>
         </div>
-        ${renderReflectiveCards(heroCards)}
       </section>
 
       <section class="landingSection" id="how-it-works">
@@ -4552,20 +7643,37 @@ function pageHome() {
         </div>
       </section>
 
-      <section class="landingSection" id="platform-features">
-        <div class="landingSectionHeading">
-          <h2>Platform Features</h2>
-          <p>Built to support students, graduates, employers, and SETA partners.</p>
+      <section class="landingSection landingGuidanceShowcase" id="platform-features">
+        <div class="landingGuidanceTop">
+          <div class="landingGuidanceIntro" data-reveal="true">
+            <span class="landingGuidanceLabel">Opportunity Guidance</span>
+            <h2>A platform that guides your future.</h2>
+            <p>Youth Digital Hub helps students discover bursaries, internships, learnerships, and courses that match their goals.</p>
+            <p>The platform simplifies the opportunity journey by showing the next steps students should take to prepare and apply successfully.</p>
+          </div>
+          ${renderLandingOpportunityPlannerCard()}
         </div>
-        ${renderAnimatedList(featureItems, { variant: "landing" })}
+
+        <div class="landingJourneyFeatureBlock" data-reveal="true">
+          <div class="landingJourneyFeatureContent">
+            <span class="landingJourneyFeatureLabel">Guided opportunity journey</span>
+            <h3>Your opportunity journey starts here.</h3>
+            <p>Youth Digital Hub helps students discover real opportunities and take the right steps toward their future.</p>
+            <p>From career guidance to bursaries and internships, the platform brings everything into one place so students can focus on progress instead of confusion.</p>
+            <div class="landingJourneyFeatureActions">
+              <a class="btn btnPrimary sparkButton" href="#/signup">Start Discovering Opportunities</a>
+              <button type="button" class="btn btnGhost sparkButton" data-scroll-target="how-it-works">See How It Works</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="landingSection" id="opportunity-showcase">
         <div class="landingSectionHeading">
           <h2>Opportunity Showcase</h2>
-          <p>Explore bursaries, learnerships, and short courses in one place.</p>
+          <p>Explore bursaries, learnerships, internships, and short courses in one place.</p>
         </div>
-        ${renderTiltedCards(opportunityCards, { className: "ydhTiltGrid--opportunity" })}
+        ${renderTiltedCards(opportunityCards, { className: "ydhTiltGrid--opportunity", actionLabel: "Create profile", actionHref: "#/signup" })}
         <div class="ydhPartnerPanel">
           <div class="landingSectionHeading" style="margin-top:16px;">
             <h2 style="font-size:22px;">For Employers / SETAs</h2>
@@ -4588,16 +7696,34 @@ function pageHome() {
       </section>
 
       <section class="landingSection" id="verified-profile">
-        <div class="landingSectionHeading">
-          <h2>Verified Profile Preview</h2>
-          <p>Showcase your student identity with profile completeness and education context.</p>
+        <div class="landingProfileFeatureLayout">
+          <div class="landingProfileFeatureVisual">
+            ${renderLandingOpportunityIdentityCard({
+              studentName: "Monde Mkhize",
+              careerGoal: "Future Software Engineer",
+              educationLevel: "TVET N6",
+              interests: ["Bursaries", "Learnerships", "Internships"],
+              province: "KwaZulu-Natal",
+              profileCompletion: 92,
+              readinessScore: "8.8/10",
+              profileImage: landingProfileImage
+            })}
+          </div>
+          <div class="landingProfileFeatureContent" data-reveal="true">
+            <span class="landingProfileFeatureLabel">Student Profile</span>
+            <h2>Your Opportunity Profile</h2>
+            <p>Your Youth Digital Hub profile becomes your digital opportunity passport.</p>
+            <p>It automatically showcases your interests, skills, and academic direction — helping bursary providers, training institutions, and employers understand who you are.</p>
+            <p>You can also share your profile with friends, mentors, or recruiters using a simple link or through social platforms like WhatsApp and LinkedIn.</p>
+            <p>This makes it easier to get guidance, feedback, and opportunities from the people around you.</p>
+            <ul class="landingProfileFeatureList">
+              <li>Share your profile instantly</li>
+              <li>Show your opportunity readiness</li>
+              <li>Highlight your career interests</li>
+              <li>Track your profile strength</li>
+            </ul>
+          </div>
         </div>
-        ${renderLanyardCard({
-          name: "Thando Mkhize",
-          status: "Learner status: Verified",
-          province: "Province: KwaZulu-Natal",
-          educationLevel: "TVET N6"
-        })}
       </section>
 
       <section class="landingCta" id="start-now">
@@ -4617,16 +7743,18 @@ function pageHome() {
   return node;
 }
 
+
 // Authentication page render + login form event wiring.
 function pageLogin() {
   const user = currentUser();
   if (user) {
-    if (user.role === "admin") navigate("/admin/dashboard");
-    else navigate("/student/dashboard");
+    navigate(getWorkspaceHomeRoute(user));
     return el(`<div class="content">Redirecting...</div>`);
   }
 
   const studentDemo = resolveDemoCredentialsByRole("student");
+  const corporateDemo = resolveDemoCredentialsByRole("corporate_partner");
+  const instituteDemo = resolveDemoCredentialsByRole("institution_admin");
   const adminDemo = resolveDemoCredentialsByRole("admin");
 
   const node = el(`<div class="authPage">
@@ -4668,6 +7796,18 @@ function pageLogin() {
               <button type="button" class="btn btnGhost authDemoUseBtn" id="useStudentDemo">Use Student Demo</button>
             </article>
             <article class="authDemoItem">
+              <h4>Corporate Demo</h4>
+              <p><b>Email:</b> ${escapeHtml(corporateDemo.email || "Not available")}</p>
+              <p><b>Password:</b> ${escapeHtml(corporateDemo.password || "Not available")}</p>
+              <button type="button" class="btn btnGhost authDemoUseBtn" id="useCorporateDemo">Use Corporate Demo</button>
+            </article>
+            <article class="authDemoItem">
+              <h4>Institute Demo</h4>
+              <p><b>Email:</b> ${escapeHtml(instituteDemo.email || "Not available")}</p>
+              <p><b>Password:</b> ${escapeHtml(instituteDemo.password || "Not available")}</p>
+              <button type="button" class="btn btnGhost authDemoUseBtn" id="useInstituteDemo">Use Institute Demo</button>
+            </article>
+            <article class="authDemoItem">
               <h4>Admin Demo</h4>
               <p><b>Email:</b> ${escapeHtml(adminDemo.email || "Not available")}</p>
               <p><b>Password:</b> ${escapeHtml(adminDemo.password || "Not available")}</p>
@@ -4696,10 +7836,20 @@ function pageLogin() {
   };
 
   const useStudentDemoButton = node.querySelector("#useStudentDemo");
+  const useCorporateDemoButton = node.querySelector("#useCorporateDemo");
+  const useInstituteDemoButton = node.querySelector("#useInstituteDemo");
   const useAdminDemoButton = node.querySelector("#useAdminDemo");
 
   if (useStudentDemoButton) {
     useStudentDemoButton.addEventListener("click", () => applyDemoCredentials(studentDemo, "Student demo"));
+  }
+
+  if (useCorporateDemoButton) {
+    useCorporateDemoButton.addEventListener("click", () => applyDemoCredentials(corporateDemo, "Corporate demo"));
+  }
+
+  if (useInstituteDemoButton) {
+    useInstituteDemoButton.addEventListener("click", () => applyDemoCredentials(instituteDemo, "Institute demo"));
   }
 
   if (useAdminDemoButton) {
@@ -4720,8 +7870,7 @@ function pageLogin() {
       return;
     }
 
-    if (result.user.role === "admin") navigate("/admin/dashboard");
-    else navigate("/student/dashboard");
+    navigate(getWorkspaceHomeRoute(result.user));
   });
 
   return node;
@@ -4730,8 +7879,7 @@ function pageLogin() {
 function pageSignup() {
   const user = currentUser();
   if (user) {
-    if (user.role === "admin") navigate("/admin/dashboard");
-    else navigate("/student/dashboard");
+    navigate(getWorkspaceHomeRoute(user));
     return el(`<div class="content">Redirecting...</div>`);
   }
 
@@ -4987,14 +8135,14 @@ function renderRequiredDocumentsChecklist(studentId, opportunityType, showManage
     });
   }
 
-  return `<div class="card" style="padding:12px; background:#f7f7f7;">
-    <div class="row" style="justify-content:space-between;">
-      <div style="font-weight:700;">Required documents checklist</div>
+  return `<div class="card dashboardDocumentsCard documentsChecklistCard">
+    <div class="row documentsCardHeader" style="justify-content:space-between;">
+      <div class="documentsCardTitle">Required documents checklist</div>
       <span class="badge ${checklist.complete ? "badgeGreen" : "badgeOrange"}">${checklist.complete ? "Documents Complete" : "Documents Incomplete"}</span>
     </div>
 
     <div class="desktopOnly" style="margin-top:10px;">
-      <table class="table">
+      <table class="table documentsTable">
         <thead>
           <tr><th>Requirement</th><th>Status</th></tr>
         </thead>
@@ -5014,7 +8162,7 @@ function renderRequiredDocumentsChecklist(studentId, opportunityType, showManage
     <div class="mobileList mobileOnly" style="margin-top:10px;">
       ${rows
         .map(
-          (row) => `<div class="mobileListCard">
+          (row) => `<div class="mobileListCard documentsMobileCard">
             <div style="font-weight:700;">${escapeHtml(row.label)}</div>
             <div class="mutedText" style="font-size:12px;">${row.required ? "Required" : "Optional"}</div>
             <div><span class="badge ${row.uploaded ? "badgeGreen" : "badgeOrange"}">${row.uploaded ? "Uploaded" : "Missing"}</span></div>
@@ -5025,204 +8173,234 @@ function renderRequiredDocumentsChecklist(studentId, opportunityType, showManage
     ${
       showManageLink
         ? `<div class="row" style="margin-top:10px;">
-            <a class="btn btnGhost" href="#/student/documents">Upload / manage documents</a>
+            <a class="btn btnPrimary" href="#/student/documents">Upload / manage documents</a>
           </div>`
         : ""
     }
   </div>`;
 }
 
-// Reusable student opportunity-listing renderer (filters, sorting, and quick navigation).
-function pageStudentListing(listingKey) {
-  const user = requireRole("student");
+function getStudentNotifications(studentId) {
+  const bucket = store.notifications && Array.isArray(store.notifications[studentId]) ? store.notifications[studentId] : [];
+  return [...bucket].sort((first, second) => String(second.createdAt || '').localeCompare(String(first.createdAt || '')));
+}
+
+function addStudentNotification(studentId, message, type = 'info') {
+  if (!studentId || !String(message || '').trim()) return;
+  const currentBucket = store.notifications && Array.isArray(store.notifications[studentId]) ? store.notifications[studentId] : [];
+  const nextBucket = [
+    {
+      id: uid('note'),
+      studentId,
+      message: String(message).trim(),
+      type: String(type || 'info').trim() || 'info',
+      createdAt: new Date().toISOString()
+    },
+    ...currentBucket
+  ].slice(0, 12);
+
+  store.notifications = {
+    ...(store.notifications && typeof store.notifications === 'object' ? store.notifications : {}),
+    [studentId]: nextBucket
+  };
+  saveStore(store);
+}
+
+function isOpportunitySaved(studentId, opportunityId) {
+  if (!studentId || !opportunityId) return false;
+  const bucket = store.savedOpportunities && Array.isArray(store.savedOpportunities[studentId])
+    ? store.savedOpportunities[studentId]
+    : [];
+  return bucket.includes(opportunityId);
+}
+
+function toggleSavedOpportunity(studentId, opportunityId) {
+  if (!studentId || !opportunityId) return false;
+  const bucket = store.savedOpportunities && Array.isArray(store.savedOpportunities[studentId])
+    ? [...store.savedOpportunities[studentId]]
+    : [];
+  const existingIndex = bucket.indexOf(opportunityId);
+  let saved = false;
+
+  if (existingIndex === -1) {
+    bucket.unshift(opportunityId);
+    saved = true;
+  } else {
+    bucket.splice(existingIndex, 1);
+  }
+
+  store.savedOpportunities = {
+    ...(store.savedOpportunities && typeof store.savedOpportunities === 'object' ? store.savedOpportunities : {}),
+    [studentId]: bucket
+  };
+  saveStore(store);
+  return saved;
+}
+
+function bindStudentOpportunityCardActions(scopeNode, user, onRefresh) {
+  if (!scopeNode || !user || user.role !== 'student') return;
+
+  scopeNode.querySelectorAll('[data-save-opp]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const opportunityId = String(button.getAttribute('data-save-opp') || '').trim();
+      if (!opportunityId) return;
+      const saved = toggleSavedOpportunity(user.id, opportunityId);
+      button.classList.toggle('is-saved', saved);
+      button.textContent = saved ? 'Saved' : 'Save';
+      if (typeof onRefresh === 'function') onRefresh();
+    });
+  });
+}
+
+function bindOpportunityProfileCardActions(scopeNode, user, onRefresh) {
+  if (!scopeNode || !user || user.role !== 'student') return;
+
+  const card = scopeNode.querySelector('[data-rc-profile-card="true"]');
+  if (!card) return;
+
+  const fileInput = card.querySelector('[data-rc-file-input="true"]');
+  const bgImage = card.querySelector('[data-rc-bg-image="true"]');
+  const bgGradient = card.querySelector('[data-rc-bg-gradient="true"]');
+  const emptyPrompt = card.querySelector('[data-rc-empty-prompt="true"]');
+  const photoActions = card.querySelector('[data-rc-photo-actions="true"]');
+  const uploadButton = card.querySelector('[data-rc-upload-main="true"]');
+  const changeButton = card.querySelector('[data-rc-change-photo="true"]');
+  const removeButton = card.querySelector('[data-rc-remove-photo="true"]');
+  const shareButton = card.querySelector('[data-rc-share-profile="true"]');
+  const validTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+  if (!fileInput || !bgImage || !bgGradient || !emptyPrompt || !photoActions) return;
+
+  const openPicker = () => fileInput.click();
+
+  const syncEmptyState = (hasImage) => {
+    bgGradient.style.opacity = hasImage ? '0' : '1';
+    bgImage.style.display = hasImage ? 'block' : 'none';
+    emptyPrompt.style.display = hasImage ? 'none' : 'flex';
+    photoActions.style.display = hasImage ? 'flex' : 'none';
+  };
+
+  const handleLoadedImage = async (file) => {
+    if (!file || !validTypes.has(String(file.type || '').trim())) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const meta = {
+        fileName: file.name,
+        fileType: inferFileType(file),
+        fileSize: file.size,
+        uploadedAt: new Date().toISOString()
+      };
+      setStudentProfilePhoto(user.id, dataUrl, meta);
+      if (typeof onRefresh === 'function') onRefresh();
+    } catch (_error) {
+      // Ignore file-read failures to preserve current screen state.
+    }
+  };
+
+  uploadButton?.addEventListener('click', openPicker);
+  changeButton?.addEventListener('click', openPicker);
+  removeButton?.addEventListener('click', () => {
+    setStudentProfilePhoto(user.id, '', null);
+    if (typeof onRefresh === 'function') onRefresh();
+  });
+
+  shareButton?.addEventListener('click', async () => {
+    const shareTitle = 'Youth Digital Hub profile';
+    const shareText = 'See my opportunity profile on Youth Digital Hub.';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareTitle, text: shareText, url: location.href });
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(location.href);
+      }
+    } catch (_error) {
+      // Ignore share failures.
+    }
+  });
+
+  fileInput.addEventListener('change', (event) => {
+    const file = event.target.files && event.target.files[0];
+    handleLoadedImage(file);
+    fileInput.value = '';
+  });
+
+  card.addEventListener('dragover', (event) => {
+    event.preventDefault();
+  });
+
+  card.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    handleLoadedImage(file);
+  });
+
+  syncEmptyState(Boolean(String(bgImage.getAttribute('src') || '').trim()));
+}
+
+function pageStudentApplication(id) {
+  const user = requireRole('student');
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
-  const config = getStudentListingConfig(listingKey);
-  const recommendedIds = recommendedIdsForStudent(user.id);
-  const scopedOpportunities = getOpportunityCatalogue().filter((opportunity) =>
-    config.typeFilter.includes(opportunity.type)
-  );
-  const sectors = Array.from(
-    new Set(scopedOpportunities.map((opportunity) => resolveOpportunitySector(opportunity)))
-  ).filter(Boolean);
+  const application = studentApplications(user.id).find((entry) => entry.id === id) || null;
+  if (!application) {
+    return shell('student', el(`<div class="grid"><div class="card"><div><b>Application not found.</b></div><div class="row" style="margin-top:12px;"><a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a></div></div></div>`));
+  }
+
+  const opportunity = getOpportunity(application.opportunityId) || {
+    id: application.opportunityId,
+    title: application.opportunityTitle || 'Opportunity',
+    institution: application.institution || 'Provider',
+    type: application.opportunityType || 'Opportunity',
+    location: '',
+    requirements: []
+  };
+
+  if (normalizeApplicationStatus(application.status, 'draft') === 'draft') {
+    return pageStudentApply(opportunity.id);
+  }
+
+  const lifecycle = getOpportunityLifecycleState(application);
+  const progressState = buildApplicationProgressState(user, opportunity, application);
+  const checklist = getDocumentChecklist(user.id, opportunity.type);
 
   const node = el(`<div class="grid">
     <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">${escapeHtml(config.title)}</h1>
-      <p class="mutedText" style="margin:8px 0 0;">${escapeHtml(config.subtitle)}</p>
+      <h1 style="margin:0; font-size:24px;">Application View</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Review your submitted application and next steps.</p>
     </div>
 
-    <div class="card filterPanel">
-      <div class="filterRow">
-        <div class="filterControl">
-          <span>Search</span>
-          <input class="input" id="searchInput" placeholder="Search by title, institution, or sector" />
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <div class="dashboardSectionMeta">${escapeHtml(opportunity.type || 'Opportunity')}</div>
+          <h2 style="margin:6px 0 0;">${escapeHtml(opportunity.title || 'Opportunity')}</h2>
+          <div class="mutedText" style="margin-top:6px;">${escapeHtml(opportunity.institution || application.institution || 'Provider')}</div>
         </div>
-        <div class="filterControl">
-          <span>Province</span>
-          <select class="input select" id="provinceFilter">
-            <option value="">All provinces</option>
-            ${PROVINCES.map((province) => `<option value="${province}">${province}</option>`).join("")}
-            <option value="National">National</option>
-          </select>
-        </div>
-        <div class="filterControl">
-          <span>Sector</span>
-          <select class="input select" id="sectorFilter">
-            <option value="">All sectors</option>
-            ${sectors.map((sector) => `<option value="${escapeHtml(sector)}">${escapeHtml(sector)}</option>`).join("")}
-          </select>
-        </div>
-        <div class="filterControl">
-          <span>Sort</span>
-          <select class="input select" id="sortFilter">
-            <option value="recommended">Recommended first</option>
-            <option value="closing">Closing soon</option>
-            <option value="az">A-Z</option>
-          </select>
-        </div>
+        <span class="${lifecycle.statusClass}">${escapeHtml(lifecycle.statusLabel)}</span>
+      </div>
+
+      <div style="margin-top:14px;">${renderApplicationProgressStepper(progressState, '')}</div>
+
+      <div class="grid cols-2" style="margin-top:14px;">
+        <div><b>Submitted</b><div>${escapeHtml(formatDate(application.submittedAt || application.createdAt))}</div></div>
+        <div><b>Documents ready</b><div>${checklist.complete ? 'Yes' : 'No'}</div></div>
+        <div><b>Opportunity type</b><div>${escapeHtml(opportunity.type || application.opportunityType || '')}</div></div>
+        <div><b>Location</b><div>${escapeHtml(opportunity.location || 'National')}</div></div>
+      </div>
+
+      <div class="row" style="margin-top:16px;">
+        <a class="btn btnPrimary" href="#/student/opportunity/${escapeHtml(opportunity.id)}">View opportunity</a>
+        <a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a>
       </div>
     </div>
-
-    <div class="listingGrid" id="listingWrap"></div>
   </div>`);
 
-  function renderListingItems() {
-    const query = (node.querySelector("#searchInput").value || "").trim().toLowerCase();
-    const province = node.querySelector("#provinceFilter").value;
-    const sector = node.querySelector("#sectorFilter").value;
-    const sort = node.querySelector("#sortFilter").value;
-    const applicationsByOpportunity = new Map(
-      studentApplications(user.id).map((application) => [application.opportunityId, application])
-    );
-
-    let filtered = scopedOpportunities.filter((opportunity) => {
-      const searchable = [
-        opportunity.title,
-        opportunity.institution,
-        resolveOpportunitySector(opportunity)
-      ]
-        .join(" ")
-        .toLowerCase();
-      const matchesQuery = !query || searchable.includes(query);
-      const matchesProvince = !province || opportunity.location === province;
-      const matchesSector = !sector || resolveOpportunitySector(opportunity) === sector;
-      return matchesQuery && matchesProvince && matchesSector;
-    });
-
-    filtered = filtered.sort((first, second) => {
-      if (sort === "az") {
-        return first.title.localeCompare(second.title);
-      }
-
-      if (sort === "closing") {
-        const firstValue = closingDateSortValue(first.closingDate);
-        const secondValue = closingDateSortValue(second.closingDate);
-        if (firstValue !== secondValue) return firstValue - secondValue;
-        return first.title.localeCompare(second.title);
-      }
-
-      const firstRecommended = recommendedIds.has(first.id) ? 1 : 0;
-      const secondRecommended = recommendedIds.has(second.id) ? 1 : 0;
-      if (firstRecommended !== secondRecommended) return secondRecommended - firstRecommended;
-
-      const firstValue = closingDateSortValue(first.closingDate);
-      const secondValue = closingDateSortValue(second.closingDate);
-      if (firstValue !== secondValue) return firstValue - secondValue;
-      return first.title.localeCompare(second.title);
-    });
-
-    const listingWrap = node.querySelector("#listingWrap");
-    if (!filtered.length) {
-      listingWrap.innerHTML = `<div class="card" style="grid-column:1/-1;">
-        <div class="mutedText">No opportunities match the selected filters.</div>
-        <div class="row" style="margin-top:10px;">
-          <button type="button" class="btn btnGhost" id="resetFiltersBtn">Reset filters</button>
-        </div>
-      </div>`;
-      const resetButton = listingWrap.querySelector("#resetFiltersBtn");
-      if (resetButton) {
-        resetButton.onclick = () => {
-          node.querySelector("#searchInput").value = "";
-          node.querySelector("#provinceFilter").value = "";
-          node.querySelector("#sectorFilter").value = "";
-          node.querySelector("#sortFilter").value = "recommended";
-          renderListingItems();
-        };
-      }
-      return;
-    }
-
-    listingWrap.innerHTML = filtered
-      .map((opportunity) => {
-        const application = applicationsByOpportunity.get(opportunity.id) || null;
-        const recommended = recommendedIds.has(opportunity.id);
-        const docsComplete = application
-          ? typeof application.docsComplete === "boolean"
-            ? application.docsComplete
-            : !Boolean(application.docsIncomplete)
-          : getDocumentChecklist(user.id, opportunity.type).complete;
-        const lifecycle = getOpportunityLifecycleState(application);
-        const action = getOpportunityPrimaryAction(opportunity.id, application, recommended, lifecycle);
-        const daysUntilClosing = daysUntilDate(opportunity.closingDate);
-        const closingSoon = Number.isFinite(daysUntilClosing) && daysUntilClosing >= 0 && daysUntilClosing < 14;
-        const submittedDate = application ? formatDate(application.createdAt) : "Not started";
-        const progressSummary = getOpportunityProgressSummary(user, opportunity, application);
-        const cardClasses = [
-          "opportunityCard",
-          getOpportunityCardTypeClass(opportunity.type),
-          lifecycle.cardVariantClass,
-          recommended && !application ? "card-priority" : ""
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        return `<article class="${cardClasses}">
-          <div class="opportunityCardLayout">
-            <div class="opportunityCardMain">
-              <div class="row" style="justify-content:space-between; align-items:flex-start;">
-                <span class="badge ${getOpportunityTypeBadgeClass(opportunity.type)}">${escapeHtml(opportunity.type)}</span>
-                ${recommended && !application ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
-              </div>
-
-              <h3 class="opportunityTitle">${escapeHtml(opportunity.title)}</h3>
-              <p class="opportunityOrg">${escapeHtml(opportunity.institution)}</p>
-
-              <div class="opportunityMetaStack">
-                <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(opportunity.type)}</b></div>
-                <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(opportunity.closingDate)}</b></div>
-                <div class="opportunityMetaRow"><span>Submitted</span><b>${escapeHtml(submittedDate)}</b></div>
-              </div>
-              <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
-
-              ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
-              ${
-                lifecycle.isInProgress
-                  ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${docsComplete ? "82%" : "58%"};"></div></div>`
-                  : ""
-              }
-            </div>
-
-            <div class="opportunityCardActions">
-              <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
-              <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
-            </div>
-          </div>
-        </article>`;
-      })
-      .join("");
-  }
-
-  ["#searchInput", "#provinceFilter", "#sectorFilter", "#sortFilter"].forEach((selector) => {
-    const control = node.querySelector(selector);
-    const eventName = selector === "#searchInput" ? "input" : "change";
-    control.addEventListener(eventName, renderListingItems);
-  });
-
-  renderListingItems();
-  return shell("student", node);
+  return shell('student', node);
 }
-
 function pageStudentBursaries() {
   return pageStudentListing("bursaries");
 }
@@ -5258,9 +8436,6 @@ function pageStudentOpportunityDetails(id) {
   const backHref = routeForOpportunityType(opportunity.type);
   const recommended =
     user.profile && isOpportunityRecommended(opportunity, user.profile.interests || []);
-  const existingApplication = studentApplications(user.id).find((application) => application.opportunityId === opportunity.id) || null;
-  const lifecycle = getOpportunityLifecycleState(existingApplication);
-  const primaryAction = getOpportunityPrimaryAction(opportunity.id, existingApplication, true, lifecycle);
 
   const node = el(`<div class="grid">
     <div class="cardHeader">
@@ -5293,9 +8468,7 @@ function pageStudentOpportunityDetails(id) {
         <ul style="margin:8px 0 0 18px;">
           ${(Array.isArray(opportunity.requirements) && opportunity.requirements.length
             ? opportunity.requirements
-            : Array.isArray(opportunity.requiredDocuments) && opportunity.requiredDocuments.length
-              ? opportunity.requiredDocuments.map((document) => String(document) + " required")
-              : ["No requirements specified."]
+            : ["No requirements specified."]
           )
             .map((requirement) => `<li>${escapeHtml(requirement)}</li>`)
             .join("")}
@@ -5303,7 +8476,7 @@ function pageStudentOpportunityDetails(id) {
       </div>
 
       <div class="row" style="margin-top:14px;">
-        <a class="btn btnPrimary" href="${primaryAction.href}">${primaryAction.label}</a>
+        <a class="btn btnPrimary" href="#/student/apply/${opportunity.id}">Apply</a>
         <a class="btn btnGhost" href="#${backHref}">Back</a>
       </div>
     </div>
@@ -5311,7 +8484,6 @@ function pageStudentOpportunityDetails(id) {
 
   return shell("student", node);
 }
-
 function renderChecklistTable(studentId) {
   const checklist = getDocumentChecklist(studentId);
   const categories = [
@@ -5322,14 +8494,14 @@ function renderChecklistTable(studentId) {
     "Proof of Income"
   ];
 
-  return `<div class="card" style="padding:12px; background:#f7f7f7;">
-    <div class="row" style="justify-content:space-between;">
-      <div style="font-weight:700;">Documents checklist</div>
+  return `<div class="card documentsChecklistCard documentsChecklistCard--page">
+    <div class="row documentsCardHeader" style="justify-content:space-between;">
+      <div class="documentsCardTitle">Documents checklist</div>
       <span class="badge ${checklist.complete ? "badgeGreen" : "badgeOrange"}">${checklist.complete ? "Documents Complete" : "Documents Incomplete"}</span>
     </div>
 
     <div class="desktopOnly" style="margin-top:10px;">
-      <table class="table">
+      <table class="table documentsTable">
         <thead>
           <tr><th>Category</th><th>Uploaded</th></tr>
         </thead>
@@ -5350,7 +8522,7 @@ function renderChecklistTable(studentId) {
       ${categories
         .map((category) => {
           const uploaded = checklist.byCategory.find((item) => item.category === category)?.uploaded;
-          return `<div class="mobileListCard">
+          return `<div class="mobileListCard documentsMobileCard">
             <div style="font-weight:700;">${escapeHtml(category)}</div>
             ${category === "Proof of Income" ? `<div class="mutedText" style="font-size:12px;">Optional for bursaries</div>` : ""}
             <div><span class="badge ${uploaded ? "badgeGreen" : "badgeOrange"}">${uploaded ? "Uploaded" : "Missing"}</span></div>
@@ -5360,7 +8532,7 @@ function renderChecklistTable(studentId) {
     </div>
 
     <div class="row" style="margin-top:10px;">
-      <a class="btn btnGhost" href="#/student/documents">Upload / manage documents</a>
+      <a class="btn btnPrimary" href="#/student/documents">Upload / manage documents</a>
     </div>
   </div>`;
 }
@@ -5371,15 +8543,6 @@ function pageStudentDocuments() {
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
   const documents = getStudentDocuments(user.id);
-  const checklist = getDocumentChecklist(user.id);
-  const proofOfAddressUploaded = Boolean(checklist.byCategory.find((item) => item.category === "Proof of Address")?.uploaded);
-  const cvUploaded = Boolean(checklist.byCategory.find((item) => item.category === "CV")?.uploaded);
-  const folderPreviewItems = [
-    { label: "ID Copy", hint: "Identity verification file", status: checklist.hasIdCopy ? "Ready" : "Missing" },
-    { label: "Academic Transcript", hint: "School or TVET academic evidence", status: checklist.hasAcademic ? "Ready" : "Missing" },
-    { label: "Proof of Address", hint: "Residence confirmation", status: proofOfAddressUploaded ? "Ready" : "Missing" },
-    { label: "CV", hint: "Career-ready learner profile", status: cvUploaded ? "Ready" : "Missing" }
-  ];
   const profile = getUserProfile(user) || {};
   const displayName = getUserDisplayName(user);
 
@@ -5389,7 +8552,7 @@ function pageStudentDocuments() {
       <p class="mutedText" style="margin:8px 0 0;">Upload supporting documents for your applications (demo metadata only).</p>
     </div>
 
-    <div class="card profileSummaryCard">
+    <div class="card documentsIdentityCard profileSummaryCard">
       ${renderUserAvatar(user, "avatarLg")}
       <div style="min-width:0;">
         <div style="font-weight:800; font-size:18px; line-height:1.2;">${escapeHtml(displayName)}</div>
@@ -5397,17 +8560,9 @@ function pageStudentDocuments() {
       </div>
     </div>
 
-    <div class="card">
-      ${renderFolderPreview(folderPreviewItems, {
-        title: "Document vault",
-        description: "Folder layout for the files required across applications.",
-        className: "ydhFolderPreview--dashboard"
-      })}
-    </div>
-
     ${renderChecklistTable(user.id)}
 
-    <div class="card">
+    <div class="card documentsUploadCard">
       <form id="uploadForm">
         <div class="field">
           <label><b>Document category *</b></label>
@@ -5429,12 +8584,12 @@ function pageStudentDocuments() {
       </form>
     </div>
 
-    <div class="card">
-      <div style="font-weight:700;">Uploaded documents</div>
+    <div class="card documentsLibraryCard">
+      <div class="documentsCardTitle">Uploaded documents</div>
       ${documents.length
         ? `<div>
             <div class="desktopOnly" style="margin-top:10px;">
-              <table class="table">
+              <table class="table documentsTable documentsTable--library">
                 <thead>
                   <tr>
                     <th>Category</th>
@@ -5456,7 +8611,7 @@ function pageStudentDocuments() {
                       <td>${formatBytes(document.size || 0)}</td>
                       <td>${
                         document.previewDataUrl
-                          ? `<img src="${document.previewDataUrl}" alt="preview" style="width:70px; height:50px; object-fit:cover; border:1px solid #999;" />`
+                          ? `<img src="${document.previewDataUrl}" alt="preview" style="width:70px; height:50px; object-fit:cover; border:1px solid var(--color-border);" />`
                           : "-"
                       }</td>
                       <td>${formatDate(document.uploadedAt)}</td>
@@ -5470,14 +8625,14 @@ function pageStudentDocuments() {
             <div class="mobileList mobileOnly" style="margin-top:10px;">
               ${documents
                 .map(
-                  (document) => `<div class="mobileListCard">
+                  (document) => `<div class="mobileListCard documentsMobileCard">
                     <div style="font-weight:700;">${escapeHtml(document.category)}</div>
                     <div>${escapeHtml(document.filename)}</div>
                     <div class="mutedText" style="font-size:12px;">${escapeHtml(document.fileType || inferFileType(document))} • ${formatBytes(document.size || 0)}</div>
                     <div class="mutedText" style="font-size:12px;">Uploaded: ${formatDate(document.uploadedAt)}</div>
                     ${
                       document.previewDataUrl
-                        ? `<img src="${document.previewDataUrl}" alt="preview" style="width:100%; max-width:140px; height:88px; object-fit:cover; border:1px solid #999; border-radius:10px;" />`
+                        ? `<img src="${document.previewDataUrl}" alt="preview" style="width:100%; max-width:140px; height:88px; object-fit:cover; border:1px solid var(--color-border); border-radius:10px;" />`
                         : ""
                     }
                     <div class="row" style="margin-top:6px;">
@@ -5539,48 +8694,22 @@ function pageStudentDocuments() {
     });
   });
 
-  setupRevealAnimation(node, ".ydhFolderPreview--dashboard [data-reveal=\"true\"]");
-
   return shell("student", node);
-}
-
-function pageStudentApplication(applicationId) {
-  const user = requireRole("student");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const application = studentApplications(user.id).find((entry) => entry.id === applicationId) || null;
-  if (!application) {
-    return shell(
-      "student",
-      el(`<div class="card">
-        <div><b>Application not found.</b></div>
-        <div class="mutedText" style="margin-top:8px;">This record may have been cleared after a demo data reset.</div>
-        <div class="row" style="margin-top:12px;">
-          <a class="btn btnPrimary" href="#/student/dashboard">Back to dashboard</a>
-        </div>
-      </div>`)
-    );
-  }
-
-  return pageStudentApply(application.opportunityId);
 }
 
 // Student application form page with checklist context and submit event handling.
 function pageStudentApply(courseId) {
-  try {
-
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
+  if (!user.profile) {
+    navigate("/student/onboarding");
+    return el(`<div class="content">Redirecting...</div>`);
+  }
 
-const opportunity = getOpportunity(courseId);
-if (!opportunity) {
-  return shell(
-    "student",
-    el(`<div class="card"><div><b>Opportunity not found.</b></div><div class="mutedText" style="margin-top:8px;">The selected opportunity could not be loaded.</div><div class="row" style="margin-top:12px;"><a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a></div></div>`)
-  );
-}
+  const opportunity = getOpportunity(courseId);
+  if (!opportunity) return shell("student", el(`<div class="card">Opportunity not found.</div>`));
 
-let checklist = getDocumentChecklist(user.id, opportunity.type);
+  let checklist = getDocumentChecklist(user.id, opportunity.type);
   let existingApplication = studentApplications(user.id).find((application) => application.opportunityId === opportunity.id) || null;
   let progressState = buildApplicationProgressState(user, opportunity, existingApplication);
 
@@ -5588,8 +8717,7 @@ let checklist = getDocumentChecklist(user.id, opportunity.type);
   let editorError = "";
   let editorNotice = "";
   let profileImpactNoticeVisible = false;
-  // Root cause fix: apply page crashed because editorDraft was used before declaration (ReferenceError).
-  let editorDraft = createInlineProfileEditorDraft(getUserProfile(user) || {}, user);
+  let profileDraft = createInlineProfileEditorDraft(getUserProfile(user) || {}, user);
   let focusTrapCleanup = () => {};
   let toastTimer = null;
   let toastHideTimer = null;
@@ -5652,13 +8780,13 @@ let checklist = getDocumentChecklist(user.id, opportunity.type);
       <label><b>${escapeHtml(label)}</b></label>
       <button type="button" class="inlineFieldEdit" data-open-inline-profile-editor="true" data-profile-field="${escapeHtml(fieldKey)}" title="Edit ${escapeHtml(label)}">Edit</button>
     </div>
-    <input class="input" value="${escapeHtml(value || "Not set")}" readonly style="background:#f2f2f2;" />
+    <input class="input" value="${escapeHtml(value || "Not set")}" readonly style="background:var(--color-primary-tint);" />
   </div>`;
 
   const renderIncompleteDocsNotice = () =>
     checklist.complete
       ? ""
-      : `<div class="card" style="margin-top:10px; padding:12px; background:#f7f7f7;">
+      : `<div class="card" style="margin-top:10px; padding:12px; background:var(--color-primary-tint);">
           <b>Documents incomplete</b>
           <div class="mutedText" style="margin-top:6px;">You can still submit this demo application. Upload missing documents in the documents section.</div>
           <div class="row" style="margin-top:10px;">
@@ -5920,19 +9048,15 @@ let checklist = getDocumentChecklist(user.id, opportunity.type);
   renderInlineEditor();
 
   return shell("student", node);
-  } catch (error) {
-    console.error("[pageStudentApply:error]", error);
-    console.error(error && error.stack ? error.stack : "");
-    return shell("student", el(`<div class="card"><div><b>Unable to load application form.</b></div><div class="mutedText" style="margin-top:8px;">Check console logs for details.</div><div class="row" style="margin-top:12px;"><a class="btn btnGhost" href="#/student/dashboard">Back to dashboard</a></div></div>`));
-  }
 }
 
 // Student dashboard page render: applications table, profile settings, and quick actions.
+// Student dashboard page render: restored from staged logic with focused layout repairs.
 function pageStudentDashboard() {
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
 
-  const node = el(`<div class="grid">
+  const node = el(`<div class="grid studentDashboardV2">
     <div class="cardHeader">
       <h1 style="margin:0; font-size:24px;">Student Dashboard</h1>
       <p class="mutedText" style="margin:8px 0 0;">Track applications, manage required documents, and update your profile settings.</p>
@@ -5947,10 +9071,10 @@ function pageStudentDashboard() {
   let settingsError = "";
   let settingsNotice = "";
   let initialScrollComplete = false;
+  let dashboardSearchQuery = "";
 
   function getDashboardRows(studentId) {
-    const applications = studentApplications(studentId);
-    return applications.map((application) => {
+    return studentApplications(studentId).map((application) => {
       const opportunity = getOpportunity(application.opportunityId);
       const opportunityType = OPPORTUNITY_TYPES.includes(application.opportunityType)
         ? application.opportunityType
@@ -5959,6 +9083,7 @@ function pageStudentDashboard() {
         typeof application.docsComplete === "boolean"
           ? application.docsComplete
           : !Boolean(application.docsIncomplete);
+
       return {
         ...application,
         opportunityType,
@@ -5969,27 +9094,20 @@ function pageStudentDashboard() {
     });
   }
 
-  function renderApplicationsSection(rows, recommendedSet) {
+    function renderApplicationsSection(rows, recommendedSet) {
     const tableWrap = root.querySelector("#applicationTableWrap");
     if (!tableWrap) return;
 
     const filteredRows = rows.filter((row) => matchesOpportunityTypeFilter(row.opportunityType, activeTab));
-
     if (!filteredRows.length) {
       tableWrap.innerHTML = `<div class="mutedText">No applications in this category yet.</div>`;
       return;
     }
 
-    tableWrap.innerHTML = `<div class="mobileApplicationsRail" style="margin-top:4px;">
+    const activeUser = currentUser() || user;
+    tableWrap.innerHTML = `<div class="dashboardOpportunityGrid dashboardOpportunityGrid--dashboard" style="margin-top:4px;">
       ${filteredRows
         .map((row) => {
-          const lifecycle = getOpportunityLifecycleState(row);
-          const action = getOpportunityPrimaryAction(row.opportunityId, row, false, lifecycle);
-          const closingDate = getOpportunity(row.opportunityId)?.closingDate || "";
-          const closingSoon = (() => {
-            const days = daysUntilDate(closingDate);
-            return Number.isFinite(days) && days >= 0 && days < 14;
-          })();
           const linkedOpportunity = getOpportunity(row.opportunityId) || {
             id: row.opportunityId,
             type: row.opportunityType,
@@ -5997,48 +9115,12 @@ function pageStudentDashboard() {
             institution: row.institution,
             requirements: []
           };
-          const progressSummary = getOpportunityProgressSummary(user, linkedOpportunity, row);
-          const cardClasses = [
-            "mobileApplicationCard",
-            getOpportunityCardTypeClass(row.opportunityType),
-            lifecycle.cardVariantClass,
-            recommendedSet && recommendedSet.has(row.opportunityId) ? "card-priority" : ""
-          ]
-            .filter(Boolean)
-            .join(" ");
 
-          return `<article class="${cardClasses}">
-            <div class="opportunityCardLayout">
-              <div class="opportunityCardMain">
-                <div class="row" style="justify-content:space-between; align-items:flex-start;">
-                  <span class="badge ${getOpportunityTypeBadgeClass(row.opportunityType)}">${escapeHtml(row.opportunityType)}</span>
-                  ${recommendedSet && recommendedSet.has(row.opportunityId) ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
-                </div>
-
-                <h3 class="opportunityTitle">${escapeHtml(row.opportunityTitle)}</h3>
-                <p class="opportunityOrg">${escapeHtml(row.institution)}</p>
-
-                <div class="opportunityMetaStack">
-                  <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(row.opportunityType)}</b></div>
-                  <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(closingDate)}</b></div>
-                  <div class="opportunityMetaRow"><span>Submitted</span><b>${formatDate(row.createdAt)}</b></div>
-                </div>
-                <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
-
-                ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
-                ${
-                  lifecycle.isInProgress
-                    ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${row.docsComplete ? "84%" : "62%"};"></div></div>`
-                    : ""
-                }
-              </div>
-
-              <div class="opportunityCardActions">
-                <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
-                <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
-              </div>
-            </div>
-          </article>`;
+          return renderStudentOpportunityCard(linkedOpportunity, {
+            student: activeUser,
+            application: row,
+            recommended: Boolean(recommendedSet && recommendedSet.has(row.opportunityId))
+          });
         })
         .join("")}
     </div>`;
@@ -6046,34 +9128,9 @@ function pageStudentDashboard() {
 
   function getRecommendedForDashboard(studentId) {
     const recommendedIds = recommendedIdsForStudent(studentId);
-    let items = getOpportunityCatalogue().filter((opportunity) => recommendedIds.has(opportunity.id)).slice(0, 4);
-
-    if (!items.length) {
-      items = getOpportunityCatalogue().slice(0, 4);
-    }
-
+    let items = opportunities.filter((opportunity) => recommendedIds.has(opportunity.id)).slice(0, 4);
+    if (!items.length) items = opportunities.slice(0, 4);
     return items;
-  }
-
-  function buildDashboardUpdateItems(liveUser, rows, recommendations) {
-    const checklist = getDocumentChecklist(liveUser.id);
-    const openApplications = rows.filter((row) => normalizeApplicationStatus(row.status, "draft") !== "rejected").length;
-    const submittedApplications = rows.filter((row) => Boolean(row.submittedAt)).length;
-    const topRecommendation = recommendations[0];
-
-    const updates = [
-      String(openApplications) + " active application" + (openApplications === 1 ? "" : "s") + " in your pipeline.",
-      checklist.complete
-        ? "Required documents are complete for most applications."
-        : "Complete your required documents to improve success rates.",
-      String(submittedApplications) + " application" + (submittedApplications === 1 ? "" : "s") + " already submitted.",
-      topRecommendation
-        ? "Top match right now: " + String(topRecommendation.title || "Recommended opportunity") + "."
-        : "New opportunities are available in your recommended categories.",
-      "Career guidance updates keep recommendations aligned to your goals."
-    ];
-
-    return updates;
   }
 
   function maybeScrollToDashboardView() {
@@ -6087,7 +9144,7 @@ function pageStudentDashboard() {
         ? "dashboardApplicationsSection"
         : view === "profile"
           ? "dashboardProfileSection"
-          : "dashboardHeroSection";
+          : "dashboardCareerSection";
     const target = root.querySelector(`#${targetId}`);
     if (target) {
       requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -6113,13 +9170,69 @@ function pageStudentDashboard() {
     const profileCompletedCount = profileChecks.filter(Boolean).length;
     const profileTotalCount = profileChecks.length;
     const profileCompleteness = profileTotalCount ? Math.round((profileCompletedCount / profileTotalCount) * 100) : 0;
+    const profileCompletenessTone = profileCompleteness >= 100 ? "complete" : profileCompleteness >= 50 ? "warning" : "danger";
+    const profile = getUserProfile(liveUser) || {};
+    const profileImage = draftSettings.profilePhotoDataUrl || getUserPhotoDataUrl(liveUser);
+    const recommendedSet = recommendedIdsForStudent(liveUser.id);
+    const recommendedMatchCount = recommendedSet.size || recommendations.length;
+    const careerGoal = getOpportunityProfileCareerGoal(liveUser, guidanceRecord);
+    const compactInterests = compactOpportunityProfileInterests(profile.interests || []);
+    const careerProfileCard = renderOpportunityProfileCard({
+      studentName: displayName,
+      careerGoal,
+      educationLevel: profile.educationLevel || "Complete your profile",
+      interests: compactInterests,
+      province: profile.province || "All provinces",
+      matchCount: recommendedMatchCount,
+      applicationCount: rows.length,
+      profileCompletion: profileCompleteness,
+      profileImage,
+      uploadInputId: `dashboardProfileUpload-${liveUser.id}`
+    });
+
     root.innerHTML = `
+      <div class="card dashboardSearchCard">
+        <form id="dashboardSearchForm" class="dashboardSearchBar">
+          <div class="dashboardSearchField">
+            <button class="dashboardSearchButton" id="dashboardSearchButton" type="submit" aria-label="Search opportunities">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+            <input class="input dashboardSearchInput" id="dashboardOpportunitySearch" value="${escapeHtml(dashboardSearchQuery)}" placeholder="Search bursaries, learnerships, courses..." />
+          </div>
+        </form>
+        <div class="dashboardSearchResults" id="dashboardSearchResults" hidden></div>
+      </div>
+
+      <div class="card dashboardCareerCard" id="dashboardCareerSection">
+        <div class="dashboardSectionMeta">Career Development</div>
+        <h3 class="dashboardSectionTitle" style="margin-top:6px;">Build your profile and sharpen your matches</h3>
+        <div class="dashboardCareerGrid" style="margin-top:12px; align-items:start;">
+          <div class="dashboardCareerCardItem dashboardCareerCardItem--profile">
+            ${careerProfileCard}
+          </div>
+          <div class="dashboardCareerCardItem">
+            <div class="dashboardSectionMeta">Career Quiz</div>
+            <h4 style="margin-top:6px;">${hasSavedGuidance ? 'Your guidance is ready' : 'Start your career quiz'}</h4>
+            <p class="mutedText" style="margin-top:8px;">${hasSavedGuidance ? `Top category: ${escapeHtml(guidanceRecord.result.topCategory)}. Review your pathway and recommended opportunities.` : 'Answer a few questions to unlock smarter opportunity recommendations.'}</p>
+            <div class="dashboardAlertStack" style="margin-top:12px;">
+              <div class="dashboardAlertItem">Recommended matches: ${recommendedMatchCount}</div>
+              <div class="dashboardAlertItem">Applications started: ${rows.length}</div>
+              <div class="dashboardAlertItem">Profile completion: ${profileCompleteness}%</div>
+            </div>
+            <div class="dashboardActionRow">
+              <a class="btn btnPrimary" href="#/student/career-guidance">${hasSavedGuidance ? 'Review quiz' : 'Start quiz'}</a>
+              <a class="btn btnGhost" href="#/student/bursaries">Browse matches</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card dashboardQuickHeader" id="dashboardHeroSection">
         <div class="row" style="justify-content:space-between; align-items:center; width:100%;">
           <div class="row" style="align-items:center; flex-wrap:nowrap; min-width:0;">
             ${renderUserAvatar(
-              { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || getUserPhotoDataUrl(liveUser) } },
-              "avatarLg"
+              { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: profileImage } },
+              'avatarLg'
             )}
             <div style="min-width:0;">
               <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Welcome back</div>
@@ -6134,89 +9247,34 @@ function pageStudentDashboard() {
         </div>
       </div>
 
-      <div class="card dashboardPromptCard" style="margin-top:12px;">
-        <div style="font-weight:700;">Profile momentum</div>
-        <div class="mutedText" style="margin-top:6px;">Complete your profile for smarter recommendations</div>
-        <div class="mutedText" style="margin-top:6px;">Upload documents when you&#39;re ready to apply</div>
-        <div class="row" style="margin-top:10px;">
-          <a class="btn btnGhost" href="#/student/onboarding">Complete profile</a>
-          <a class="btn btnGhost" href="#/student/documents">Manage documents</a>
-        </div>
-      </div>
-
       <div class="dashboardLayoutGrid" style="margin-top:16px;">
         <div class="dashboardPrimaryCol col-span-8">
           <div class="card dashboardCareerCard">
             <div class="dashboardSectionMeta">Recommended for you</div>
             <h3 class="dashboardSectionTitle" style="margin-top:6px;">Continue / Recommended</h3>
-            <div class="recommendedStack" style="margin-top:10px;">
+            <div class="dashboardOpportunityGrid dashboardOpportunityGrid--dashboard" style="margin-top:10px;">
               ${(() => {
                 const applicationByOpportunity = new Map(rows.map((row) => [row.opportunityId, row]));
                 return recommendations
-                  .map((item) => {
-                    const application = applicationByOpportunity.get(item.id) || null;
-                    const lifecycle = getOpportunityLifecycleState(application);
-                    const action = getOpportunityPrimaryAction(item.id, application, true, lifecycle);
-                    const daysUntilClosing = daysUntilDate(item.closingDate);
-                    const closingSoon = Number.isFinite(daysUntilClosing) && daysUntilClosing >= 0 && daysUntilClosing < 14;
-                    const progressSummary = getOpportunityProgressSummary(liveUser, item, application);
-                    const cardClasses = [
-                      "recommendedCard",
-                      getOpportunityCardTypeClass(item.type),
-                      lifecycle.cardVariantClass,
-                      !application ? "card-priority" : ""
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
-                    return `<article class="${cardClasses}">
-                      <div class="opportunityCardLayout">
-                        <div class="opportunityCardMain">
-                          <div class="row" style="justify-content:space-between; align-items:flex-start;">
-                            <span class="badge ${getOpportunityTypeBadgeClass(item.type)}">${escapeHtml(item.type)}</span>
-                            ${!application ? `<span class="badge recommendedFlag">Recommended</span>` : ""}
-                          </div>
-                          <h3 class="opportunityTitle">${escapeHtml(item.title)}</h3>
-                          <p class="opportunityOrg">${escapeHtml(item.institution)}</p>
-                          <div class="opportunityMetaStack">
-                            <div class="opportunityMetaRow"><span>Type</span><b>${escapeHtml(item.type)}</b></div>
-                            <div class="opportunityMetaRow"><span>Closing</span><b>${formatDateLabel(item.closingDate)}</b></div>
-                            <div class="opportunityMetaRow"><span>Submitted</span><b>${application ? formatDate(application.createdAt) : "Not started"}</b></div>
-                          </div>
-                          <div class="mutedText progressSummaryText">Progress: ${progressSummary.label}</div>
-                          ${closingSoon ? `<span class="closingSoon">Closing soon</span>` : ""}
-                          ${
-                            lifecycle.isInProgress
-                              ? `<div class="progressMicro"><div class="progressMicroFill" style="--progress-width:${application?.docsComplete ? "82%" : "58%"};"></div></div>`
-                              : ""
-                          }
-                        </div>
-                        <div class="opportunityCardActions">
-                          <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
-                          <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
-                        </div>
-                      </div>
-                    </article>`;
-                  })
-                  .join("");
+                  .map((item) => renderStudentOpportunityCard(item, {
+                    student: liveUser,
+                    application: applicationByOpportunity.get(item.id) || null,
+                    recommended: true
+                  }))
+                  .join('');
               })()}
             </div>
-            <div class="mutedText" style="margin-top:10px; font-size:12px;">
-              ${
-                hasSavedGuidance
-                  ? `Top quiz category: ${escapeHtml(guidanceRecord.result.topCategory)}`
-                  : "Complete your career quiz for sharper recommendations."
-              }
-            </div>
+            <div class="mutedText" style="margin-top:10px; font-size:12px;">${hasSavedGuidance ? `Top quiz category: ${escapeHtml(guidanceRecord.result.topCategory)}` : 'Complete your career quiz for sharper recommendations.'}</div>
           </div>
 
           <div class="card applicationsSection ${applicationsThemeClass}" id="dashboardApplicationsSection">
             <div class="dashboardSectionMeta">My Applications</div>
             <h3 class="dashboardSectionTitle" style="margin-top:6px;">Track and continue</h3>
             <div class="tabs applicationTabs ${applicationsThemeClass}" id="applicationTabs" style="margin-top:12px;">
-              <button class="tab ${activeTab === "all" ? "active" : ""}" data-tab="all" type="button">All</button>
-              <button class="tab ${activeTab === "Bursary" ? "active" : ""}" data-tab="Bursary" type="button">Bursaries</button>
-              <button class="tab ${activeTab === "Learnership/Internship" ? "active" : ""}" data-tab="Learnership/Internship" type="button">Learnerships</button>
-              <button class="tab ${activeTab === "Course" ? "active" : ""}" data-tab="Course" type="button">Courses</button>
+              <button class="tab ${activeTab === 'all' ? 'active' : ''}" data-tab="all" type="button">All</button>
+              <button class="tab ${activeTab === 'Bursary' ? 'active' : ''}" data-tab="Bursary" type="button">Bursaries</button>
+              <button class="tab ${activeTab === 'Learnership/Internship' ? 'active' : ''}" data-tab="Learnership/Internship" type="button">Learnerships</button>
+              <button class="tab ${activeTab === 'Course' ? 'active' : ''}" data-tab="Course" type="button">Courses</button>
             </div>
             <div id="applicationTableWrap" style="margin-top:12px;"></div>
           </div>
@@ -6224,33 +9282,27 @@ function pageStudentDashboard() {
 
         <div class="dashboardSupportCol col-span-4">
           <div id="dashboardDocumentsSection">
-            ${renderRequiredDocumentsChecklist(liveUser.id, "", true)}
+            ${renderRequiredDocumentsChecklist(liveUser.id, '', true)}
           </div>
 
-          <div class="card dashboardUpdatesCard" id="dashboardUpdatesSection">
-            <div class="dashboardSectionMeta">Recent updates</div>
-            <h3 class="dashboardSectionTitle" style="margin-top:6px;">Latest Opportunities / Updates</h3>
-            ${renderAnimatedList(buildDashboardUpdateItems(liveUser, rows, recommendations), { variant: "dashboard" })}
-          </div>
-
-          <div class="card compactProfileCard" id="dashboardProfileSection">
+          <div class="card compactProfileCard dashboardProfileCard" id="dashboardProfileSection">
             <div class="profileSummaryCard">
               ${renderUserAvatar(
-                { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || "" } },
-                "avatarLg"
+                { ...liveUser, profile: { ...(getUserProfile(liveUser) || {}), profilePhotoDataUrl: draftSettings.profilePhotoDataUrl || '' } },
+                'avatarLg'
               )}
               <div style="min-width:0;">
                 <div class="dashboardSectionMeta">Profile</div>
                 <h3 style="margin-top:4px;">${escapeHtml(displayName)}</h3>
-                <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(liveUser.email || "")}</div>
+                <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(liveUser.email || '')}</div>
               </div>
             </div>
 
             <div class="row" style="justify-content:space-between; margin-top:12px;">
               <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Profile completeness</div>
-              <div style="font-weight:700;">${profileCompleteness}%</div>
+              <div class="profileCompletenessValue profileCompletenessValue--${profileCompletenessTone}" style="font-weight:700;">${profileCompleteness}%</div>
             </div>
-            <div class="applicationProgressBar profileCompletenessBar" style="margin-top:8px;">
+            <div class="applicationProgressBar profileCompletenessBar profileCompletenessBar--${profileCompletenessTone}" style="margin-top:8px;">
               <div class="applicationProgressBarFill" style="width:${profileCompleteness}%;"></div>
             </div>
             <div class="mutedText" style="font-size:12px; margin-top:8px;">${profileCompletedCount} of ${profileTotalCount} profile items completed.</div>
@@ -6261,32 +9313,28 @@ function pageStudentDashboard() {
                 <div class="grid cols-2">
                   <div class="field">
                     <label><b>First name</b></label>
-                    <input class="input" id="settingFirstName" value="${escapeHtml(draftSettings.firstName || "")}" />
+                    <input class="input" id="settingFirstName" value="${escapeHtml(draftSettings.firstName || '')}" />
                   </div>
                   <div class="field">
                     <label><b>Surname</b></label>
-                    <input class="input" id="settingSurname" value="${escapeHtml(draftSettings.surname || "")}" />
+                    <input class="input" id="settingSurname" value="${escapeHtml(draftSettings.surname || '')}" />
                   </div>
                 </div>
 
                 <div class="field">
                   <label><b>Email</b></label>
-                  <input class="input" id="settingEmail" type="email" value="${escapeHtml(draftSettings.email || "")}" />
+                  <input class="input" id="settingEmail" type="email" value="${escapeHtml(draftSettings.email || '')}" />
                 </div>
 
                 <div class="field">
                   <label><b>Password</b></label>
-                  <input class="input" id="settingPassword" type="password" value="${escapeHtml(draftSettings.password || "")}" />
+                  <input class="input" id="settingPassword" type="password" value="${escapeHtml(draftSettings.password || '')}" />
                 </div>
 
                 <div class="field">
                   <label><b>Profile photo (png/jpg/jpeg)</b></label>
                   <input class="input" id="settingPhoto" type="file" accept=".png,.jpg,.jpeg" />
-                  ${
-                    profilePhotoMeta
-                      ? `<div class="mutedText" style="font-size:12px;">${escapeHtml(profilePhotoMeta.fileName || profilePhotoMeta.filename || "photo")} • ${escapeHtml(profilePhotoMeta.fileType || "")} • ${formatBytes(profilePhotoMeta.fileSize || profilePhotoMeta.size || 0)} • ${formatDate(profilePhotoMeta.uploadedAt)}</div>`
-                      : `<div class="mutedText" style="font-size:12px;">No profile photo uploaded.</div>`
-                  }
+                  ${profilePhotoMeta ? `<div class="mutedText" style="font-size:12px;">${escapeHtml(profilePhotoMeta.fileName || profilePhotoMeta.filename || 'photo')} • ${escapeHtml(profilePhotoMeta.fileType || '')} • ${formatBytes(profilePhotoMeta.fileSize || profilePhotoMeta.size || 0)} • ${formatDate(profilePhotoMeta.uploadedAt)}</div>` : `<div class="mutedText" style="font-size:12px;">No profile photo uploaded.</div>`}
                 </div>
 
                 <div class="row" style="margin-top:12px;">
@@ -6301,8 +9349,8 @@ function pageStudentDashboard() {
                   </div>
                 </details>
 
-                <div id="settingsError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(settingsError)}</div>
-                <div id="settingsNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;">${escapeHtml(settingsNotice)}</div>
+                <div id="settingsError" class="mutedText" style="color: var(--color-danger); margin-top:8px;">${escapeHtml(settingsError)}</div>
+                <div id="settingsNotice" class="mutedText" style="color: var(--color-primary); margin-top:4px;">${escapeHtml(settingsNotice)}</div>
               </form>
             </details>
           </div>
@@ -6310,27 +9358,88 @@ function pageStudentDashboard() {
       </div>
     `;
 
-    const recommendedSet = recommendedIdsForStudent(liveUser.id);
     renderApplicationsSection(rows, recommendedSet);
-    setupRevealAnimation(root, "#dashboardUpdatesSection [data-reveal=\"true\"]");
+    bindStudentOpportunityCardActions(root, liveUser, renderDashboardContent);
 
-    root.querySelectorAll("#applicationTabs button[data-tab]").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        activeTab = tab.getAttribute("data-tab");
+    const searchInput = root.querySelector('#dashboardOpportunitySearch');
+    const searchResults = root.querySelector('#dashboardSearchResults');
+    const searchForm = root.querySelector('#dashboardSearchForm');
+    const runDashboardSearch = () => {
+      dashboardSearchQuery = String(searchInput?.value || '').trim();
+      const query = dashboardSearchQuery.toLowerCase();
+      if (!searchResults) return;
+      if (!query) {
+        searchResults.hidden = true;
+        searchResults.innerHTML = '';
+        return;
+      }
+
+      const matches = getOpportunityCatalogue()
+        .filter((opportunity) => String(opportunity.listingStatus || 'open') === 'open')
+        .filter((opportunity) => {
+          const searchable = [
+            opportunity.title,
+            opportunity.institution,
+            opportunity.provider,
+            resolveOpportunitySector(opportunity),
+            opportunity.focusArea,
+            Array.isArray(opportunity.tags) ? opportunity.tags.join(' ') : ''
+          ].join(' ').toLowerCase();
+          return searchable.includes(query);
+        })
+        .slice(0, 6);
+
+      searchResults.hidden = false;
+      if (!matches.length) {
+        searchResults.innerHTML = `<div class="dashboardSearchEmpty">No opportunities match your search yet.</div>`;
+        return;
+      }
+
+      searchResults.innerHTML = matches.map((opportunity) => `
+        <a class="dashboardSearchResult" href="#/student/opportunity/${opportunity.id}">
+          <div class="dashboardSearchResultTop">
+            <span class="badge ${getOpportunityTypeBadgeClass(opportunity.type)}">${escapeHtml(opportunity.type)}</span>
+            <span class="dashboardSearchResultMeta">${escapeHtml(opportunity.location || 'National')}</span>
+          </div>
+          <div class="dashboardSearchResultTitle">${escapeHtml(opportunity.title)}</div>
+          <div class="dashboardSearchResultMeta">${escapeHtml(opportunity.institution || opportunity.provider || 'Provider')} • ${escapeHtml(resolveOpportunitySector(opportunity) || 'General')}</div>
+        </a>
+      `).join('');
+    };
+
+    searchInput?.addEventListener('input', runDashboardSearch);
+    searchForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      runDashboardSearch();
+    });
+    runDashboardSearch();
+
+    const careerSection = root.querySelector('#dashboardCareerSection');
+    if (careerSection) {
+      bindOpportunityProfileCardActions(careerSection, liveUser, () => {
+        savedSettings = getStudentSettingsState(currentUser() || liveUser);
+        draftSettings = { ...savedSettings };
+        renderDashboardContent();
+      });
+    }
+
+    root.querySelectorAll('#applicationTabs button[data-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        activeTab = tab.getAttribute('data-tab');
         renderDashboardContent();
       });
     });
 
-    const settingsForm = root.querySelector("#studentSettingsForm");
-    settingsForm.addEventListener("submit", (event) => {
+    const settingsForm = root.querySelector('#studentSettingsForm');
+    settingsForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      settingsError = "";
-      settingsNotice = "";
+      settingsError = '';
+      settingsNotice = '';
 
-      const firstName = root.querySelector("#settingFirstName").value.trim();
-      const surname = root.querySelector("#settingSurname").value.trim();
-      const email = root.querySelector("#settingEmail").value.trim();
-      const password = root.querySelector("#settingPassword").value;
+      const firstName = root.querySelector('#settingFirstName').value.trim();
+      const surname = root.querySelector('#settingSurname').value.trim();
+      const email = root.querySelector('#settingEmail').value.trim();
+      const password = root.querySelector('#settingPassword').value;
 
       const result = updateStudentSettings(liveUser.id, {
         ...draftSettings,
@@ -6341,47 +9450,47 @@ function pageStudentDashboard() {
       });
 
       if (!result.ok) {
-        settingsError = result.error || "Unable to save settings.";
+        settingsError = result.error || 'Unable to save settings.';
         renderDashboardContent();
         return;
       }
 
       savedSettings = getStudentSettingsState(result.user);
       draftSettings = { ...savedSettings };
-      settingsNotice = "Profile settings saved.";
+      settingsNotice = 'Profile settings saved.';
       render();
     });
 
-    root.querySelector("#settingsCancelBtn").addEventListener("click", () => {
+    root.querySelector('#settingsCancelBtn').addEventListener('click', () => {
       draftSettings = { ...savedSettings };
-      settingsError = "";
-      settingsNotice = "Changes reverted.";
+      settingsError = '';
+      settingsNotice = 'Changes reverted.';
       renderDashboardContent();
     });
 
-    root.querySelector("#settingsRemovePhotoBtn").addEventListener("click", () => {
-      draftSettings.profilePhotoDataUrl = "";
+    root.querySelector('#settingsRemovePhotoBtn').addEventListener('click', () => {
+      draftSettings.profilePhotoDataUrl = '';
       draftSettings.profilePhotoMeta = null;
-      setStudentProfilePhoto(liveUser.id, "", null);
+      setStudentProfilePhoto(liveUser.id, '', null);
       savedSettings = {
         ...savedSettings,
-        profilePhotoDataUrl: "",
+        profilePhotoDataUrl: '',
         profilePhotoMeta: null
       };
-      settingsError = "";
-      settingsNotice = "Profile photo removed.";
+      settingsError = '';
+      settingsNotice = 'Profile photo removed.';
       render();
     });
 
-    root.querySelector("#settingPhoto").addEventListener("change", async (event) => {
+    root.querySelector('#settingPhoto').addEventListener('change', async (event) => {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
 
       const fileType = inferFileType(file);
-      const allowedPhotoTypes = new Set(["image/png", "image/jpeg"]);
+      const allowedPhotoTypes = new Set(['image/png', 'image/jpeg']);
       if (!allowedPhotoTypes.has(fileType)) {
-        settingsError = "Profile photo must be png, jpg, or jpeg.";
-        settingsNotice = "";
+        settingsError = 'Profile photo must be png, jpg, or jpeg.';
+        settingsNotice = '';
         renderDashboardContent();
         return;
       }
@@ -6402,12 +9511,12 @@ function pageStudentDashboard() {
           profilePhotoDataUrl: dataUrl,
           profilePhotoMeta: meta
         };
-        settingsError = "";
-        settingsNotice = "Profile photo updated.";
+        settingsError = '';
+        settingsNotice = 'Profile photo updated.';
         render();
       } catch {
-        settingsError = "Could not read selected image.";
-        settingsNotice = "";
+        settingsError = 'Could not read selected image.';
+        settingsNotice = '';
         renderDashboardContent();
       }
     });
@@ -6416,10 +9525,8 @@ function pageStudentDashboard() {
   }
 
   renderDashboardContent();
-  return shell("student", node);
+  return shell('student', node);
 }
-
-// Career Guidance page render: quiz steps, result scoring, pathway panel, and doc metadata actions.
 function pageStudentCareerGuidance() {
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
@@ -6440,7 +9547,8 @@ function pageStudentCareerGuidance() {
     savedAt: savedRecord?.savedAt || "",
     notice: "",
     error: "",
-    docError: ""
+    docError: "",
+    quizDirection: 0
   };
 
   const node = el(`<div class="grid">
@@ -6607,7 +9715,7 @@ function pageStudentCareerGuidance() {
           </tbody>
         </table>
 
-        <div class="card" style="margin-top:12px; background:#fff;">
+        <div class="card" style="margin-top:12px; background:var(--color-surface);">
           <form id="careerDocUploadForm">
             <div class="field">
               <label><b>Upload supporting document</b></label>
@@ -6627,7 +9735,7 @@ function pageStudentCareerGuidance() {
           </form>
         </div>
 
-        <div class="card" style="margin-top:12px; background:#fff;">
+        <div class="card" style="margin-top:12px; background:var(--color-surface);">
           <div style="font-weight:700;">Uploaded metadata</div>
           ${
             flattenedCareerDocs.length
@@ -6656,10 +9764,13 @@ function pageStudentCareerGuidance() {
     </div>`;
   }
 
-  function renderQuiz() {
+    function renderQuiz() {
     const question = CAREER_QUIZ_QUESTIONS[state.step];
     const totalSteps = CAREER_QUIZ_QUESTIONS.length;
     const value = state.answers[question.id];
+    const activePhaseIndex = getCareerGuidanceQuizPhaseIndex(state.step);
+    const activePhase = CAREER_GUIDANCE_QUIZ_PHASES[activePhaseIndex] || CAREER_GUIDANCE_QUIZ_PHASES[0];
+    const direction = state.quizDirection > 0 ? "next" : state.quizDirection < 0 ? "prev" : "same";
 
     const optionsHtml = question.options
       .map((option) => {
@@ -6675,29 +9786,33 @@ function pageStudentCareerGuidance() {
       .join("");
 
     root.innerHTML = `<div class="card careerWizardCard card-accent-top is-guidance">
-      <div class="row" style="justify-content:space-between;">
-        <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Career Match Quiz</div>
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.04em;">Career Match Quiz</div>
+          <div class="dashboardSectionMeta" style="margin-top:6px;">${escapeHtml(activePhase.label)}</div>
+        </div>
       </div>
       ${renderQuizStepNavigator(totalSteps, state.step)}
 
-      <div style="margin-top:16px;">
-        <h2>${escapeHtml(question.label)}</h2>
-        <div class="mutedText" style="margin-top:4px;">
-          ${question.required ? "Required question" : "Optional - you can skip"}
+      <div class="ydhGuidanceQuestionPanel" data-direction="${direction}">
+        <div class="ydhGuidanceStepIntro" style="margin-top:16px;">
+          <div class="ydhGuidanceStepKicker">${escapeHtml(activePhase.label)}</div>
+          <h2>${escapeHtml(question.label)}</h2>
+          <p class="ydhGuidanceStepHint">${question.required ? "Required question" : "Optional - you can skip"}</p>
+        </div>
+
+        <div class="careerOptionsGrid" style="margin-top:12px;">
+          ${optionsHtml}
         </div>
       </div>
 
-      <div class="careerOptionsGrid" style="margin-top:12px;">
-        ${optionsHtml}
-      </div>
+      <div id="careerQuizError" class="ydhStepperError" style="margin-top:12px;">${escapeHtml(state.error || "")}</div>
 
-      <div id="careerQuizError" class="mutedText" style="margin-top:12px; color: var(--salmon-orange);">${escapeHtml(state.error || "")}</div>
-
-      <div class="row" style="margin-top:14px; justify-content:space-between;">
-        <button type="button" class="btn btnGhost" id="careerBackBtn" ${state.step === 0 ? "disabled" : ""}>Back</button>
+      <div class="ydhStepperFooter" style="margin-top:14px;">
+        <button type="button" class="btn btnGhost ydhStepperFooterButton" id="careerBackBtn" ${state.step === 0 ? "disabled" : ""}>Back</button>
         <div class="row">
-          ${question.required ? "" : `<button type="button" class="btn btnGhost" id="careerSkipBtn">Skip</button>`}
-          <button type="button" class="btn btnPrimary" id="careerNextBtn">${state.step === totalSteps - 1 ? "View Results" : "Next"}</button>
+          ${question.required ? "" : `<button type="button" class="btn btnGhost ydhStepperFooterButton" id="careerSkipBtn">Skip</button>`}
+          <button type="button" class="btn btnPrimary ydhStepperFooterButton" id="careerNextBtn">${state.step === totalSteps - 1 ? "View Results" : "Next"}</button>
         </div>
       </div>
     </div>`;
@@ -6706,6 +9821,17 @@ function pageStudentCareerGuidance() {
     if (currentStepIndicator) {
       currentStepIndicator.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
     }
+
+    root.querySelectorAll('button[data-career-phase-index]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const phaseIndex = Number(button.getAttribute('data-career-phase-index'));
+        const nextStep = getCareerGuidanceQuizStepIndexForPhase(phaseIndex);
+        state.quizDirection = nextStep >= state.step ? 1 : -1;
+        state.step = nextStep;
+        state.error = "";
+        renderQuiz();
+      });
+    });
 
     root.querySelectorAll("button[data-career-option]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -6722,6 +9848,7 @@ function pageStudentCareerGuidance() {
     if (backBtn) {
       backBtn.addEventListener("click", () => {
         if (state.step > 0) {
+          state.quizDirection = -1;
           state.step -= 1;
           state.error = "";
           renderQuiz();
@@ -6733,6 +9860,7 @@ function pageStudentCareerGuidance() {
     if (skipBtn) {
       skipBtn.addEventListener("click", () => {
         if (state.step < totalSteps - 1) {
+          state.quizDirection = 1;
           state.step += 1;
           state.error = "";
           renderQuiz();
@@ -6750,6 +9878,7 @@ function pageStudentCareerGuidance() {
         }
 
         if (state.step < totalSteps - 1) {
+          state.quizDirection = 1;
           state.step += 1;
           state.error = "";
           renderQuiz();
@@ -6772,6 +9901,7 @@ function pageStudentCareerGuidance() {
         state.mode = "results";
         state.notice = "";
         state.error = "";
+        state.quizDirection = 0;
         renderContent();
       });
     }
@@ -6796,7 +9926,7 @@ function pageStudentCareerGuidance() {
       </div>
       <div style="margin-top:14px;">
         ${state.pathway
-          ? `<div class="card" style="background:#fff;">
+          ? `<div class="card" style="background:var(--color-surface);">
               <div style="font-weight:700;">${escapeHtml(state.pathway.title)}</div>
               <div class="mutedText" style="margin-top:4px;">Resume your 3-stage action plan and update progress.</div>
             </div>`
@@ -6993,2812 +10123,220 @@ function pageStudentCareerGuidance() {
   return shell("student", node);
 }
 
-function pageAdminOpportunities() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  let activeTab = "courses";
-  let editorOpen = false;
-  let editorError = "";
-  let editingOpportunityId = "";
-  let importNotice = "";
-  let importError = "";
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Opportunity Management</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Create, edit, and bulk import courses, bursaries, and learnerships for students.</p>
-    </div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <div>
-          <div style="font-weight:700;">Opportunity library</div>
-          <div class="mutedText" style="font-size:12px; margin-top:4px;">Student pages use these records first. If empty, seeded demo opportunities are shown.</div>
-        </div>
-        <button type="button" class="btn btnPrimary" id="btnAddOpportunity">Add new</button>
-      </div>
-
-      <div class="tabs" id="adminOpportunityTabs" style="margin-top:12px;">
-        <button type="button" class="tab active" data-opp-tab="courses">Courses</button>
-        <button type="button" class="tab" data-opp-tab="bursaries">Bursaries</button>
-        <button type="button" class="tab" data-opp-tab="learnerships">Learnerships</button>
-      </div>
-
-      <div id="adminOpportunityListWrap" style="margin-top:12px;"></div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Bulk import opportunities</div>
-      <div class="mutedText" style="font-size:12px; margin-top:4px;">Upload a <code>.json</code> file or paste a JSON array to import multiple opportunities.</div>
-      <div class="field" style="margin-top:10px;">
-        <label><b>Upload JSON file</b></label>
-        <input type="file" class="input" id="opportunityImportFile" accept=".json,application/json" />
-      </div>
-      <div class="field" style="margin-top:10px;">
-        <label><b>Paste JSON array</b></label>
-        <textarea id="opportunityImportText" class="input" rows="7" placeholder='[{"title":"Example","type":"Course","provider":"TVET","province":"Gauteng","sector":"IT","closingDate":"Rolling","tags":["IT"],"requiredDocuments":["ID Copy"]}]'></textarea>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <button type="button" class="btn btnGhost" id="btnImportOpportunities">Import opportunities</button>
-      </div>
-      <div id="opportunityImportError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;"></div>
-      <div id="opportunityImportNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;"></div>
-    </div>
-
-    <div id="adminOpportunityEditorMount"></div>
-  </div>`);
-
-  function getTabLabel(bucket) {
-    if (bucket === "bursaries") return "Bursaries";
-    if (bucket === "learnerships") return "Learnerships";
-    return "Courses";
-  }
-
-  function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-      reader.onerror = () => reject(new Error("Unable to read file."));
-      reader.readAsText(file);
-    });
-  }
-
-  function getActiveTabOpportunities() {
-    const opportunityStore = ensureOpportunityStore();
-    const items = Array.isArray(opportunityStore[activeTab]) ? opportunityStore[activeTab] : [];
-    return [...items].sort((first, second) => {
-      const firstClosing = closingDateSortValue(first.closingDate);
-      const secondClosing = closingDateSortValue(second.closingDate);
-      if (firstClosing !== secondClosing) return firstClosing - secondClosing;
-      return String(first.title || "").localeCompare(String(second.title || ""));
-    });
-  }
-
-  function getEditingOpportunity() {
-    if (!editingOpportunityId) return null;
-    const opportunityStore = ensureOpportunityStore();
-    return flattenOpportunityStore(opportunityStore).find((item) => item.id === editingOpportunityId) || null;
-  }
-
-  function closeEditor() {
-    editorOpen = false;
-    editingOpportunityId = "";
-    editorError = "";
-    renderEditor();
-  }
-
-  function openEditor(opportunityId = "") {
-    editorOpen = true;
-    editingOpportunityId = opportunityId || "";
-    editorError = "";
-    renderEditor();
-  }
-
-  function renderList() {
-    const wrap = node.querySelector("#adminOpportunityListWrap");
-    if (!wrap) return;
-
-    const items = getActiveTabOpportunities();
-
-    if (!items.length) {
-      wrap.innerHTML = `<div class="mutedText">No ${escapeHtml(getTabLabel(activeTab).toLowerCase())} loaded yet.</div>`;
-      return;
-    }
-
-    wrap.innerHTML = `<div style="overflow-x:auto;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Provider</th>
-            <th>Province</th>
-            <th>Sector</th>
-            <th>Closing</th>
-            <th>Tags</th>
-            <th>Required docs</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items
-            .map(
-              (item) => `<tr>
-                <td><b>${escapeHtml(item.title)}</b><div class="mutedText" style="font-size:12px; margin-top:4px;">${escapeHtml(item.type)}</div></td>
-                <td>${escapeHtml(item.provider || item.institution || "-")}</td>
-                <td>${escapeHtml(item.province || item.location || "-")}</td>
-                <td>${escapeHtml(item.sector || "-")}</td>
-                <td>${escapeHtml(formatDateLabel(item.closingDate))}</td>
-                <td>${escapeHtml((item.tags || []).join(", ") || "-")}</td>
-                <td>${escapeHtml((item.requiredDocuments || []).join(", ") || "-")}</td>
-                <td>
-                  <div class="row" style="gap:6px; flex-wrap:wrap;">
-                    <button type="button" class="btn btnGhost" data-opp-edit="${item.id}" style="padding:6px 10px;">Edit</button>
-                    <button type="button" class="btn btnGhost" data-opp-delete="${item.id}" style="padding:6px 10px;">Delete</button>
-                  </div>
-                </td>
-              </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>`;
-
-    wrap.querySelectorAll("button[data-opp-edit]").forEach((button) => {
-      button.addEventListener("click", () => {
-        openEditor(button.getAttribute("data-opp-edit") || "");
-      });
-    });
-
-    wrap.querySelectorAll("button[data-opp-delete]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const opportunityId = button.getAttribute("data-opp-delete") || "";
-        if (!opportunityId) return;
-        if (!confirm("Delete this opportunity?")) return;
-        deleteOpportunityRecord(opportunityId);
-        renderList();
-      });
-    });
-  }
-
-  function renderEditor() {
-    const mount = node.querySelector("#adminOpportunityEditorMount");
-    if (!mount) return;
-
-    if (!editorOpen) {
-      mount.innerHTML = "";
-      return;
-    }
-
-    const editing = getEditingOpportunity();
-    const typeValue = editing?.type || defaultTypeForOpportunityBucket(activeTab);
-    const isRolling = String(editing?.closingDate || "Rolling") === "Rolling";
-    const selectedDocs = Array.isArray(editing?.requiredDocuments) ? editing.requiredDocuments : [];
-
-    mount.innerHTML = `<div id="adminOpportunityEditorOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1200; padding:16px; display:flex; align-items:flex-start; justify-content:center; overflow:auto;">
-      <section class="card" role="dialog" aria-modal="true" aria-labelledby="adminOpportunityEditorTitle" style="width:min(760px, 100%); margin:10px 0;">
-        <div class="row" style="justify-content:space-between; align-items:flex-start;">
-          <div>
-            <h3 id="adminOpportunityEditorTitle" style="margin:0;">${editing ? "Edit opportunity" : "Add opportunity"}</h3>
-            <div class="mutedText" style="font-size:12px; margin-top:4px;">Manage ${escapeHtml(getTabLabel(activeTab).toLowerCase())} visibility for students.</div>
-          </div>
-          <button type="button" class="btn btnGhost" id="btnCloseOpportunityEditor">Close</button>
-        </div>
-
-        <form id="adminOpportunityForm" style="margin-top:12px;">
-          <div class="grid cols-2">
-            <div class="field">
-              <label><b>Title</b></label>
-              <input class="input" id="oppTitle" value="${escapeHtml(editing?.title || "")}" required />
-            </div>
-            <div class="field">
-              <label><b>Type</b></label>
-              <select class="input select" id="oppType">
-                ${OPPORTUNITY_TYPES.map((type) => `<option value="${type}" ${typeValue === type ? "selected" : ""}>${type}</option>`).join("")}
-              </select>
-            </div>
-          </div>
-
-          <div class="grid cols-2">
-            <div class="field">
-              <label><b>Provider</b></label>
-              <input class="input" id="oppProvider" value="${escapeHtml(editing?.provider || editing?.institution || "")}" />
-            </div>
-            <div class="field">
-              <label><b>Province</b></label>
-              <select class="input select" id="oppProvince">
-                <option value="National">National</option>
-                ${PROVINCES.map((province) => `<option value="${province}" ${(editing?.province || editing?.location || "National") === province ? "selected" : ""}>${province}</option>`).join("")}
-              </select>
-            </div>
-          </div>
-
-          <div class="grid cols-2">
-            <div class="field">
-              <label><b>Sector</b></label>
-              <input class="input" id="oppSector" value="${escapeHtml(editing?.sector || "")}" />
-            </div>
-            <div class="field">
-              <label><b>Closing date</b></label>
-              <input class="input" id="oppClosingDate" type="date" value="${!isRolling ? escapeHtml(editing?.closingDate || "") : ""}" ${isRolling ? "disabled" : ""} />
-              <label style="margin-top:6px; display:flex; align-items:center; gap:6px;">
-                <input type="checkbox" id="oppClosingRolling" ${isRolling ? "checked" : ""} /> Rolling
-              </label>
-            </div>
-          </div>
-
-          <div class="field">
-            <label><b>Tags (comma separated)</b></label>
-            <input class="input" id="oppTags" value="${escapeHtml((editing?.tags || []).join(", "))}" />
-          </div>
-
-          <div class="field">
-            <label><b>Required documents</b></label>
-            <div class="grid cols-2" style="gap:8px;">
-              ${OPPORTUNITY_REQUIRED_DOCUMENT_OPTIONS.map((doc) => `<label class="card" style="padding:8px; display:flex; align-items:center; gap:8px;"><input type="checkbox" data-opp-required-doc="${doc}" ${selectedDocs.includes(doc) ? "checked" : ""} /> ${doc}</label>`).join("")}
-            </div>
-          </div>
-
-          <div id="oppEditorError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;">${escapeHtml(editorError)}</div>
-
-          <div class="row" style="margin-top:12px; justify-content:flex-end;">
-            <button type="button" class="btn btnGhost" id="btnCancelOpportunityEditor">Cancel</button>
-            <button type="submit" class="btn btnPrimary">${editing ? "Save changes" : "Create opportunity"}</button>
-          </div>
-        </form>
-      </section>
-    </div>`;
-
-    const overlay = mount.querySelector("#adminOpportunityEditorOverlay");
-    const closeButton = mount.querySelector("#btnCloseOpportunityEditor");
-    const cancelButton = mount.querySelector("#btnCancelOpportunityEditor");
-    const form = mount.querySelector("#adminOpportunityForm");
-    const rollingCheckbox = mount.querySelector("#oppClosingRolling");
-    const closingInput = mount.querySelector("#oppClosingDate");
-
-    if (overlay) {
-      overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) closeEditor();
-      });
-    }
-
-    if (closeButton) closeButton.addEventListener("click", closeEditor);
-    if (cancelButton) cancelButton.addEventListener("click", closeEditor);
-
-    if (rollingCheckbox && closingInput) {
-      rollingCheckbox.addEventListener("change", () => {
-        closingInput.disabled = rollingCheckbox.checked;
-        if (rollingCheckbox.checked) closingInput.value = "";
-      });
-    }
-
-    if (form) {
-      form.addEventListener("submit", (event) => {
-        event.preventDefault();
-
-        const requiredDocuments = Array.from(form.querySelectorAll("input[data-opp-required-doc]:checked")).map((input) => input.getAttribute("data-opp-required-doc"));
-        const closingDate = rollingCheckbox && rollingCheckbox.checked ? "Rolling" : String(closingInput?.value || "").trim();
-
-        const payload = {
-          id: editing?.id || uid("opp"),
-          title: String(form.querySelector("#oppTitle")?.value || "").trim(),
-          type: String(form.querySelector("#oppType")?.value || "").trim(),
-          provider: String(form.querySelector("#oppProvider")?.value || "").trim(),
-          province: String(form.querySelector("#oppProvince")?.value || "").trim(),
-          sector: String(form.querySelector("#oppSector")?.value || "").trim(),
-          closingDate,
-          tags: String(form.querySelector("#oppTags")?.value || ""),
-          requiredDocuments
-        };
-
-        if (!payload.title) {
-          editorError = "Title is required.";
-          renderEditor();
-          return;
-        }
-
-        if (!payload.closingDate) {
-          editorError = "Provide a closing date or select Rolling.";
-          renderEditor();
-          return;
-        }
-
-        const result = upsertOpportunityRecord(payload);
-        if (!result.ok) {
-          editorError = result.error || "Unable to save opportunity.";
-          renderEditor();
-          return;
-        }
-
-        importError = "";
-        importNotice = result.updated ? "Opportunity updated." : "Opportunity created.";
-        editorOpen = false;
-        editingOpportunityId = "";
-        editorError = "";
-        renderImportMessages();
-        renderEditor();
-        renderList();
-      });
-    }
-  }
-
-  function renderImportMessages() {
-    const notice = node.querySelector("#opportunityImportNotice");
-    const error = node.querySelector("#opportunityImportError");
-    if (notice) notice.textContent = importNotice;
-    if (error) error.textContent = importError;
-  }
-
-  async function handleImport() {
-    importNotice = "";
-    importError = "";
-
-    const fileInput = node.querySelector("#opportunityImportFile");
-    const file = fileInput?.files && fileInput.files[0];
-    const textArea = node.querySelector("#opportunityImportText");
-    let rawText = String(textArea?.value || "").trim();
-
-    if (!rawText && file) {
-      try {
-        rawText = String(await readFileAsText(file)).trim();
-      } catch {
-        importError = "Could not read selected file.";
-        renderImportMessages();
-        return;
-      }
-    }
-
-    if (!rawText) {
-      importError = "Upload a JSON file or paste a JSON array first.";
-      renderImportMessages();
-      return;
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch {
-      importError = "Invalid JSON format.";
-      renderImportMessages();
-      return;
-    }
-
-    const result = importOpportunitiesFromArray(parsed);
-    if (!result.ok) {
-      importError = result.error || "Import failed.";
-      renderImportMessages();
-      return;
-    }
-
-    importNotice = `Import complete: ${result.inserted} added, ${result.updated} updated, ${result.skipped} skipped.`;
-    importError = "";
-    renderImportMessages();
-    renderList();
-  }
-
-  node.querySelector("#btnAddOpportunity")?.addEventListener("click", () => {
-    openEditor("");
-  });
-
-  node.querySelectorAll("#adminOpportunityTabs button[data-opp-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeTab = button.getAttribute("data-opp-tab") || "courses";
-      node.querySelectorAll("#adminOpportunityTabs button[data-opp-tab]").forEach((tab) => {
-        tab.classList.toggle("active", tab === button);
-      });
-      renderList();
-    });
-  });
-
-  node.querySelector("#btnImportOpportunities")?.addEventListener("click", handleImport);
-
-  renderImportMessages();
-  renderList();
-  renderEditor();
-
-  return shell("admin", node);
-}
-
 // Admin corporate overview page render (portfolio metrics and summary tiles).
-function pageAdminCorporate() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
 
-  const rows = buildApplicationRows("all");
-  const bursaryRows = rows.filter((row) => row.opportunityType === "Bursary");
-  const learnershipRows = rows.filter((row) => isLearnershipType(row.opportunityType));
-  const courseRows = rows.filter((row) => row.opportunityType === "Course");
-  const shortlisted = rows.filter((row) => row.meta.shortlisted).length;
-  const fundedBursaryRows = bursaryRows.filter((row) => row.meta.funded);
-  const graduatesAvailableRows = bursaryRows.filter((row) => row.meta.funded && row.meta.graduated);
-  const activeBursaryStudentIds = new Set(
-    fundedBursaryRows
-      .filter((row) => !row.meta.graduated)
-      .map((row) => row.student?.id || row.application.studentId)
-  );
-  const fundedStudentIds = new Set(
-    fundedBursaryRows.map((row) => row.student?.id || row.application.studentId)
-  );
-  const conversionRate = bursaryRows.length
-    ? ((fundedBursaryRows.length / bursaryRows.length) * 100).toFixed(1)
-    : "0.0";
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Corporate Executive Dashboard</h1>
-      <p class="mutedText" style="margin:8px 0 0;">National bursary pipeline overview and transformation snapshot.</p>
-    </div>
-
-    <div style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
-      ${metricTile("Applications Received", String(rows.length), "All opportunity types")}
-      ${metricTile("Bursary Applications", String(bursaryRows.length), "Bursary-specific count")}
-      ${metricTile("Learnership/Internship Applications", String(learnershipRows.length))}
-      ${metricTile("Course Applications", String(courseRows.length))}
-      ${metricTile("Total Active Bursary Students", String(activeBursaryStudentIds.size))}
-      ${metricTile("Shortlisted Candidates", String(shortlisted))}
-      ${metricTile("Funded Students", String(fundedStudentIds.size))}
-      ${metricTile("Pipeline Conversion Rate", `${conversionRate}%`, "Funded bursary students / bursary applications")}
-      ${metricTile("Graduates Available for Placement", String(graduatesAvailableRows.length))}
-      ${metricTile("Transformation & ESG", "52% / 41% / 87%", "Women / Rural / Youth inclusion")}
-    </div>
-
-    ${
-      rows.length
-        ? ""
-        : `<div class="card">
-            <div><b>No applications yet.</b></div>
-            <div class="mutedText" style="margin-top:6px;">Use seed data to populate demo applications instantly.</div>
-            <div class="row" style="margin-top:10px;">
-              <button class="btn btnPrimary" id="btnSeedFromCorporate" type="button">Seed demo applications</button>
-            </div>
-          </div>`
-    }
-
-    <div class="card">
-      <div style="font-weight:700;">Type Distribution Snapshot</div>
-      <table class="table" style="margin-top:10px;">
-        <thead><tr><th>Type</th><th>Applications</th><th>Share</th></tr></thead>
-        <tbody>
-          <tr><td>Bursary</td><td>${bursaryRows.length}</td><td>${rows.length ? ((bursaryRows.length / rows.length) * 100).toFixed(1) : "0.0"}%</td></tr>
-          <tr><td>Learnership/Internship</td><td>${learnershipRows.length}</td><td>${rows.length ? ((learnershipRows.length / rows.length) * 100).toFixed(1) : "0.0"}%</td></tr>
-          <tr><td>Course</td><td>${courseRows.length}</td><td>${rows.length ? ((courseRows.length / rows.length) * 100).toFixed(1) : "0.0"}%</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Transformation & ESG Metrics Summary</div>
-      <div class="grid cols-3" style="margin-top:10px;">
-        <div class="card" style="padding:10px;">
-          <div class="mutedText" style="font-size:12px;">Women participation</div>
-          <div style="font-size:22px; font-weight:700;">52%</div>
-        </div>
-        <div class="card" style="padding:10px;">
-          <div class="mutedText" style="font-size:12px;">Rural representation</div>
-          <div style="font-size:22px; font-weight:700;">41%</div>
-        </div>
-        <div class="card" style="padding:10px;">
-          <div class="mutedText" style="font-size:12px;">Youth under 30</div>
-          <div style="font-size:22px; font-weight:700;">87%</div>
-        </div>
-      </div>
-    </div>
-  </div>`);
-
-  const seedButton = node.querySelector("#btnSeedFromCorporate");
-  if (seedButton) {
-    seedButton.addEventListener("click", () => {
-      seedDemoApplicationsIfEmpty();
-      render();
-    });
-  }
-
-  return shell("admin", node);
+function getCuratedBursaryListingCatalogue() {
+  const catalogue = getOpportunityCatalogue();
+  const catalogueMap = new Map(catalogue.map((opportunity) => [opportunity.id, opportunity]));
+  return CURATED_BURSARY_LISTING_OPPORTUNITIES.map((opportunity) => catalogueMap.get(opportunity.id) || opportunity);
 }
 
-// Reusable admin drawer status list keeps semantic labels while preserving existing status values.
-function getApplicantDrawerStatusOptions() {
+function getBursaryCardImageSrc(opportunity) {
+  const raw = String(opportunity?.image || opportunity?.imageUrl || opportunity?.coverImage || opportunity?.logoUrl || "").trim();
+  if (!raw) return "";
+  if (/^\/images\//i.test(raw)) return raw.replace(/^\//, "");
+  if (/^images\//i.test(raw)) return raw;
+  return `images/${raw}`;
+}
+
+function formatBursaryCardClosingDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^rolling$/i.test(raw)) return "Rolling";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toLocaleDateString("en-ZA", { day: "numeric", month: "long" });
+}
+
+function getBursaryCardBadges(opportunity, recommended) {
+  const source = Array.isArray(opportunity?.badges) ? opportunity.badges : normalizeOpportunityTags(opportunity?.tags);
+  const unique = [];
+
+  source.forEach((badge) => {
+    const label = String(badge || "").trim();
+    if (label && !unique.includes(label)) unique.push(label);
+  });
+
+  if (recommended && !unique.includes("Recommended")) unique.unshift("Recommended");
+  return unique.slice(0, 3);
+}
+
+function getOpportunityListingMeta(opportunity) {
+  const type = String(opportunity?.type || "").trim();
+  const sector = resolveOpportunitySector(opportunity) || "General";
+  const provider = String(opportunity?.provider || opportunity?.institution || "Provider to be confirmed").trim();
+  const location = String(opportunity?.location || opportunity?.province || "National").trim() || "National";
+  const focusArea = String(opportunity?.focusArea || opportunity?.studyFields || "").trim();
+  const courseSkills = normalizeOpportunityTags(opportunity?.tags).join(", ");
+  const firstRequirement = Array.isArray(opportunity?.requirements) && opportunity.requirements.length
+    ? String(opportunity.requirements[0] || "").trim()
+    : "";
+  const level = String(opportunity?.nqfLevel || "").trim();
+  const requirementsOrLevel = [level, firstRequirement].filter(Boolean).join(" • ") || "See details";
+
+  if (type === "Course") {
+    return [
+      { label: "Duration", value: String(opportunity?.duration || opportunity?.stipendOrValue || "Flexible").trim() || "Flexible" },
+      { label: "Provider", value: provider },
+      { label: "Certification", value: String(opportunity?.certificationType || "Certificate").trim() || "Certificate" },
+      { label: "Skills", value: focusArea || courseSkills || "See course details" }
+    ];
+  }
+
+  if (isLearnershipType(type)) {
+    return [
+      { label: "Stipend", value: String(opportunity?.stipendOrValue || opportunity?.fundingAmount || "Stipend varies").trim() || "Stipend varies" },
+      { label: "Province", value: location },
+      { label: "Closing date", value: formatBursaryCardClosingDate(opportunity?.closingDate) },
+      { label: "Requirements / level", value: requirementsOrLevel }
+    ];
+  }
+
   return [
-    { value: "Submitted", label: "Submitted" },
-    { value: "Under Review", label: "In review" },
-    { value: "Rejected", label: "Rejected" },
-    { value: "Accepted", label: "Funded" }
+    { label: "Sector", value: sector },
+    { label: "Value", value: String(opportunity?.fundingAmount || opportunity?.stipendOrValue || "Funding varies").trim() || "Funding varies" },
+    { label: "Closing date", value: formatBursaryCardClosingDate(opportunity?.closingDate) },
+    { label: "Focus area", value: focusArea || "See bursary details" }
   ];
 }
 
-function getApplicantStatusLabel(status) {
-  if (status === "Under Review") return "In review";
-  if (status === "Accepted") return "Funded";
-  return status || "Submitted";
+function getOpportunityListingBadges(opportunity, recommended) {
+  const source = Array.isArray(opportunity?.badges) ? opportunity.badges : normalizeOpportunityTags(opportunity?.tags);
+  const unique = [];
+
+  source.forEach((badge) => {
+    const label = String(badge || "").trim();
+    if (label && !unique.includes(label)) unique.push(label);
+  });
+
+  if (recommended && !unique.includes("Recommended")) unique.unshift("Recommended");
+  return unique.slice(0, 4);
 }
 
-// Applicant drawer document requirements align with checklist logic used across student/admin views.
-function getApplicantDocumentRows(opportunityType, studentDocuments = []) {
-  const documents = Array.isArray(studentDocuments) ? studentDocuments : [];
-  const findByCategory = (category) => documents.find((document) => document.category === category) || null;
 
-  const academicDocument =
-    ACADEMIC_DOC_CATEGORIES.map((category) => findByCategory(category)).find(Boolean) || null;
-
-  const rows = [
-    {
-      key: "id-copy",
-      label: "ID Copy",
-      required: true,
-      document: findByCategory("ID Copy")
-    },
-    {
-      key: "academic",
-      label: "Academic Document (Matric/Report OR Transcript)",
-      required: true,
-      document: academicDocument
-    }
-  ];
-
-  if (opportunityType === "Bursary") {
-    rows.push({
-      key: "proof-income",
-      label: "Proof of Income",
-      required: false,
-      document: findByCategory("Proof of Income")
-    });
-  }
-
-  return rows.map((row) => ({
-    ...row,
-    submitted: Boolean(row.document)
-  }));
-}
-
-// Reusable ApplicantDetailDrawer component for admin review workflows.
-function renderApplicantDetailDrawer(options = {}) {
-  const {
-    open = false,
-    applicantId = "",
-    context = null
-  } = options;
-
-  if (!open || !context || !context.row) {
-    return `<div class="adminApplicantDrawerOverlay" id="applicantDrawerOverlay" hidden aria-hidden="true"></div>`;
-  }
-
-  const { row, profile, documentRows } = context;
-  const safeProfile = profile && typeof profile === "object" ? profile : {};
-  const statusLabel = getApplicantStatusLabel(row.application.status);
-  const statusBadgeClass =
-    row.application.status === "Rejected"
-      ? "badge badgeOrange"
-      : row.application.status === "Accepted"
-        ? "badge badgeGreen"
-        : "badge badgeBlue";
-  const appliedDate = formatDate(row.application.createdAt);
-  const interests = Array.isArray(safeProfile.interests) && safeProfile.interests.length
-    ? safeProfile.interests.join(", ")
-    : "No interests captured";
-  const timelineEntries = [
-    { label: "Applied", value: appliedDate },
-    { label: "Current status", value: statusLabel },
-    { label: "Shortlisted", value: row.meta.shortlisted ? "Yes" : "No" },
-    { label: "Interviewed", value: row.meta.interviewed ? "Yes" : "No" },
-    { label: "Funded", value: row.meta.funded ? "Yes" : "No" },
-    { label: "Graduated", value: row.meta.graduated ? "Yes" : "No" }
-  ];
-
-  if (row.meta.fundedAt) {
-    timelineEntries.push({ label: "Funded date", value: formatDate(row.meta.fundedAt) });
-  }
-
-  const statusOptions = getApplicantDrawerStatusOptions();
-  const tagButton = (key, label, active) =>
-    `<button type="button" class="tab adminDrawerActionBtn ${active ? "active" : ""}" data-drawer-tag-appid="${row.application.id}" data-drawer-tag-key="${key}" data-drawer-tag-active="${active ? "1" : "0"}">${label}</button>`;
-
-  return `<div class="adminApplicantDrawerOverlay open" id="applicantDrawerOverlay" aria-hidden="false">
-    <section class="adminApplicantDrawerPanel application-view" id="applicantDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="applicantDrawerTitle" tabindex="-1" data-page="application-view" data-applicant-id="${escapeHtml(applicantId)}">
-      <header class="adminApplicantDrawerHeader">
-        <div class="adminApplicantHeaderIdentity">
-          ${renderUserAvatar(row.student, "avatarMd")}
-          <div style="min-width:0;">
-            <h3 id="applicantDrawerTitle">${escapeHtml(getUserDisplayName(row.student))}</h3>
-            <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(row.student?.email || "-")}</div>
-            <div class="mutedText" style="font-size:12px; margin-top:2px;">Applied: ${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</div>
-          </div>
-        </div>
-        <div class="adminApplicantHeaderActions">
-          <span class="${statusBadgeClass}">${escapeHtml(statusLabel)}</span>
-          <button type="button" class="btn btnGhost adminApplicantDrawerClose" id="closeApplicantDrawerBtn" aria-label="Close applicant details">Close</button>
-        </div>
-      </header>
-
-      <div class="adminApplicantDrawerBody">
-        <section class="card adminApplicantSection">
-          <div class="adminApplicantSectionTitle">Applicant summary</div>
-          <div class="adminApplicantInfoGrid">
-            <div><span>Age</span><b>${escapeHtml(safeProfile.age || "-")}</b></div>
-            <div><span>Province</span><b>${escapeHtml(safeProfile.province || "-")}</b></div>
-            <div><span>Education level</span><b>${escapeHtml(safeProfile.educationLevel || "-")}</b></div>
-            <div><span>Interests</span><b>${escapeHtml(interests)}</b></div>
-          </div>
-          <div class="adminApplicantScoreRow">
-            <div class="adminApplicantScoreLead">AI score: <b>${row.score.score}</b></div>
-            <ul class="adminApplicantInsightList">
-              ${row.score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
-            </ul>
-          </div>
-        </section>
-
-        <section class="card adminApplicantSection">
-          <div class="adminApplicantSectionTitle">Documents</div>
-          <div class="adminApplicantDocList">
-            ${documentRows
-              .map((item) => {
-                const doc = item.document;
-                const statusText = item.submitted ? "✅ Submitted" : "❌ Missing";
-                const statusClass = item.submitted ? "is-submitted" : "is-missing";
-                return `<article class="adminApplicantDocRow">
-                  <div>
-                    <div class="adminApplicantDocName">${escapeHtml(item.label)} ${item.required ? `<span class="mutedText" style="font-size:11px;">(Required)</span>` : `<span class="mutedText" style="font-size:11px;">(Optional)</span>`}</div>
-                    <div class="mutedText" style="font-size:12px; margin-top:3px;">${doc ? escapeHtml(doc.filename || doc.category) : "No file uploaded"}</div>
-                  </div>
-                  <div class="adminApplicantDocActions">
-                    <span class="adminApplicantDocStatus ${statusClass}">${statusText}</span>
-                    <button type="button" class="btn btnGhost adminApplicantMiniBtn" data-drawer-doc-preview="${doc ? doc.id : ""}" ${doc ? "" : "disabled"}>Preview</button>
-                    <button type="button" class="btn btnGhost adminApplicantMiniBtn" data-drawer-doc-download="${doc ? doc.id : ""}" ${doc ? "" : "disabled"}>Download</button>
-                  </div>
-                </article>`;
-              })
-              .join("")}
-          </div>
-        </section>
-
-        <section class="card adminApplicantSection">
-          <div class="adminApplicantSectionTitle">Application info</div>
-          <div class="adminApplicantInfoGrid">
-            <div><span>Opportunity</span><b>${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</b></div>
-            <div><span>Submission date</span><b>${escapeHtml(appliedDate)}</b></div>
-            <div><span>Status</span><b>${escapeHtml(statusLabel)}</b></div>
-            <div><span>Eligibility result</span><b>${row.eligibility.pass ? "Pass" : "Fail"}</b></div>
-          </div>
-          <div class="adminApplicantNotes">
-            <label class="adminApplicantNotesLabel" for="drawerNotesField"><b>Notes</b></label>
-            <textarea id="drawerNotesField" class="adminApplicantNotesField" rows="4" placeholder="Add internal notes for this applicant...">${escapeHtml(row.eligibility.reasons[0] || "")}</textarea>
-          </div>
-        </section>
-
-        <section class="card adminApplicantSection">
-          <div class="adminApplicantSectionTitle">Eligibility + AI insights</div>
-          <div class="row" style="justify-content:space-between; align-items:flex-start;">
-            <span class="badge ${row.eligibility.pass ? "badgeGreen" : "badgeOrange"}">${row.eligibility.pass ? "Eligibility: Pass" : "Eligibility: Fail"}</span>
-            <span class="badge badgeBlue">AI score: ${row.score.score}</span>
-          </div>
-          <ul class="adminApplicantInsightList" style="margin-top:8px;">
-            ${row.eligibility.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
-            ${row.score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("")}
-          </ul>
-        </section>
-
-        <section class="card adminApplicantSection">
-          <div class="adminApplicantSectionTitle">Application timeline</div>
-          <div class="adminApplicantTimeline">
-            ${timelineEntries
-              .map(
-                (entry) => `<div class="adminApplicantTimelineRow">
-                  <span>${escapeHtml(entry.label)}</span>
-                  <b>${escapeHtml(entry.value)}</b>
-                </div>`
-              )
-              .join("")}
-          </div>
-        </section>
-      </div>
-
-      <footer class="adminApplicantDrawerFooter">
-        <div class="adminApplicantFooterActions">
-          ${tagButton("shortlisted", "Tag shortlisted", row.meta.shortlisted)}
-          ${tagButton("interviewed", "Tag interviewed", row.meta.interviewed)}
-          ${tagButton("funded", "Tag funded", row.meta.funded)}
-          ${tagButton("graduated", "Mark graduated", row.meta.graduated)}
-        </div>
-        <div class="adminApplicantFooterStatus">
-          <label for="drawerStatusSelect"><b>Change status</b></label>
-          <select class="input select" id="drawerStatusSelect" data-drawer-status-appid="${row.application.id}">
-            ${statusOptions
-              .map(
-                (option) => `<option value="${option.value}" ${row.application.status === option.value ? "selected" : ""}>${option.label}</option>`
-              )
-              .join("")}
-          </select>
-        </div>
-        <div class="adminApplicantFooterBottom">
-          <button type="button" class="btn btnGhost" data-close-applicant-drawer="true">Close</button>
-        </div>
-      </footer>
-    </section>
-  </div>`;
-}
-
-// Admin bursary management page render (config, candidate review table, exports, tagging).
-function pageAdminBursaries() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const config = store.bursaryConfig;
-  let drawerOpen = false;
-  let drawerApplicationId = "";
-  let drawerFocusCleanup = () => {};
-  let drawerPageScrollY = 0;
-  let drawerBodyOverflowBefore = "";
-  let drawerBodyLocked = false;
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Bursary Application Management</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Configure rules, review candidates, tag pipeline stages, and export data.</p>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Custom Branded Bursary Portal (Demo)</div>
-      <form id="configForm" class="grid" style="margin-top:10px;">
-        <div class="grid cols-2">
-          <div class="field">
-            <label><b>Brand name</b></label>
-            <input id="brandName" class="input" value="${escapeHtml(config.brandName || "")}" />
-          </div>
-          <div class="field">
-            <label><b>Logo placeholder</b></label>
-            <div class="placeholder" style="height:60px;"></div>
-          </div>
-        </div>
-
-        <div style="font-weight:700; margin-top:6px;">Eligibility Rules Configuration</div>
-        <div class="grid cols-3">
-          <div class="field">
-            <label><b>Minimum age</b></label>
-            <input id="ruleMinAge" class="input" type="number" min="0" value="${escapeHtml(config.eligibility.minAge || "")}" />
-          </div>
-          <div class="field">
-            <label><b>Province filter</b></label>
-            <select id="ruleProvince" class="input select">
-              <option value="">Any province</option>
-              ${PROVINCES.map(
-                (province) => `<option ${config.eligibility.province === province ? "selected" : ""} value="${province}">${province}</option>`
-              ).join("")}
-            </select>
-          </div>
-          <div class="field">
-            <label><b>Scoring target province</b></label>
-            <select id="targetProvince" class="input select">
-              <option value="">No target province</option>
-              ${PROVINCES.map(
-                (province) => `<option ${config.targetProvince === province ? "selected" : ""} value="${province}">${province}</option>`
-              ).join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="field">
-          <label><b>Required interest(s)</b></label>
-          <div class="grid cols-3">
-            ${INTERESTS.map((interest) => {
-              const checked = config.eligibility.requiredInterests.includes(interest) ? "checked" : "";
-              return `<label class="card" style="padding:8px; display:flex; gap:8px; align-items:center;">
-                <input type="checkbox" data-required-interest="${interest}" ${checked} /> ${interest}
-              </label>`;
-            }).join("")}
-          </div>
-        </div>
-
-        <div class="row">
-          <button class="btn btnPrimary" type="submit">Save portal + rule configuration</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:flex-end;">
-        <div>
-          <div style="font-weight:700;">Bulk Application Export</div>
-          <div class="mutedText" style="font-size:12px; margin-top:4px;">Export the currently filtered list.</div>
-        </div>
-        <div class="row">
-          <input id="filterQuery" class="input" placeholder="Filter by student, opportunity, email" style="min-width:220px;" />
-          <select id="typeFilter" class="input select" style="min-width:220px;">
-            <option value="Bursary">Bursary (Default)</option>
-            <option value="all">All opportunity types</option>
-            <option value="Learnership/Internship">Learnerships/Internships</option>
-            <option value="Course">Courses</option>
-          </select>
-          <button type="button" class="btn btnGhost" id="btnSeedApplications">Seed demo applications</button>
-          <button type="button" class="btn btnGhost" id="btnExportCsv">Export CSV</button>
-          <button type="button" class="btn btnGhost" id="btnExportPdf">Export PDF</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Bursary Applications</div>
-      <div class="mutedText" style="margin-top:4px;">Automated document collection, eligibility labels, AI score, shortlist/interview/funded/graduated tagging.</div>
-      <div id="candidateTableWrap" style="margin-top:12px;"></div>
-    </div>
-
-    <div id="pdfModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.25); align-items:center; justify-content:center; padding:16px;">
-      <div class="card" style="max-width:460px; width:100%;">
-        <div style="font-weight:700;">PDF Export (Demo)</div>
-        <div class="mutedText" style="margin-top:8px;">PDF export will be enabled in the full production build.</div>
-        <div class="row" style="margin-top:14px; justify-content:flex-end;">
-          <button type="button" class="btn btnPrimary" id="btnClosePdfModal">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="applicantDrawerMount"></div>
-  </div>`);
-
-  function clearDrawerFocusTrap() {
-    if (typeof drawerFocusCleanup === "function") {
-      drawerFocusCleanup();
-    }
-    drawerFocusCleanup = () => {};
-  }
-
-  function lockDrawerBackgroundScroll() {
-    if (drawerBodyLocked) return;
-    drawerPageScrollY = window.scrollY;
-    drawerBodyOverflowBefore = document.body.style.overflow || "";
-    document.body.style.overflow = "hidden";
-    drawerBodyLocked = true;
-  }
-
-  function unlockDrawerBackgroundScroll() {
-    if (!drawerBodyLocked) return;
-    document.body.style.overflow = drawerBodyOverflowBefore;
-    drawerBodyLocked = false;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: drawerPageScrollY, behavior: "auto" });
-    });
-  }
-
-  function getFilteredRows() {
-    const query = (node.querySelector("#filterQuery").value || "").trim().toLowerCase();
-    const typeFilter = node.querySelector("#typeFilter").value || "Bursary";
-    const rows = buildApplicationRows(typeFilter);
-
-    if (!query) return rows;
-
-    return rows.filter((row) => {
-      const text = [
-        getUserDisplayName(row.student),
-        row.student?.email || "",
-        row.opportunity?.title || "",
-        row.opportunityType || "",
-        row.student?.profile?.educationLevel || ""
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return text.includes(query);
-    });
-  }
-
-  function getDrawerContext(applicationId) {
-    if (!applicationId) return null;
-
-    const activeTypeFilter = node.querySelector("#typeFilter")?.value || "Bursary";
-    let row = buildApplicationRows(activeTypeFilter).find((entry) => entry.application.id === applicationId) || null;
-
-    if (!row) {
-      row = buildApplicationRows("all").find((entry) => entry.application.id === applicationId) || null;
-    }
-
-    if (!row) return null;
-
-    const profile = getUserProfile(row.student) || {};
-    const documents = getStudentDocuments(row.application.studentId);
-    const documentRows = getApplicantDocumentRows(row.opportunityType, documents);
-
+function getOpportunityListingPrimaryAction(opportunity, options = {}) {
+  if (options.action && options.action.href) {
     return {
-      row,
-      profile,
-      documents,
-      documentRows
+      label: String(options.action.label || "Apply").trim() || "Apply",
+      href: String(options.action.href || `#/student/apply/${opportunity.id}`).trim() || `#/student/apply/${opportunity.id}`
     };
   }
 
-  function triggerDrawerDocumentDownload(docMeta) {
-    if (!docMeta) return;
-
-    const filename = String(docMeta.filename || `${docMeta.category || "document"}.txt`);
-
-    if (docMeta.previewDataUrl) {
-      const anchor = document.createElement("a");
-      anchor.href = docMeta.previewDataUrl;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      return;
-    }
-
-    const fallbackContent = [
-      `Demo document placeholder for ${filename}`,
-      `Category: ${docMeta.category || "Unknown"}`,
-      `Uploaded: ${formatDate(docMeta.uploadedAt || new Date().toISOString())}`,
-      "Original binary file is not stored in this demo build."
-    ].join("\n");
-
-    const blob = new Blob([fallbackContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${filename.replace(/\.[^.]+$/, "") || "document"}-metadata.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  }
-
-  function openDrawerDocumentPreview(docMeta) {
-    if (!docMeta) return;
-
-    if (docMeta.previewDataUrl) {
-      window.open(docMeta.previewDataUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    triggerDrawerDocumentDownload(docMeta);
-  }
-
-  function closeApplicantDrawer() {
-    drawerOpen = false;
-    drawerApplicationId = "";
-    unlockDrawerBackgroundScroll();
-    renderApplicantDrawer();
-  }
-
-  function openApplicantDrawer(applicationId) {
-    if (!applicationId) return;
-    drawerOpen = true;
-    drawerApplicationId = applicationId;
-    lockDrawerBackgroundScroll();
-    renderApplicantDrawer();
-  }
-
-  function renderApplicantDrawer() {
-    const mount = node.querySelector("#applicantDrawerMount");
-    if (!mount) return;
-
-    clearDrawerFocusTrap();
-
-    const context = drawerOpen ? getDrawerContext(drawerApplicationId) : null;
-    const canRender = drawerOpen && Boolean(context);
-
-    if (drawerOpen && !context) {
-      drawerOpen = false;
-      drawerApplicationId = "";
-      unlockDrawerBackgroundScroll();
-    }
-
-    mount.innerHTML = renderApplicantDetailDrawer({
-      open: canRender,
-      applicantId: drawerApplicationId,
-      context
-    });
-
-    if (!canRender) return;
-
-    const overlay = mount.querySelector("#applicantDrawerOverlay");
-    const panel = mount.querySelector("#applicantDrawerPanel");
-    const closeButton = mount.querySelector("#closeApplicantDrawerBtn");
-
-    if (overlay) {
-      overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) closeApplicantDrawer();
-      });
-    }
-
-    if (closeButton) {
-      closeButton.addEventListener("click", closeApplicantDrawer);
-    }
-
-    mount.querySelectorAll("[data-close-applicant-drawer]").forEach((button) => {
-      button.addEventListener("click", closeApplicantDrawer);
-    });
-
-    mount.querySelectorAll("button[data-drawer-doc-preview]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const documentId = button.getAttribute("data-drawer-doc-preview");
-        const docMeta = context.documents.find((item) => item.id === documentId);
-        openDrawerDocumentPreview(docMeta);
-      });
-    });
-
-    mount.querySelectorAll("button[data-drawer-doc-download]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const documentId = button.getAttribute("data-drawer-doc-download");
-        const docMeta = context.documents.find((item) => item.id === documentId);
-        triggerDrawerDocumentDownload(docMeta);
-      });
-    });
-
-    mount.querySelectorAll("button[data-drawer-tag-appid]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const appId = button.getAttribute("data-drawer-tag-appid");
-        const key = button.getAttribute("data-drawer-tag-key");
-        const active = button.getAttribute("data-drawer-tag-active") === "1";
-        updateApplicationMeta(appId, { [key]: !active });
-        renderCandidateTable();
-        renderApplicantDrawer();
-      });
-    });
-
-    mount.querySelectorAll("select[data-drawer-status-appid]").forEach((select) => {
-      select.addEventListener("change", () => {
-        const appId = select.getAttribute("data-drawer-status-appid");
-        updateStatus(appId, select.value);
-        renderCandidateTable();
-        renderApplicantDrawer();
-      });
-    });
-
-    drawerFocusCleanup = activateDialogFocusTrap(panel, closeApplicantDrawer, closeButton || panel);
-  }
-
-  function renderCandidateTable() {
-    const rows = getFilteredRows();
-    const completeDocsCount = rows.filter((row) => row.checklist.complete).length;
-
-    const wrap = node.querySelector("#candidateTableWrap");
-
-    if (!rows.length) {
-      wrap.innerHTML = `<div class="mutedText">No applications match the current filter.</div>`;
-      return;
-    }
-
-    wrap.innerHTML = `
-      <div class="card" style="padding:10px; margin-bottom:10px;">
-        <b>Automated Document Collection</b>
-        <div class="mutedText" style="font-size:12px; margin-top:6px;">${completeDocsCount} / ${rows.length} applicant(s) currently have complete required documents.</div>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Applicant</th>
-              <th>Type</th>
-              <th>Eligibility</th>
-              <th>Documents</th>
-              <th>AI Score</th>
-              <th>Pipeline Tags</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map((row) => {
-                const appId = row.application.id;
-                const tagButton = (key, label, active) =>
-                  `<button type="button" class="tab ${active ? "active" : ""}" data-tag-appid="${appId}" data-tag-key="${key}" data-tag-active="${active ? "1" : "0"}">${label}</button>`;
-
-                return `<tr class="adminApplicantRowClickable" tabindex="0" role="button" aria-haspopup="dialog" data-view-appid="${appId}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
-                  <td>
-                    <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
-                      ${renderUserAvatar(row.student, "avatarSm")}
-                      <div style="min-width:0;">
-                        <div><b>${escapeHtml(getUserDisplayName(row.student))}</b></div>
-                        <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(row.student?.email || "-")}</div>
-                      </div>
-                    </div>
-                    <div style="margin-top:6px; font-size:12px;">${escapeHtml(row.opportunity?.title || "Unknown opportunity")}</div>
-                  </td>
-                  <td><span class="badge ${row.opportunityType === "Bursary" ? "badgePurple" : row.opportunityType === "Course" ? "badgeBlue" : "badgeBlue"}">${escapeHtml(row.opportunityType)}</span></td>
-                  <td>
-                    <div><span class="badge ${row.eligibility.pass ? "badgeGreen" : "badgeOrange"}">${row.eligibility.pass ? "Pass" : "Fail"}</span></div>
-                    <div class="mutedText" style="font-size:12px; margin-top:6px;">${escapeHtml(row.eligibility.reasons[0] || "")}</div>
-                  </td>
-                  <td>
-                    <div>ID Copy: <b>${row.checklist.hasIdCopy ? "Yes" : "No"}</b></div>
-                    <div>Academic: <b>${row.checklist.hasAcademic ? "Yes" : "No"}</b></div>
-                    <div style="margin-top:6px;"><span class="badge ${row.checklist.complete ? "badgeGreen" : "badgeOrange"}">${row.checklist.complete ? "Complete" : "Incomplete"}</span></div>
-                  </td>
-                  <td>
-                    <div style="font-size:20px; font-weight:700;">${row.score.score}</div>
-                    <ul style="margin:6px 0 0 16px; padding:0;">
-                      ${row.score.reasons
-                        .map((reason) => `<li class="mutedText" style="font-size:12px;">${escapeHtml(reason)}</li>`)
-                        .join("")}
-                    </ul>
-                  </td>
-                  <td>
-                    <div class="tabs" style="flex-wrap:wrap;">
-                      ${tagButton("shortlisted", "Tag Shortlist", row.meta.shortlisted)}
-                      ${tagButton("interviewed", "Tag Interviewed", row.meta.interviewed)}
-                      ${tagButton("funded", "Tag Funded", row.meta.funded)}
-                      ${tagButton("graduated", "Mark Graduated", row.meta.graduated)}
-                    </div>
-                  </td>
-                  <td>
-                    <select class="input select" data-status-appid="${appId}" style="padding:6px;">
-                      ${STATUSES.map(
-                        (status) => `<option ${row.application.status === status ? "selected" : ""} value="${status}">${status}</option>`
-                      ).join("")}
-                    </select>
-                  </td>
-                </tr>`;
-              })
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-    `;
-
-    wrap.querySelectorAll("button[data-tag-appid]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const appId = button.getAttribute("data-tag-appid");
-        const key = button.getAttribute("data-tag-key");
-        const active = button.getAttribute("data-tag-active") === "1";
-        updateApplicationMeta(appId, { [key]: !active });
-        renderCandidateTable();
-        renderApplicantDrawer();
-      });
-    });
-
-    wrap.querySelectorAll("select[data-status-appid]").forEach((select) => {
-      select.addEventListener("click", (event) => {
-        event.stopPropagation();
-      });
-      select.addEventListener("change", () => {
-        const appId = select.getAttribute("data-status-appid");
-        updateStatus(appId, select.value);
-        renderCandidateTable();
-        renderApplicantDrawer();
-      });
-    });
-
-    wrap.querySelectorAll("tr.adminApplicantRowClickable").forEach((rowElement) => {
-      rowElement.addEventListener("click", (event) => {
-        if (event.target.closest("button, a, select, input, label")) return;
-        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
-      });
-
-      rowElement.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
-      });
-    });
-  }
-
-  node.querySelector("#configForm").onsubmit = (event) => {
-    event.preventDefault();
-
-    const requiredInterests = Array.from(node.querySelectorAll("input[data-required-interest]:checked")).map((input) =>
-      input.getAttribute("data-required-interest")
-    );
-
-    store.bursaryConfig = {
-      ...store.bursaryConfig,
-      brandName: node.querySelector("#brandName").value.trim(),
-      targetProvince: node.querySelector("#targetProvince").value,
-      eligibility: {
-        minAge: node.querySelector("#ruleMinAge").value,
-        province: node.querySelector("#ruleProvince").value,
-        requiredInterests
-      }
-    };
-
-    saveStore(store);
-    render();
-  };
-
-  node.querySelector("#filterQuery").addEventListener("input", () => {
-    renderCandidateTable();
-    renderApplicantDrawer();
-  });
-
-  node.querySelector("#typeFilter").addEventListener("change", () => {
-    renderCandidateTable();
-    renderApplicantDrawer();
-  });
-
-  node.querySelector("#btnSeedApplications").addEventListener("click", () => {
-    seedDemoApplicationsIfEmpty();
-    render();
-  });
-
-  node.querySelector("#btnExportCsv").addEventListener("click", () => {
-    const rows = getFilteredRows();
-
-    const csvRows = rows.map((row) => ({
-      applicationId: row.application.id,
-      studentName: getUserDisplayName(row.student),
-      studentEmail: row.student?.email || "",
-      opportunityTitle: row.opportunity?.title || "",
-      opportunityType: row.opportunityType || "",
-      applicationStatus: row.application.status,
-      eligibility: row.eligibility.pass ? "Pass" : "Fail",
-      documentsComplete: row.checklist.complete ? "Yes" : "No",
-      aiScore: row.score.score,
-      shortlisted: row.meta.shortlisted ? "Yes" : "No",
-      interviewed: row.meta.interviewed ? "Yes" : "No",
-      funded: row.meta.funded ? "Yes" : "No",
-      graduated: row.meta.graduated ? "Yes" : "No"
-    }));
-
-    downloadCsv("applications-export.csv", csvRows);
-  });
-
-  const pdfModal = node.querySelector("#pdfModal");
-  node.querySelector("#btnExportPdf").addEventListener("click", () => {
-    pdfModal.style.display = "flex";
-  });
-  node.querySelector("#btnClosePdfModal").addEventListener("click", () => {
-    pdfModal.style.display = "none";
-  });
-
-  renderCandidateTable();
-  renderApplicantDrawer();
-
-  return shell("admin", node);
-}
-
-// Admin funded-student lifecycle tracking page render and related upload/save events.
-function pageAdminLifecycle() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const fundedRows = buildApplicationRows().filter((row) => row.meta.funded);
-
-  const counts = {
-    "On Track": 0,
-    "At Risk": 0,
-    Critical: 0
-  };
-
-  fundedRows.forEach((row) => {
-    const progress = row.lifecycle.progress || "On Track";
-    counts[progress] = (counts[progress] || 0) + 1;
-  });
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Funded Student Lifecycle Tracking</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Monitor funded students, semester uploads, risk alerts, and disbursements.</p>
-    </div>
-
-    <div class="grid cols-3">
-      ${metricTile("On Track", String(counts["On Track"] || 0))}
-      ${metricTile("At Risk", String(counts["At Risk"] || 0))}
-      ${metricTile("Critical", String(counts.Critical || 0))}
-    </div>
-
-    <div class="card">
-      ${fundedRows.length
-        ? `<div style="overflow-x:auto;">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Academic Progress</th>
-                  <th>Semester Result Upload</th>
-                  <th>Dropout Risk Alert</th>
-                  <th>Funding Disbursement</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${fundedRows
-                  .map((row) => {
-                    const lifecycle = row.lifecycle;
-                    const uploads = Array.isArray(lifecycle.resultUploads) ? lifecycle.resultUploads : [];
-                    const latestUpload = uploads[0];
-                    const risk = ["At Risk", "Critical"].includes(lifecycle.progress || "On Track");
-
-                    return `<tr>
-                      <td>
-                        <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
-                          ${renderUserAvatar(row.student, "avatarSm")}
-                          <div><b>${escapeHtml(getUserDisplayName(row.student))}</b></div>
-                        </div>
-                        <div class="mutedText" style="font-size:12px;">${escapeHtml(row.opportunity?.title || "")}</div>
-                      </td>
-                      <td>
-                        <select class="input select" data-lifecycle-progress="${row.application.id}" style="padding:6px;">
-                          ${LIFECYCLE_PROGRESS.map(
-                            (progress) => `<option ${(lifecycle.progress || "On Track") === progress ? "selected" : ""} value="${progress}">${progress}</option>`
-                          ).join("")}
-                        </select>
-                      </td>
-                      <td>
-                        <input class="input" type="file" data-lifecycle-upload="${row.application.id}" accept=".png,.jpg,.jpeg,.pdf" style="padding:6px;" />
-                        <div class="mutedText" style="font-size:12px; margin-top:6px;">${uploads.length} file(s)</div>
-                        <div class="mutedText" style="font-size:12px;">${latestUpload ? escapeHtml(latestUpload.filename) : "No uploads yet"}</div>
-                      </td>
-                      <td>
-                        <span class="badge ${risk ? "badgeOrange" : "badgeGreen"}">${risk ? `${lifecycle.progress} alert` : "No alert"}</span>
-                      </td>
-                      <td>
-                        <div class="field" style="margin:0;">
-                          <label style="font-size:12px;"><b>Last paid date</b></label>
-                          <input type="date" class="input" data-lifecycle-date="${row.application.id}" value="${escapeHtml(lifecycle.lastPaidDate || "")}" style="padding:6px;" />
-                        </div>
-                        <div class="field" style="margin-top:6px;">
-                          <label style="font-size:12px;"><b>Amount</b></label>
-                          <input type="number" class="input" data-lifecycle-amount="${row.application.id}" value="${escapeHtml(lifecycle.amount || "")}" style="padding:6px;" />
-                        </div>
-                        <button type="button" class="btn btnGhost" data-lifecycle-save="${row.application.id}" style="padding:6px 10px; margin-top:6px;">Save</button>
-                      </td>
-                    </tr>`;
-                  })
-                  .join("")}
-              </tbody>
-            </table>
-          </div>`
-        : `<div class="mutedText">No funded students yet. Tag funded candidates in Bursaries first.</div>`}
-    </div>
-  </div>`);
-
-  node.querySelectorAll("select[data-lifecycle-progress]").forEach((select) => {
-    select.addEventListener("change", () => {
-      const appId = select.getAttribute("data-lifecycle-progress");
-      updateLifecycleEntry(appId, { progress: select.value });
-      render();
-    });
-  });
-
-  node.querySelectorAll("input[data-lifecycle-upload]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const appId = input.getAttribute("data-lifecycle-upload");
-      const file = input.files && input.files[0];
-      if (!file) return;
-
-      const validationError = validateUploadFile(file);
-      if (validationError) {
-        alert(validationError);
-        return;
-      }
-
-      addLifecycleResultUpload(appId, {
-        id: uid("result"),
-        filename: file.name,
-        fileType: inferFileType(file),
-        size: file.size,
-        uploadedAt: new Date().toISOString()
-      });
-
-      render();
-    });
-  });
-
-  node.querySelectorAll("button[data-lifecycle-save]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const appId = button.getAttribute("data-lifecycle-save");
-      const dateInput = node.querySelector(`input[data-lifecycle-date="${appId}"]`);
-      const amountInput = node.querySelector(`input[data-lifecycle-amount="${appId}"]`);
-
-      updateLifecycleEntry(appId, {
-        lastPaidDate: dateInput?.value || "",
-        amount: amountInput?.value || ""
-      });
-
-      render();
-    });
-  });
-
-  return shell("admin", node);
-}
-
-// Admin talent pipeline page render (search/filter, placement tracker, forecast tiles).
-function pageAdminTalent() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Talent Pipeline & Workforce Planning</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Search by trade/qualification, filter by location, track placement readiness.</p>
-    </div>
-
-    <div class="card">
-      <div class="row">
-        <input id="talentQuery" class="input" placeholder="Search by qualification or trade" style="min-width:260px;" />
-        <select id="talentProvince" class="input select" style="min-width:220px;">
-          <option value="">All provinces</option>
-          ${PROVINCES.map((province) => `<option value="${province}">${province}</option>`).join("")}
-        </select>
-      </div>
-      <div id="talentTableWrap" style="margin-top:12px;"></div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Workplace Placement Tracker (Graduates)</div>
-      <div id="placementTableWrap" style="margin-top:10px;"></div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Graduate Availability Forecast</div>
-      <div id="forecastWrap" class="grid cols-3" style="margin-top:10px;"></div>
-    </div>
-
-    <div id="talentApplicantDrawerMount"></div>
-  </div>`);
-
-  let drawerOpen = false;
-  let drawerApplicationId = "";
-  let drawerFocusCleanup = () => {};
-  let drawerPageScrollY = 0;
-  let drawerBodyOverflowBefore = "";
-  let drawerBodyLocked = false;
-
-  function clearDrawerFocusTrap() {
-    if (typeof drawerFocusCleanup === "function") {
-      drawerFocusCleanup();
-    }
-    drawerFocusCleanup = () => {};
-  }
-
-  function lockDrawerBackgroundScroll() {
-    if (drawerBodyLocked) return;
-    drawerPageScrollY = window.scrollY;
-    drawerBodyOverflowBefore = document.body.style.overflow || "";
-    document.body.style.overflow = "hidden";
-    drawerBodyLocked = true;
-  }
-
-  function unlockDrawerBackgroundScroll() {
-    if (!drawerBodyLocked) return;
-    document.body.style.overflow = drawerBodyOverflowBefore;
-    drawerBodyLocked = false;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: drawerPageScrollY, behavior: "auto" });
-    });
-  }
-
-  function getFilteredTalentRows() {
-    const query = (node.querySelector("#talentQuery").value || "").trim().toLowerCase();
-    const provinceFilter = node.querySelector("#talentProvince").value;
-    const allRows = buildApplicationRows();
-
-    return allRows.filter((row) => {
-      const profile = row.student?.profile;
-      const searchableText = `${row.opportunity?.title || ""} ${profile?.educationLevel || ""}`.toLowerCase();
-      const matchesQuery = !query || searchableText.includes(query);
-      const matchesProvince = !provinceFilter || (profile?.province || "") === provinceFilter;
-      return matchesQuery && matchesProvince;
-    });
-  }
-
-  function getTalentDrawerContext(applicationId) {
-    if (!applicationId) return null;
-    const row = buildApplicationRows("all").find((entry) => entry.application.id === applicationId) || null;
-    if (!row) return null;
-
-    const profile = getUserProfile(row.student) || {};
-    const documents = getStudentDocuments(row.application.studentId);
-    const documentRows = getApplicantDocumentRows(row.opportunityType, documents);
-
-    return {
-      row,
-      profile,
-      documents,
-      documentRows
-    };
-  }
-
-  function triggerDrawerDocumentDownload(docMeta) {
-    if (!docMeta) return;
-
-    const filename = String(docMeta.filename || `${docMeta.category || "document"}.txt`);
-
-    if (docMeta.previewDataUrl) {
-      const anchor = document.createElement("a");
-      anchor.href = docMeta.previewDataUrl;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      return;
-    }
-
-    const fallbackContent = [
-      `Demo document placeholder for ${filename}`,
-      `Category: ${docMeta.category || "Unknown"}`,
-      `Uploaded: ${formatDate(docMeta.uploadedAt || new Date().toISOString())}`,
-      "Original binary file is not stored in this demo build."
-    ].join("\n");
-
-    const blob = new Blob([fallbackContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${filename.replace(/\.[^.]+$/, "") || "document"}-metadata.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  }
-
-  function openDrawerDocumentPreview(docMeta) {
-    if (!docMeta) return;
-
-    if (docMeta.previewDataUrl) {
-      window.open(docMeta.previewDataUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    triggerDrawerDocumentDownload(docMeta);
-  }
-
-  function closeApplicantDrawer() {
-    drawerOpen = false;
-    drawerApplicationId = "";
-    unlockDrawerBackgroundScroll();
-    renderApplicantDrawer();
-  }
-
-  function openApplicantDrawer(applicationId) {
-    if (!applicationId) return;
-    drawerOpen = true;
-    drawerApplicationId = applicationId;
-    lockDrawerBackgroundScroll();
-    renderApplicantDrawer();
-  }
-
-  function renderApplicantDrawer() {
-    const mount = node.querySelector("#talentApplicantDrawerMount");
-    if (!mount) return;
-
-    clearDrawerFocusTrap();
-
-    const context = drawerOpen ? getTalentDrawerContext(drawerApplicationId) : null;
-    const canRender = drawerOpen && Boolean(context);
-
-    if (drawerOpen && !context) {
-      drawerOpen = false;
-      drawerApplicationId = "";
-      unlockDrawerBackgroundScroll();
-    }
-
-    mount.innerHTML = renderApplicantDetailDrawer({
-      open: canRender,
-      applicantId: drawerApplicationId,
-      context
-    });
-
-    if (!canRender) return;
-
-    const overlay = mount.querySelector("#applicantDrawerOverlay");
-    const panel = mount.querySelector("#applicantDrawerPanel");
-    const closeButton = mount.querySelector("#closeApplicantDrawerBtn");
-
-    if (overlay) {
-      overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) closeApplicantDrawer();
-      });
-    }
-
-    if (closeButton) {
-      closeButton.addEventListener("click", closeApplicantDrawer);
-    }
-
-    mount.querySelectorAll("[data-close-applicant-drawer]").forEach((button) => {
-      button.addEventListener("click", closeApplicantDrawer);
-    });
-
-    mount.querySelectorAll("button[data-drawer-doc-preview]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const documentId = button.getAttribute("data-drawer-doc-preview");
-        const docMeta = context.documents.find((item) => item.id === documentId);
-        openDrawerDocumentPreview(docMeta);
-      });
-    });
-
-    mount.querySelectorAll("button[data-drawer-doc-download]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const documentId = button.getAttribute("data-drawer-doc-download");
-        const docMeta = context.documents.find((item) => item.id === documentId);
-        triggerDrawerDocumentDownload(docMeta);
-      });
-    });
-
-    mount.querySelectorAll("button[data-drawer-tag-appid]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const appId = button.getAttribute("data-drawer-tag-appid");
-        const key = button.getAttribute("data-drawer-tag-key");
-        const active = button.getAttribute("data-drawer-tag-active") === "1";
-        updateApplicationMeta(appId, { [key]: !active });
-        renderTalentTable();
-        renderPlacementTracker();
-        renderForecast();
-        renderApplicantDrawer();
-      });
-    });
-
-    mount.querySelectorAll("select[data-drawer-status-appid]").forEach((select) => {
-      select.addEventListener("change", () => {
-        const appId = select.getAttribute("data-drawer-status-appid");
-        updateStatus(appId, select.value);
-        renderTalentTable();
-        renderPlacementTracker();
-        renderForecast();
-        renderApplicantDrawer();
-      });
-    });
-
-    drawerFocusCleanup = activateDialogFocusTrap(panel, closeApplicantDrawer, closeButton || panel);
-  }
-
-  function renderTalentTable() {
-    const filteredRows = getFilteredTalentRows();
-    const wrap = node.querySelector("#talentTableWrap");
-
-    if (!filteredRows.length) {
-      wrap.innerHTML = `<div class="mutedText">No candidates match the selected filters.</div>`;
-      return;
-    }
-
-    wrap.innerHTML = `<div style="overflow-x:auto;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Candidate</th>
-            <th>Qualification / Trade</th>
-            <th>Province</th>
-            <th>Skills Readiness Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filteredRows
-            .map(
-              (row) => `<tr class="adminApplicantRowClickable" tabindex="0" role="button" aria-haspopup="dialog" data-view-appid="${row.application.id}" aria-label="View applicant ${escapeHtml(getUserDisplayName(row.student))}">
-            <td>
-              <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
-                ${renderUserAvatar(row.student, "avatarSm")}
-                <div style="min-width:0;">
-                  <div><b>${escapeHtml(getUserDisplayName(row.student))}</b></div>
-                  <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(row.student?.email || "")}</div>
-                </div>
-              </div>
-            </td>
-            <td>
-              <div>${escapeHtml(row.opportunity?.title || "")}</div>
-              <div class="mutedText" style="font-size:12px;">${escapeHtml(row.student?.profile?.educationLevel || "No education level provided")}</div>
-            </td>
-            <td>${escapeHtml(row.student?.profile?.province || "-")}</td>
-            <td><span class="badge badgeBlue">${row.score.score}</span></td>
-          </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>`;
-
-    wrap.querySelectorAll("tr.adminApplicantRowClickable").forEach((rowElement) => {
-      rowElement.addEventListener("click", (event) => {
-        if (event.target.closest("button, a, select, input, label")) return;
-        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
-      });
-
-      rowElement.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        openApplicantDrawer(rowElement.getAttribute("data-view-appid"));
-      });
-    });
-  }
-
-  function renderPlacementTracker() {
-    const graduates = buildApplicationRows().filter((row) => row.meta.graduated);
-    const wrap = node.querySelector("#placementTableWrap");
-
-    if (!graduates.length) {
-      wrap.innerHTML = `<div class="mutedText">No graduates tagged yet. Mark funded candidates as graduated in Bursaries.</div>`;
-      return;
-    }
-
-    wrap.innerHTML = `<div style="overflow-x:auto;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Graduate</th>
-            <th>Programme</th>
-            <th>Placement Status</th>
-            <th>Employer</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${graduates
-            .map(
-              (row) => `<tr>
-            <td>
-              <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
-                ${renderUserAvatar(row.student, "avatarSm")}
-                <div><b>${escapeHtml(getUserDisplayName(row.student))}</b></div>
-              </div>
-              <div class="mutedText" style="font-size:12px;">${escapeHtml(row.student?.profile?.province || "")}</div>
-            </td>
-            <td>${escapeHtml(row.opportunity?.title || "")}</td>
-            <td>
-              <select class="input select" data-placement-status="${row.application.id}" style="padding:6px;">
-                ${PLACEMENT_STATUSES.map(
-                  (status) => `<option ${row.meta.placementStatus === status ? "selected" : ""} value="${status}">${status}</option>`
-                ).join("")}
-              </select>
-            </td>
-            <td>
-              <input class="input" data-placement-employer="${row.application.id}" value="${escapeHtml(row.meta.employer || "")}" placeholder="Employer name" style="padding:6px;" />
-            </td>
-            <td>
-              <button type="button" class="btn btnGhost" data-placement-save="${row.application.id}" style="padding:6px 10px;">Save</button>
-            </td>
-          </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>`;
-
-    wrap.querySelectorAll("button[data-placement-save]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const appId = button.getAttribute("data-placement-save");
-        const status = wrap.querySelector(`select[data-placement-status="${appId}"]`)?.value || "Not placed";
-        const employer = wrap.querySelector(`input[data-placement-employer="${appId}"]`)?.value || "";
-
-        updateApplicationMeta(appId, {
-          placementStatus: status,
-          employer
-        });
-
-        render();
-      });
-    });
-  }
-
-  function renderForecast() {
-    const rows = buildApplicationRows();
-    const graduatesAvailable = rows.filter((row) => row.meta.graduated && row.meta.placementStatus !== "Placed");
-    const fundedNotGraduated = rows.filter((row) => row.meta.funded && !row.meta.graduated);
-
-    const next30 = graduatesAvailable.length;
-    const next60 = graduatesAvailable.length + Math.ceil(fundedNotGraduated.length * 0.4);
-    const next90 = graduatesAvailable.length + fundedNotGraduated.length;
-
-    node.querySelector("#forecastWrap").innerHTML = `
-      <div class="card" style="padding:10px;">
-        <div class="mutedText" style="font-size:12px;">Next 30 days</div>
-        <div style="font-size:22px; font-weight:700;">${next30}</div>
-      </div>
-      <div class="card" style="padding:10px;">
-        <div class="mutedText" style="font-size:12px;">Next 60 days</div>
-        <div style="font-size:22px; font-weight:700;">${next60}</div>
-      </div>
-      <div class="card" style="padding:10px;">
-        <div class="mutedText" style="font-size:12px;">Next 90 days</div>
-        <div style="font-size:22px; font-weight:700;">${next90}</div>
-      </div>
-    `;
-  }
-
-  node.querySelector("#talentQuery").addEventListener("input", () => {
-    renderTalentTable();
-    renderApplicantDrawer();
-  });
-
-  node.querySelector("#talentProvince").addEventListener("change", () => {
-    renderTalentTable();
-    renderApplicantDrawer();
-  });
-
-  renderTalentTable();
-  renderPlacementTracker();
-  renderForecast();
-  renderApplicantDrawer();
-
-  return shell("admin", node);
-}
-
-// Admin analytics page render for high-level labour-intelligence summaries.
-
-function pageAdminAnalytics() {
-  const user = requireRole("admin");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const rows = buildApplicationRows();
-  const studentsWithProfiles = store.users.filter((entry) => entry.role === "student" && entry.profile);
-
-  const provinceCounts = studentsWithProfiles.reduce((accumulator, student) => {
-    const province = student.profile.province || "Unspecified";
-    accumulator[province] = (accumulator[province] || 0) + 1;
-    return accumulator;
-  }, {});
-
-  const timeToEmploymentDays = rows
-    .filter((row) => row.meta.fundedAt && row.meta.placedAt)
-    .map((row) => {
-      const fundedTime = new Date(row.meta.fundedAt).getTime();
-      const placedTime = new Date(row.meta.placedAt).getTime();
-      return Math.max(0, (placedTime - fundedTime) / (1000 * 60 * 60 * 24));
-    })
-    .filter((days) => Number.isFinite(days));
-
-  const averageTimeToEmployment = timeToEmploymentDays.length
-    ? (timeToEmploymentDays.reduce((sum, value) => sum + value, 0) / timeToEmploymentDays.length).toFixed(1)
-    : "N/A";
-
-  const node = el(`<div class="grid">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Analytics & Labour Intelligence</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Demo insights across demand, supply, placement velocity, and future workforce needs.</p>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Scarce Skills Demand Insights</div>
-      <ul style="margin:8px 0 0 18px;">
-        <li>High demand for electrical infrastructure and renewable-energy technicians.</li>
-        <li>Software support and systems development roles continue to outpace supply.</li>
-        <li>Skilled trades (plumbing, welding) remain priority hiring categories.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Province-level Talent Distribution</div>
-      ${Object.keys(provinceCounts).length
-        ? `<table class="table" style="margin-top:10px;">
-            <thead><tr><th>Province</th><th>Students</th></tr></thead>
-            <tbody>
-              ${Object.entries(provinceCounts)
-                .sort((first, second) => second[1] - first[1])
-                .map(([province, count]) => `<tr><td>${escapeHtml(province)}</td><td>${count}</td></tr>`)
-                .join("")}
-            </tbody>
-          </table>`
-        : `<div class="mutedText" style="margin-top:8px;">No profile distribution data available yet.</div>`}
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Time-to-Employment Metrics</div>
-      <div style="margin-top:8px;">Average days from funded to placed: <b>${averageTimeToEmployment}</b></div>
-      <div class="mutedText" style="font-size:12px; margin-top:6px;">Calculated from graduates marked as placed.</div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Sector-based Talent Trends</div>
-      <ul style="margin:8px 0 0 18px;">
-        <li>Manufacturing and infrastructure sectors are increasing intake for certified artisans.</li>
-        <li>Digital services continue to absorb IT support and systems development graduates.</li>
-        <li>Hospitality and business services show steady regional demand growth.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;">Future Skills Forecasting</div>
-      <ul style="margin:8px 0 0 18px;">
-        <li>Green economy and energy-transition skills expected to accelerate over 3 years.</li>
-        <li>Hybrid technical + digital roles forecast to become dominant in placement pipelines.</li>
-        <li>Data literacy and automation readiness will be baseline requirements across sectors.</li>
-      </ul>
-    </div>
-  </div>`);
-
-  return shell("admin", node);
-}
-
-/** ---------- Router ---------- **/
-// Hash-route dispatcher: maps URL fragments to page render functions with role guards.
-function render() {  const user = currentUser();
-  const resolvedRoute = route || "/";
-
-  if (DEBUG) {
-    console.log("[route]", location.hash, resolvedRoute);
-  }
-
-  try {
-    if (resolvedRoute === "/") {
-      navigate("/home");
-      return;
-    }
-
-    if (resolvedRoute === "/home") {
-      mount(pageHome());
-      return;
-    }
-
-    if (resolvedRoute === "/login") {
-      mount(pageLogin());
-      return;
-    }
-
-    if (resolvedRoute === "/signup") {
-      mount(pageSignup());
-      return;
-    }
-
-    if (resolvedRoute === "/student/onboarding") {
-      mount(pageStudentOnboarding());
-      return;
-    }
-
-    if (resolvedRoute === "/student/dashboard") {
-      mount(pageStudentDashboard());
-      return;
-    }
-
-    if (resolvedRoute === "/student/career-guidance") {
-      mount(pageStudentCareerGuidance());
-      return;
-    }
-
-    if (resolvedRoute === "/student/documents") {
-      mount(pageStudentDocuments());
-      return;
-    }
-
-    if (resolvedRoute === "/student/bursaries") {
-      mount(pageStudentBursaries());
-      return;
-    }
-
-    if (resolvedRoute === "/student/learnerships") {
-      mount(pageStudentLearnerships());
-      return;
-    }
-
-    if (resolvedRoute === "/student/courses") {
-      mount(pageStudentCourses());
-      return;
-    }
-
-    if (resolvedRoute.startsWith("/student/opportunity/")) {
-      mount(pageStudentOpportunityDetails(resolvedRoute.split("/")[3]));
-      return;
-    }
-
-    if (resolvedRoute.startsWith("/student/application/")) {
-      mount(pageStudentApplication(resolvedRoute.split("/")[3]));
-      return;
-    }
-
-    if (resolvedRoute.startsWith("/student/apply/")) {
-      mount(pageStudentApply(resolvedRoute.split("/")[3]));
-      return;
-    }
-
-    if (resolvedRoute === "/student/opportunities") {
-      navigate("/student/courses");
-      return;
-    }
-
-    if (resolvedRoute.startsWith("/student/opportunities/")) {
-      const opportunityId = resolvedRoute.split("/")[3];
-      navigate(`/student/opportunity/${opportunityId}`);
-      return;
-    }
-
-    if (resolvedRoute === "/admin") {
-      navigate("/admin/dashboard");
-      return;
-    }
-
-    if (resolvedRoute === "/admin/dashboard") {
-      mount(pageAdminCorporate());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/corporate") {
-      mount(pageAdminCorporate());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/opportunities") {
-      mount(pageAdminOpportunities());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/bursaries") {
-      mount(pageAdminBursaries());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/lifecycle") {
-      mount(pageAdminLifecycle());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/talent") {
-      mount(pageAdminTalent());
-      return;
-    }
-
-    if (resolvedRoute === "/admin/analytics") {
-      mount(pageAdminAnalytics());
-      return;
-    }
-
-    if (user) {
-      if (user.role === "admin") navigate("/admin/dashboard");
-      else navigate("/student/dashboard");
-      return;
-    }
-
-    navigate("/home");
-  } catch (error) {
-    console.error("[render:error]", error);
-    console.error(error && error.stack ? error.stack : "");
-    console.error("[render:context]", { hash: location.hash, resolvedRoute });
-    mount(
-      el(`<div class="grid"><div class="card"><div style="font-weight:700;">Something went wrong.</div><div class="mutedText" style="margin-top:8px;">Check console logs for route debug details.</div></div></div>`)
-    );
-  }
-}
-
-/** ---------- Utilities ---------- **/
-
-// Shared formatting/escaping/export helpers used across student and admin page templates.
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function readonlyField(label, value) {
-  return `<div class="field">
-    <label><b>${escapeHtml(label)}</b></label>
-    <input class="input" value="${escapeHtml(value)}" readonly style="background:#f2f2f2;" />
-  </div>`;
-}
-
-function formatDate(iso) {
-  try {
-    const date = new Date(iso);
-    return date.toLocaleString("en-ZA", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatDateLabel(value) {
-  if (!value || value === "Rolling") return "Rolling";
-  try {
-    const date = new Date(value);
-    if (!Number.isFinite(date.getTime())) return String(value);
-    return date.toLocaleDateString("en-ZA", { year: "numeric", month: "short", day: "2-digit" });
-  } catch {
-    return String(value);
-  }
-}
-
-function formatBytes(bytes) {
-  const size = Number(bytes || 0);
-  if (!Number.isFinite(size) || size <= 0) return "0 B";
-
-  const units = ["B", "KB", "MB", "GB"];
-  let value = size;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-function downloadCsv(filename, rows) {
-  if (!rows.length) {
-    alert("No rows available for export.");
-    return;
-  }
-
-  const headers = Object.keys(rows[0]);
-  const csvLines = [
-    headers.join(","),
-    ...rows.map((row) =>
-      headers
-        .map((header) => {
-          const value = row[header] == null ? "" : String(row[header]);
-          return `"${value.replaceAll('"', '""')}"`;
-        })
-        .join(",")
-    )
-  ];
-
-  const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-
-  URL.revokeObjectURL(url);
-}
-
-/** ---------- Boot ---------- **/
-// Initial app mount on first script load.
-render();
-
-/* ========================================================================== */
-/*  SECTION: 2026 Product Improvement Overrides                               */
-/*  Purpose: Guided onboarding, student dashboard UX, and trust signals.      */
-/* ========================================================================== */
-
-function canCurrentUserAccessRow(row) {
-  const user = currentUser();
-  if (!user || !isAdminRole(user.role)) return true;
-
-  const role = String(user.role || "").trim().toLowerCase();
-  if (role === "admin" || role === "super_admin") return true;
-
-  const userInstitutionId = String(user.institutionId || user.profile?.institutionId || "").trim().toLowerCase();
-  if (!userInstitutionId) return false;
-
-  const rowInstitutionId = String(row?.opportunity?.institutionId || "").trim().toLowerCase();
-  return Boolean(rowInstitutionId && rowInstitutionId === userInstitutionId);
-}
-
-function getStudentSavedOpportunitiesSet(studentId) {
-  const list = Array.isArray(store.savedOpportunities?.[studentId]) ? store.savedOpportunities[studentId] : [];
-  return new Set(list.map((entry) => String(entry || "").trim()).filter(Boolean));
-}
-
-function isOpportunitySaved(studentId, opportunityId) {
-  return getStudentSavedOpportunitiesSet(studentId).has(String(opportunityId || "").trim());
-}
-
-function toggleSavedOpportunity(studentId, opportunityId) {
-  const id = String(opportunityId || "").trim();
-  if (!id) return false;
-
-  const set = getStudentSavedOpportunitiesSet(studentId);
-  const wasSaved = set.has(id);
-  if (wasSaved) set.delete(id);
-  else set.add(id);
-
-  store.savedOpportunities = store.savedOpportunities && typeof store.savedOpportunities === "object"
-    ? store.savedOpportunities
-    : {};
-  store.savedOpportunities[studentId] = Array.from(set);
-  saveStore(store);
-
-  return !wasSaved;
-}
-
-function addStudentNotification(studentId, message, level = "info") {
-  const msg = String(message || "").trim();
-  if (!studentId || !msg) return;
-
-  store.notifications = store.notifications && typeof store.notifications === "object" ? store.notifications : {};
-  const bucket = Array.isArray(store.notifications[studentId]) ? store.notifications[studentId] : [];
-  bucket.unshift({
-    id: uid("note"),
-    message: msg,
-    level: String(level || "info").trim().toLowerCase(),
-    at: new Date().toISOString(),
-    read: false
-  });
-  store.notifications[studentId] = bucket.slice(0, 40);
-  saveStore(store);
-}
-
-function getStudentNotifications(studentId) {
-  return Array.isArray(store.notifications?.[studentId]) ? store.notifications[studentId] : [];
-}
-
-function markStudentNotificationsRead(studentId) {
-  const bucket = Array.isArray(store.notifications?.[studentId]) ? store.notifications[studentId] : [];
-  store.notifications[studentId] = bucket.map((entry) => ({ ...entry, read: true }));
-  saveStore(store);
-}
-
-function getInstitutionByOpportunity(opportunity) {
-  const name = String(opportunity?.institution || opportunity?.provider || "").trim();
-  const list = Array.isArray(store.institutions) ? store.institutions : [];
-  const match = list.find((entry) => String(entry.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
-  if (match) return match;
-
+  const application = options.application || null;
+  const recommended = Boolean(options.recommended);
+  const lifecycle = options.lifecycle || getOpportunityLifecycleState(application);
+  const action = getOpportunityPrimaryAction(opportunity.id, application, recommended, lifecycle);
+
+  if (application) return action;
   return {
-    id: String(opportunity?.institutionId || "inst-partner"),
-    name: name || "Verified Institution",
-    type: "Institution",
-    status: "verified",
-    verified: true
+    label: options.previewMode ? "Apply Now" : "Apply",
+    href: `#/student/apply/${opportunity.id}`
   };
 }
 
-function getInstitutionLogoText(name) {
-  const cleaned = String(name || "").trim();
-  if (!cleaned) return "YD";
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (!parts.length) return "YD";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
-}
-
-function formatDeadlineCountdown(closingDate) {
-  const days = daysUntilDate(closingDate);
-  if (days == null) return "Rolling applications";
-  if (days < 0) return `Closed ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`;
-  if (days === 0) return "Closes today";
-  if (days === 1) return "Closes in 1 day";
-  return `Closes in ${days} days`;
-}
-
-function inferOpportunityNqfLevel(opportunity) {
-  const explicit = String(opportunity?.nqfLevel || "").trim();
-  if (explicit) return explicit;
-
-  const text = [
-    opportunity?.title || "",
-    opportunity?.description || "",
-    ...(Array.isArray(opportunity?.requirements) ? opportunity.requirements : [])
-  ].join(" ");
-
-  const nqf = text.match(/NQF\s*Level\s*(\d+)/i);
-  if (nqf) return `NQF Level ${nqf[1]}`;
-  const ncv = text.match(/NCV\s*Level\s*(\d+)/i);
-  if (ncv) return `NCV Level ${ncv[1]}`;
-  const n = text.match(/\bN([1-6])\b/i);
-  if (n) return `N${n[1]} / TVET`;
-  return "NQF level varies";
-}
-
-function getOpportunityEligibilityHint(student, opportunity) {
-  const profile = getUserProfile(student) || {};
-  const interests = Array.isArray(profile.interests) ? profile.interests : [];
-  let score = 0;
-
-  if (!profile.province || opportunity.location === "National" || profile.province === opportunity.location) score += 1;
-  if (!interests.length || isOpportunityRecommended(opportunity, interests)) score += 1;
-  if (!profile.educationLevel || !Array.isArray(opportunity.requirements) || !opportunity.requirements.length) score += 1;
-
-  if (score >= 3) return { label: "You likely qualify", className: "is-strong" };
-  if (score === 2) return { label: "You meet most requirements", className: "is-medium" };
-  return { label: "Check requirements before applying", className: "is-low" };
-}
-
-function calculateProfileStrength(student) {
-  const profile = getUserProfile(student) || {};
-  const checks = [
-    Boolean(String(profile.fullName || student?.name || "").trim()),
-    Boolean(String(profile.age || "").trim()),
-    Boolean(String(profile.province || "").trim()),
-    Boolean(String(profile.educationLevel || "").trim()),
-    Array.isArray(profile.interests) && profile.interests.length > 0,
-    getDocumentChecklist(student.id).complete
-  ];
-  const completed = checks.filter(Boolean).length;
-  const total = checks.length;
-  const percent = total ? Math.round((completed / total) * 100) : 0;
-  return { completed, total, percent };
-}
-
-function renderStudentOpportunityCard(opportunity, options = {}) {
-  const student = options.student || currentUser();
+function renderBursaryListingCard(opportunity, options = {}) {
+  const student = Object.prototype.hasOwnProperty.call(options, "student") ? options.student : currentUser();
   const application = options.application || null;
   const recommended = Boolean(options.recommended);
   const lifecycle = options.lifecycle || getOpportunityLifecycleState(application);
   const action = options.action || getOpportunityPrimaryAction(opportunity.id, application, recommended, lifecycle);
-  const institution = getInstitutionByOpportunity(opportunity);
-  const eligibility = getOpportunityEligibilityHint(student, opportunity);
   const saved = student ? isOpportunitySaved(student.id, opportunity.id) : false;
-  const fundingAmount = String(opportunity?.fundingAmount || opportunity?.stipendOrValue || "Funding varies").trim() || "Funding varies";
+  const provider = String(opportunity?.provider || opportunity?.institution || "Provider to be confirmed").trim();
+  const badges = getBursaryCardBadges(opportunity, recommended);
+  const imageSrc = getBursaryCardImageSrc(opportunity);
+  const ctaText = application ? action.label : String(opportunity?.ctaText || action.label || "View bursary").trim();
+  const isSelectable = Boolean(options.selectable);
+  const selectedClass = isSelectable && options.selected ? " is-selected" : "";
+  const interactionAttrs = isSelectable ? ` data-preview-opp="${escapeHtml(opportunity.id)}" tabindex="0"` : "";
 
-  return `<article class="opportunityCard opportunityCardModern ${getOpportunityCardTypeClass(opportunity.type)} ${lifecycle.cardVariantClass}">
-    <div class="opportunityCardModernHead">
-      <div class="opportunityInstitution">
-        <span class="opportunityInstitutionLogo">${escapeHtml(getInstitutionLogoText(institution.name))}</span>
-        <div>
-          <div class="opportunityInstitutionName">${escapeHtml(institution.name)}</div>
-          <div class="opportunityInstitutionMeta">${escapeHtml(opportunity.type)} <span class="verifiedBadge">Verified</span></div>
-        </div>
+  return `<article class="ydhBursaryCard${selectedClass}"${interactionAttrs}>
+    <div class="ydhBursaryCardMedia">
+      ${imageSrc ? `<img class="ydhBursaryCardImage" src="${escapeHtml(imageSrc)}" alt="${escapeHtml(opportunity.title)}" />` : `<div class="ydhBursaryCardImage ydhBursaryCardImageFallback">${escapeHtml(provider)}</div>`}
+      <div class="ydhBursaryCardFade"></div>
+      <div class="ydhBursaryCardTop">
+        <span class="ydhBursaryCardType">${escapeHtml(opportunity.type || "Bursary")}</span>
+        ${student ? `<button type="button" class="btn btnGhost ydhBursaryCardSave ${saved ? "is-saved" : ""}" data-save-opp="${escapeHtml(opportunity.id)}">${saved ? "Saved" : "Save"}</button>` : ""}
       </div>
-      ${student ? `<button type="button" class="btn btnGhost opportunitySaveBtn ${saved ? "is-saved" : ""}" data-save-opp="${escapeHtml(opportunity.id)}">${saved ? "Saved" : "Save"}</button>` : ""}
     </div>
 
-    <h3 class="opportunityTitle">${escapeHtml(opportunity.title)}</h3>
-    <p class="opportunityNaturalLine">${escapeHtml(formatDeadlineCountdown(opportunity.closingDate))} • ${escapeHtml(opportunity.location || "National")}</p>
-    <p class="opportunityNaturalLine ${escapeHtml(eligibility.className)}">${escapeHtml(eligibility.label)}</p>
+    <div class="ydhBursaryCardBody">
+      <div class="ydhBursaryCardEyebrow">${escapeHtml(provider)}</div>
+      <h3 class="ydhBursaryCardTitle">${escapeHtml(opportunity.title)}</h3>
 
-    <div class="opportunityFactRow">
-      <span>${escapeHtml(fundingAmount)}</span>
-      <span>${escapeHtml(inferOpportunityNqfLevel(opportunity))}</span>
-    </div>
+      <div class="ydhBursaryCardDivider"></div>
 
-    <div class="opportunityCardActions">
-      <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
-      <a class="btn btnPrimary" href="${action.href}">${action.label}</a>
+      <div class="ydhBursaryCardMeta">
+        ${getOpportunityListingMeta(opportunity).map((item) => `<div class="ydhBursaryCardMetaRow"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}
+      </div>
+
+      ${badges.length ? `<div class="ydhBursaryCardBadges">${badges.map((badge) => `<span class="ydhBursaryCardBadge">${escapeHtml(badge)}</span>`).join("")}</div>` : ""}
+
+      <div class="ydhBursaryCardFooter">
+        <span class="ydhBursaryCardStatus ${lifecycle.statusClass}">${escapeHtml(lifecycle.statusLabel)}</span>
+        <a class="btn ydhBursaryCardCta" href="${action.href}">${escapeHtml(ctaText)}</a>
+      </div>
     </div>
   </article>`;
 }
 
-function bindStudentOpportunityCardActions(node, student, rerender) {
-  node.querySelectorAll("button[data-save-opp]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const opportunityId = button.getAttribute("data-save-opp");
-      if (!opportunityId) return;
-      const nowSaved = toggleSavedOpportunity(student.id, opportunityId);
-      addStudentNotification(student.id, nowSaved ? "Opportunity saved for later." : "Saved opportunity removed.", "info");
-      if (typeof rerender === "function") rerender();
-    });
-  });
-}
+function renderOpportunityListingCard(opportunity, options = {}) {
+  const student = Object.prototype.hasOwnProperty.call(options, "student") ? options.student : currentUser();
+  const application = options.application || null;
+  const recommended = Boolean(options.recommended);
+  const lifecycle = options.lifecycle || getOpportunityLifecycleState(application);
+  const action = getOpportunityListingPrimaryAction(opportunity, { ...options, lifecycle, application, recommended });
+  const saved = student ? isOpportunitySaved(student.id, opportunity.id) : false;
+  const provider = String(opportunity?.provider || opportunity?.institution || "Provider to be confirmed").trim();
+  const badges = getOpportunityListingBadges(opportunity, recommended);
+  const imageSrc = getBursaryCardImageSrc(opportunity);
+  const isSelectable = Boolean(options.selectable);
+  const selectedClass = isSelectable && options.selected ? " is-selected" : "";
+  const interactionAttrs = isSelectable ? ` data-preview-opp="${escapeHtml(opportunity.id)}" tabindex="0"` : "";
 
-function getRecommendedOpenOpportunities(studentId, limit = 6) {
-  const recommended = recommendedIdsForStudent(studentId);
-  const source = getOpportunityCatalogue().filter((opportunity) => String(opportunity.listingStatus || "open") === "open");
-
-  let list = source.filter((opportunity) => recommended.has(opportunity.id));
-  if (!list.length) list = source;
-
-  return list
-    .sort((first, second) => {
-      const firstDays = daysUntilDate(first.closingDate);
-      const secondDays = daysUntilDate(second.closingDate);
-      const firstSort = Number.isFinite(firstDays) ? firstDays : 9999;
-      const secondSort = Number.isFinite(secondDays) ? secondDays : 9999;
-      if (firstSort !== secondSort) return firstSort - secondSort;
-      return String(first.title || "").localeCompare(String(second.title || ""));
-    })
-    .slice(0, limit);
-}
-
-function getUrgentDashboardAlerts(student, opportunities) {
-  const profileStrength = calculateProfileStrength(student);
-  const closingThisWeek = opportunities.filter((entry) => {
-    const days = daysUntilDate(entry.closingDate);
-    return Number.isFinite(days) && days >= 0 && days <= 7;
-  }).length;
-
-  const alerts = [];
-  if (closingThisWeek > 0) {
-    alerts.push(`${closingThisWeek} opportunities matching your profile close this week.`);
-  }
-  if (profileStrength.percent < 100) {
-    alerts.push(`You are ${profileStrength.percent}% ready to apply.`);
-  }
-  if (!getDocumentChecklist(student.id).complete) {
-    alerts.push("Upload documents when you are ready to apply faster.");
-  }
-  if (!alerts.length) {
-    alerts.push("You are application-ready. Apply to opportunities with confidence.");
-  }
-  return alerts;
-}
-
-function pageStudentOnboarding() {
-  const user = requireRole("student");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  const profile = getUserProfile(user) || {
-    fullName: user.name || "",
-    age: "",
-    province: "",
-    educationLevel: "",
-    interests: []
-  };
-
-  const onboarding = getStudentOnboardingState(user);
-  const draft = {
-    fullName: String(profile.fullName || user.name || "").trim(),
-    age: String(profile.age || "").trim(),
-    province: String(profile.province || "").trim(),
-    educationLevel: String(profile.educationLevel || "").trim(),
-    interests: Array.isArray(profile.interests) ? [...profile.interests] : [],
-    quiz: {
-      preferredField: String(onboarding.quizAnswers?.preferredField || "").trim(),
-      relocation: String(onboarding.quizAnswers?.relocation || "").trim(),
-      preference: String(onboarding.quizAnswers?.preference || "").trim(),
-      careerInterests: Array.isArray(onboarding.quizAnswers?.careerInterests)
-        ? onboarding.quizAnswers.careerInterests.filter((value) => INTERESTS.includes(value))
-        : []
-    }
-  };
-
-  let currentStep = onboarding.basicsCompleted ? (onboarding.careerQuizCompleted ? 3 : 2) : 1;
-  let error = "";
-
-  const node = el(`<div class="grid onboardingExperiencePage">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Student Onboarding</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Complete 3 quick steps to unlock personalized opportunities.</p>
-    </div>
-    <div id="onboardingRoot"></div>
-  </div>`);
-
-  const root = node.querySelector("#onboardingRoot");
-
-  function renderStepOne() {
-    return `<section class="card onboardingStepCard">
-      ${renderStepper(["Profile basics", "Career quiz", "Personalized opportunities"], 1, { className: "ydhStepper--compact" })}
-      <h2 style="margin-top:12px;">Step 1: Profile Basics</h2>
-      <p class="mutedText">Tell us who you are so we can match you better.</p>
-      <form id="onboardingBasicsForm" class="grid" style="margin-top:10px; gap:10px;">
-        <div class="grid cols-2">
-          <div class="field">
-            <label><b>Full name</b></label>
-            <input class="input" id="onboardFullName" value="${escapeHtml(draft.fullName)}" required />
-          </div>
-          <div class="field">
-            <label><b>Age</b></label>
-            <input class="input" id="onboardAge" value="${escapeHtml(draft.age)}" type="number" min="14" max="100" required />
-          </div>
-        </div>
-        <div class="grid cols-2">
-          <div class="field">
-            <label><b>Province</b></label>
-            <select class="input select" id="onboardProvince" required>
-              <option value="">Select province</option>
-              ${PROVINCES.map((province) => `<option value="${province}" ${draft.province === province ? "selected" : ""}>${province}</option>`).join("")}
-            </select>
-          </div>
-          <div class="field">
-            <label><b>Highest qualification</b></label>
-            <input class="input" id="onboardEducation" value="${escapeHtml(draft.educationLevel)}" placeholder="e.g. Matric, NCV Level 4" required />
-          </div>
-        </div>
-        <div class="field">
-          <label><b>Interests</b></label>
-          <div class="onboardingInterestGrid">
-            ${INTERESTS.slice(0, 12)
-              .map((interest) => `<label class="onboardingInterestItem"><input type="checkbox" value="${escapeHtml(interest)}" ${draft.interests.includes(interest) ? "checked" : ""} /> ${escapeHtml(interest)}</label>`)
-              .join("")}
-          </div>
-        </div>
-        <div class="mutedText onboardingError">${escapeHtml(error)}</div>
-        <div class="row" style="margin-top:8px; justify-content:flex-end;">
-          <button class="btn btnPrimary" type="submit">Continue to Career Quiz</button>
-        </div>
-      </form>
-    </section>`;
-  }
-
-  function renderStepTwo() {
-    const preferredFieldOptions = ["Engineering", "IT", "Business", "Science", "Trades", "Healthcare", "Public Service"];
-
-    return `<section class="card onboardingStepCard">
-      ${renderStepper(["Profile basics", "Career quiz", "Personalized opportunities"], 2, { className: "ydhStepper--compact" })}
-      <h2 style="margin-top:12px;">Step 2: Career Quiz</h2>
-      <p class="mutedText">Help us understand your direction and preferred pathway.</p>
-      <form id="onboardingQuizForm" class="grid" style="margin-top:10px; gap:10px;">
-        <div class="grid cols-2">
-          <div class="field">
-            <label><b>Preferred study field</b></label>
-            <select class="input select" id="onboardPreferredField" required>
-              <option value="">Select field</option>
-              ${preferredFieldOptions.map((field) => `<option value="${field}" ${draft.quiz.preferredField === field ? "selected" : ""}>${field}</option>`).join("")}
-            </select>
-          </div>
-          <div class="field">
-            <label><b>Study vs work preference</b></label>
-            <select class="input select" id="onboardPreference" required>
-              <option value="">Choose one</option>
-              ${["Study first", "Work first", "Open to both"]
-                .map((option) => `<option value="${option}" ${draft.quiz.preference === option ? "selected" : ""}>${option}</option>`)
-                .join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="field">
-          <label><b>Willingness to relocate</b></label>
-          <div class="row" style="gap:10px;">
-            ${["Yes", "No", "Maybe"]
-              .map((option) => `<label class="onboardingRadio"><input type="radio" name="onboardRelocation" value="${option}" ${draft.quiz.relocation === option ? "checked" : ""} /> ${option}</label>`)
-              .join("")}
-          </div>
-        </div>
-
-        <div class="field">
-          <label><b>Career interests</b></label>
-          <div class="onboardingInterestGrid">
-            ${INTERESTS.slice(0, 12)
-              .map((interest) => `<label class="onboardingInterestItem"><input type="checkbox" value="${escapeHtml(interest)}" data-quiz-interest="1" ${draft.quiz.careerInterests.includes(interest) ? "checked" : ""} /> ${escapeHtml(interest)}</label>`)
-              .join("")}
-          </div>
-        </div>
-
-        <div class="mutedText onboardingError">${escapeHtml(error)}</div>
-        <div class="row" style="margin-top:8px; justify-content:space-between;">
-          <button class="btn btnGhost" type="button" id="onboardingBackToBasics">Back</button>
-          <button class="btn btnPrimary" type="submit">Continue to Personalization</button>
-        </div>
-      </form>
-    </section>`;
-  }
-
-  function renderStepThree() {
-    const recommended = getRecommendedOpenOpportunities(user.id, 4);
-    const applicationByOpportunity = new Map(studentApplications(user.id).map((entry) => [entry.opportunityId, entry]));
-
-    return `<section class="card onboardingStepCard">
-      ${renderStepper(["Profile basics", "Career quiz", "Personalized opportunities"], 3, { className: "ydhStepper--compact" })}
-      <h2 style="margin-top:12px;">Step 3: Opportunity Personalization</h2>
-      <p class="mutedText">Your feed is ready based on your profile and quiz.</p>
-
-      <div class="dashboardAlertStack" style="margin-top:10px;">
-        ${getUrgentDashboardAlerts(user, recommended)
-          .map((alert) => `<div class="dashboardAlertItem">${escapeHtml(alert)}</div>`)
-          .join("")}
+  return `<article class="ydhBursaryCard${selectedClass}"${interactionAttrs}>
+    <div class="ydhBursaryCardMedia">
+      ${imageSrc ? `<img class="ydhBursaryCardImage" src="${escapeHtml(imageSrc)}" alt="${escapeHtml(opportunity.title)}" />` : `<div class="ydhBursaryCardImage ydhBursaryCardImageFallback">${escapeHtml(provider)}</div>`}
+      <div class="ydhBursaryCardFade"></div>
+      <div class="ydhBursaryCardTop">
+        <span class="ydhBursaryCardType">${escapeHtml(opportunity.type || "Opportunity")}</span>
+        ${student ? `<button type="button" class="btn btnGhost ydhBursaryCardSave ${saved ? "is-saved" : ""}" data-save-opp="${escapeHtml(opportunity.id)}">${saved ? "Saved" : "Save"}</button>` : ""}
       </div>
-
-      <div class="dashboardOpportunityGrid" style="margin-top:12px;">
-        ${recommended
-          .map((opportunity) =>
-            renderStudentOpportunityCard(opportunity, {
-              student: user,
-              application: applicationByOpportunity.get(opportunity.id) || null,
-              recommended: true
-            })
-          )
-          .join("")}
-      </div>
-
-      <div class="row" style="margin-top:12px; justify-content:space-between;">
-        <button class="btn btnGhost" type="button" id="onboardingBackToQuiz">Back</button>
-        <button class="btn btnPrimary" type="button" id="onboardingEnterDashboard">Enter dashboard</button>
-      </div>
-    </section>`;
-  }
-
-  function renderOnboarding() {
-    if (!root) return;
-
-    if (currentStep === 1) root.innerHTML = renderStepOne();
-    else if (currentStep === 2) root.innerHTML = renderStepTwo();
-    else root.innerHTML = renderStepThree();
-
-    const basicsForm = root.querySelector("#onboardingBasicsForm");
-    if (basicsForm) {
-      basicsForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        error = "";
-
-        const fullName = String(root.querySelector("#onboardFullName")?.value || "").trim();
-        const age = String(root.querySelector("#onboardAge")?.value || "").trim();
-        const province = String(root.querySelector("#onboardProvince")?.value || "").trim();
-        const educationLevel = String(root.querySelector("#onboardEducation")?.value || "").trim();
-        const interests = Array.from(root.querySelectorAll(".onboardingInterestGrid input[type=\"checkbox\"]:checked"))
-          .map((input) => String(input.value || "").trim())
-          .filter(Boolean);
-
-        if (!fullName || !age || !province || !educationLevel || !interests.length) {
-          error = "Complete all fields and choose at least one interest.";
-          renderOnboarding();
-          return;
-        }
-
-        draft.fullName = fullName;
-        draft.age = age;
-        draft.province = province;
-        draft.educationLevel = educationLevel;
-        draft.interests = interests;
-
-        saveProfile({
-          fullName,
-          age,
-          province,
-          educationLevel,
-          interests,
-          goals: String(profile.goals || "")
-        });
-
-        setStudentOnboardingState(user.id, {
-          basicsCompleted: true,
-          completed: false
-        });
-
-        currentStep = 2;
-        renderOnboarding();
-      });
-    }
-
-    const quizForm = root.querySelector("#onboardingQuizForm");
-    if (quizForm) {
-      root.querySelector("#onboardingBackToBasics")?.addEventListener("click", () => {
-        currentStep = 1;
-        error = "";
-        renderOnboarding();
-      });
-
-      quizForm.addEventListener("submit", (event) => {
-        event.preventDefault();
-        error = "";
-
-        const preferredField = String(root.querySelector("#onboardPreferredField")?.value || "").trim();
-        const preference = String(root.querySelector("#onboardPreference")?.value || "").trim();
-        const relocation = String(root.querySelector("input[name=\"onboardRelocation\"]:checked")?.value || "").trim();
-        const careerInterests = Array.from(root.querySelectorAll("input[data-quiz-interest]:checked"))
-          .map((input) => String(input.value || "").trim())
-          .filter(Boolean);
-
-        if (!preferredField || !preference || !relocation) {
-          error = "Complete all required quiz fields before continuing.";
-          renderOnboarding();
-          return;
-        }
-
-        draft.quiz = {
-          preferredField,
-          preference,
-          relocation,
-          careerInterests
-        };
-
-        setStudentOnboardingState(user.id, {
-          careerQuizCompleted: true,
-          completed: false,
-          quizAnswers: draft.quiz
-        });
-
-        addStudentNotification(user.id, "Career quiz saved. Personalized opportunities are ready.", "success");
-        currentStep = 3;
-        renderOnboarding();
-      });
-    }
-
-    root.querySelector("#onboardingBackToQuiz")?.addEventListener("click", () => {
-      currentStep = 2;
-      error = "";
-      renderOnboarding();
-    });
-
-    root.querySelector("#onboardingEnterDashboard")?.addEventListener("click", () => {
-      setStudentOnboardingState(user.id, {
-        personalizationCompleted: true,
-        completed: true,
-        completedAt: new Date().toISOString()
-      });
-      addStudentNotification(user.id, "Onboarding complete. Your dashboard is ready.", "success");
-      navigate("/student/dashboard");
-    });
-
-    bindStudentOpportunityCardActions(root, user, renderOnboarding);
-  }
-
-  renderOnboarding();
-  return shell("student", node);
-}
-
-function pageStudentDashboard() {
-  const user = requireRole("student");
-  if (!user) return el(`<div class="content">Redirecting...</div>`);
-
-  if (isStudentOnboardingRequired(user)) {
-    navigate("/student/onboarding");
-    return el(`<div class="content">Redirecting...</div>`);
-  }
-
-  const applications = studentApplications(user.id);
-  const opportunities = getRecommendedOpenOpportunities(user.id, 6);
-  const applicationByOpportunity = new Map(applications.map((entry) => [entry.opportunityId, entry]));
-  const profileStrength = calculateProfileStrength(user);
-  const savedSet = getStudentSavedOpportunitiesSet(user.id);
-  const notifications = getStudentNotifications(user.id).slice(0, 4);
-  const hasGuidance = Boolean(getCareerGuidanceRecord(user.id, user)?.result?.topCategory);
-
-  const node = el(`<div class="grid studentDashboardV2">
-    <div class="cardHeader">
-      <h1 style="margin:0; font-size:24px;">Student Dashboard</h1>
-      <p class="mutedText" style="margin:8px 0 0;">Complete your profile to unlock better opportunities.</p>
     </div>
 
-    <section class="card dashboardSectionUrgent">
-      <div class="dashboardSectionMeta">Urgent Actions</div>
-      <div class="row" style="justify-content:space-between; align-items:flex-start; margin-top:6px;">
-        <div>
-          <h3 class="dashboardSectionTitle">Profile strength: ${profileStrength.percent}%</h3>
-          <p class="mutedText" style="margin-top:6px;">Complete your profile for smarter recommendations</p>
-        </div>
-        <div class="row">
-          <a class="btn btnGhost" href="#/student/onboarding">Complete profile</a>
-          <a class="btn btnGhost" href="#/student/documents">Upload documents</a>
-        </div>
+    <div class="ydhBursaryCardBody">
+      <div class="ydhBursaryCardEyebrow">${escapeHtml(provider)}</div>
+      <h3 class="ydhBursaryCardTitle">${escapeHtml(opportunity.title)}</h3>
+
+      <div class="ydhBursaryCardDivider"></div>
+
+      <div class="ydhBursaryCardMeta">
+        ${getOpportunityListingMeta(opportunity).map((item) => `<div class="ydhBursaryCardMetaRow"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}
       </div>
-      <div class="applicationProgressBar profileCompletenessBar" style="margin-top:10px;">
-        <div class="applicationProgressBarFill" style="width:${profileStrength.percent}%;"></div>
+
+      ${badges.length ? `<div class="ydhBursaryCardBadges">${badges.map((badge) => `<span class="ydhBursaryCardBadge">${escapeHtml(badge)}</span>`).join("")}</div>` : ""}
+
+      <div class="ydhBursaryCardFooter">
+        <span class="ydhBursaryCardStatus ${lifecycle.statusClass}">${escapeHtml(lifecycle.statusLabel)}</span>
+        <a class="btn ydhBursaryCardCta" href="${action.href}">${escapeHtml(action.label)}</a>
       </div>
-      <div class="dashboardAlertStack" style="margin-top:10px;">
-        ${getUrgentDashboardAlerts(user, opportunities).map((alert) => `<div class="dashboardAlertItem">${escapeHtml(alert)}</div>`).join("")}
-      </div>
-      ${notifications.length
-        ? `<div class="dashboardNotificationStack" style="margin-top:10px;">${notifications.map((entry) => `<div class="dashboardNotificationItem">${escapeHtml(entry.message)}</div>`).join("")}</div>`
-        : ""}
-    </section>
-
-    <section class="card">
-      <div class="dashboardSectionMeta">Recommended Opportunities</div>
-      <h3 class="dashboardSectionTitle" style="margin-top:6px;">Matches for you</h3>
-      <div class="dashboardOpportunityGrid" style="margin-top:10px;">
-        ${opportunities
-          .map((opportunity) =>
-            renderStudentOpportunityCard(opportunity, {
-              student: user,
-              application: applicationByOpportunity.get(opportunity.id) || null,
-              recommended: true
-            })
-          )
-          .join("")}
-      </div>
-      ${savedSet.size ? `<div class="mutedText" style="margin-top:10px;">Saved opportunities: ${savedSet.size}</div>` : ""}
-    </section>
-
-    <section class="card">
-      <div class="dashboardSectionMeta">Application Progress</div>
-      <h3 class="dashboardSectionTitle" style="margin-top:6px;">Track your applications</h3>
-      <div class="dashboardProgressList" style="margin-top:10px;">
-        ${applications.length
-          ? applications
-              .slice(0, 8)
-              .map((application) => {
-                const opportunity = getOpportunity(application.opportunityId);
-                const progress = getOpportunityProgressSummary(user, opportunity || {}, application);
-                const lifecycle = getOpportunityLifecycleState(application);
-                return `<article class="dashboardProgressItem">
-                  <div>
-                    <div style="font-weight:700;">${escapeHtml(opportunity?.title || "Opportunity")}</div>
-                    <div class="mutedText" style="font-size:12px; margin-top:2px;">${escapeHtml(progress.label)}</div>
-                  </div>
-                  <div class="row" style="gap:8px;">
-                    <span class="${lifecycle.statusClass}">${lifecycle.statusLabel}</span>
-                    <a class="btn btnGhost" href="#/student/application/${application.id}">Open</a>
-                  </div>
-                </article>`;
-              })
-              .join("")
-          : `<div class="dashboardEmptyState">
-              <p>Start your first application — it takes less than 10 minutes.</p>
-              <a class="btn btnPrimary" href="#/student/bursaries">Find opportunities</a>
-            </div>`}
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="dashboardSectionMeta">Document Readiness</div>
-      <h3 class="dashboardSectionTitle" style="margin-top:6px;">Upload once, apply faster</h3>
-      <div style="margin-top:10px;">${renderRequiredDocumentsChecklist(user.id, "", true)}</div>
-    </section>
-
-    <section class="card dashboardCareerSection">
-      <div class="dashboardSectionMeta">Career Development</div>
-      <h3 class="dashboardSectionTitle" style="margin-top:6px;">Keep building momentum</h3>
-      <div class="dashboardCareerGrid" style="margin-top:10px;">
-        <article class="dashboardCareerCardItem">
-          <h4>Career Quiz</h4>
-          <p class="mutedText">${hasGuidance ? "Retake your quiz for updated matches." : "Take your career quiz for sharper recommendations."}</p>
-          <a class="btn btnGhost" href="#/student/career-guidance">${hasGuidance ? "Review quiz" : "Take quiz"}</a>
-        </article>
-        <article class="dashboardCareerCardItem">
-          <h4>Trust Signals</h4>
-          <p class="mutedText">${store.placementStats?.placedStudents || 2300} students placed through Youth Digital Hub.</p>
-          <div class="dashboardTestimonialList">
-            ${(Array.isArray(store.testimonials) ? store.testimonials : []).slice(0, 2).map((entry) => `<div class="dashboardTestimonialItem">“${escapeHtml(entry.quote)}” <span>${escapeHtml(entry.author)}</span></div>`).join("")}
-          </div>
-        </article>
-      </div>
-    </section>
-  </div>`);
-
-  bindStudentOpportunityCardActions(node, user, () => {
-    render();
-  });
-
-  if (notifications.length) {
-    markStudentNotificationsRead(user.id);
-  }
-
-  return shell("student", node);
+    </div>
+  </article>`;
 }
 
+function renderStudentOpportunityCard(opportunity, options = {}) {
+  const cardOptions = {
+    ...options,
+    selectable: false,
+    selected: false
+  };
+
+  if (String(opportunity?.type || "").trim() === "Bursary") {
+    return renderBursaryListingCard(opportunity, cardOptions);
+  }
+
+  return renderOpportunityListingCard(opportunity, cardOptions);
+}
+
+// Reusable student opportunity-listing renderer (filters, sorting, and quick navigation).
 function pageStudentListing(listingKey) {
   const user = requireRole("student");
   if (!user) return el(`<div class="content">Redirecting...</div>`);
@@ -9810,10 +10348,10 @@ function pageStudentListing(listingKey) {
 
   const config = getStudentListingConfig(listingKey);
   const recommended = recommendedIdsForStudent(user.id);
-  const scoped = getOpportunityCatalogue().filter((opportunity) =>
+  const listingSource = listingKey === "bursaries" ? getCuratedBursaryListingCatalogue() : getOpportunityCatalogue();
+  const scoped = listingSource.filter((opportunity) =>
     config.typeFilter.includes(opportunity.type) && String(opportunity.listingStatus || "open") === "open"
   );
-
   const sectors = Array.from(new Set(scoped.map((opportunity) => resolveOpportunitySector(opportunity)))).filter(Boolean);
 
   const node = el(`<div class="grid">
@@ -9854,7 +10392,7 @@ function pageStudentListing(listingKey) {
       </div>
     </div>
 
-    <div class="dashboardOpportunityGrid" id="listingWrap"></div>
+    <div class="ydhBursaryGrid" id="listingWrap"></div>
   </div>`);
 
   function renderItems() {
@@ -9866,7 +10404,16 @@ function pageStudentListing(listingKey) {
     const applicationsByOpportunity = new Map(studentApplications(user.id).map((entry) => [entry.opportunityId, entry]));
 
     let filtered = scoped.filter((opportunity) => {
-      const searchable = [opportunity.title, opportunity.institution, resolveOpportunitySector(opportunity)].join(" ").toLowerCase();
+      const searchable = [
+        opportunity.title,
+        opportunity.institution,
+        resolveOpportunitySector(opportunity),
+        opportunity.focusArea,
+        opportunity.duration,
+        opportunity.certificationType,
+        Array.isArray(opportunity.badges) ? opportunity.badges.join(" ") : "",
+        Array.isArray(opportunity.tags) ? opportunity.tags.join(" ") : ""
+      ].join(" ").toLowerCase();
       const matchesQuery = !query || searchable.includes(query);
       const matchesProvince = !province || String(opportunity.location || "") === province;
       const matchesSector = !sector || resolveOpportunitySector(opportunity) === sector;
@@ -9888,9 +10435,7 @@ function pageStudentListing(listingKey) {
       const secondRecommended = recommended.has(second.id) ? 1 : 0;
       if (firstRecommended !== secondRecommended) return secondRecommended - firstRecommended;
 
-      const firstTitle = String(first.title || "");
-      const secondTitle = String(second.title || "");
-      return firstTitle.localeCompare(secondTitle);
+      return String(first.title || "").localeCompare(String(second.title || ""));
     });
 
     const wrap = node.querySelector("#listingWrap");
@@ -9912,16 +10457,24 @@ function pageStudentListing(listingKey) {
     }
 
     wrap.innerHTML = filtered
-      .map((opportunity) =>
-        renderStudentOpportunityCard(opportunity, {
+      .map((opportunity) => {
+        const cardOptions = {
           student: user,
           application: applicationsByOpportunity.get(opportunity.id) || null,
-          recommended: recommended.has(opportunity.id)
-        })
-      )
+          recommended: recommended.has(opportunity.id),
+          selectable: false,
+          selected: false
+        };
+
+        if (listingKey === "bursaries") {
+          return renderBursaryListingCard(opportunity, cardOptions);
+        }
+
+        return renderOpportunityListingCard(opportunity, cardOptions);
+      })
       .join("");
 
-    bindStudentOpportunityCardActions(wrap, user, renderItems);
+    bindStudentOpportunityCardActions(node, user, renderItems);
   }
 
   ["#searchInput", "#provinceFilter", "#sectorFilter", "#sortFilter"].forEach((selector) => {
@@ -10069,6 +10622,326 @@ function parseOpportunityCsv(rawText) {
   return { rows, errors };
 }
 
+
+function getAdminScopedOpportunities(user) {
+  const role = String(user?.role || "").trim().toLowerCase();
+  const institutionId = String(user?.institutionId || user?.profile?.institutionId || "").trim().toLowerCase();
+  const organisationName = String(user?.profile?.organisationName || user?.name || "").trim().toLowerCase();
+
+  let opportunities = flattenOpportunityStore(ensureOpportunityStore());
+  if (role === "admin" || role === "super_admin" || role === "reviewer") {
+    return opportunities;
+  }
+
+  return opportunities.filter((entry) => {
+    const entryInstitutionId = String(entry.institutionId || "").trim().toLowerCase();
+    const entryProvider = String(entry.provider || entry.institution || "").trim().toLowerCase();
+    if (institutionId) return entryInstitutionId === institutionId;
+    return organisationName ? entryProvider.includes(organisationName) : false;
+  });
+}
+
+function getAdminAccessibleStudents(user, rows = []) {
+  const role = String(user?.role || "").trim().toLowerCase();
+  if (role === "admin" || role === "super_admin" || role === "reviewer") {
+    return store.users.filter((entry) => entry.role === "student" && !entry.mergedInto);
+  }
+
+  const ids = new Set(rows.map((row) => row.student?.id).filter(Boolean));
+  return store.users.filter((entry) => entry.role === "student" && !entry.mergedInto && ids.has(entry.id));
+}
+
+function pageAdminCorporate() {
+  const user = requireAdminAccess(["admin", "super_admin", "institution_admin", "corporate_partner", "reviewer"]);
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  const rows = buildApplicationRows("all");
+  const opportunities = getAdminScopedOpportunities(user);
+  const students = getAdminAccessibleStudents(user, rows);
+  const verifiedPartners = Array.isArray(store.institutions) ? store.institutions.filter((entry) => entry.verified).length : 0;
+  const submittedCount = rows.filter((row) => normalizeApplicationStatus(row.application?.status, "draft") !== "draft").length;
+  const recentRows = rows.slice(0, 8);
+  const auditLogs = Array.isArray(store.auditLogs) ? store.auditLogs.slice(0, 8) : [];
+
+  const node = el(`<div class="grid adminCorporateOverview">
+    <div class="cardHeader">
+      <h1 style="margin:0; font-size:24px;">Corporate Executive Dashboard</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Portfolio overview across opportunities, applicants, and verified partners.</p>
+    </div>
+
+    <div class="adminMetricGrid">
+      ${metricTile("Active opportunities", String(opportunities.filter((entry) => String(entry.listingStatus || "open") === "open").length), "Open listings in your current scope")}
+      ${metricTile("Accessible students", String(students.length), "Students currently visible to this workspace")}
+      ${metricTile("Applications submitted", String(submittedCount), "Submitted and in-progress applications")}
+      ${metricTile("Verified partners", String(verifiedPartners), "Approved institutions and partner organisations")}
+    </div>
+
+    <section class="card">
+      <div style="font-weight:700;">Recent applications</div>
+      <div class="mutedText" style="margin-top:4px; font-size:12px;">A live view of the latest activity entering the platform.</div>
+      ${recentRows.length ? `<div style="overflow-x:auto; margin-top:12px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Opportunity</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recentRows.map((row) => `<tr>
+              <td><b>${escapeHtml(getUserDisplayName(row.student))}</b><div class="mutedText" style="font-size:12px; margin-top:2px;">${escapeHtml(row.student?.profile?.province || "Province not set")}</div></td>
+              <td>${escapeHtml(row.opportunity?.title || "Opportunity")}</td>
+              <td>${escapeHtml(row.opportunityType)}</td>
+              <td><span class="badge ${normalizeApplicationStatus(row.application?.status, "draft") === "funded" ? "badgeGreen" : normalizeApplicationStatus(row.application?.status, "draft") === "rejected" ? "badgeOrange" : "badgeBlue"}">${escapeHtml(getApplicationStatusLabel(normalizeApplicationStatus(row.application?.status, "draft")))}</span></td>
+              <td>${escapeHtml(String(row.score?.score ?? 0))}%</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : `<div class="mutedText" style="margin-top:12px;">No applications submitted yet.</div>`}
+    </section>
+
+    <section class="card">
+      <div style="font-weight:700;">Audit activity</div>
+      <div class="dashboardNotificationStack" style="margin-top:12px;">
+        ${auditLogs.length
+          ? auditLogs.map((entry) => `<div class="dashboardNotificationItem"><b>${escapeHtml(entry.action || "Activity")}</b><div class="mutedText" style="font-size:12px; margin-top:3px;">${escapeHtml(formatDate(entry.at || entry.createdAt || ""))}</div></div>`).join("")
+          : `<div class="mutedText">No audit activity recorded yet.</div>`}
+      </div>
+    </section>
+  </div>`);
+
+  return shell("admin", node);
+}
+
+function pageAdminBursaries() {
+  const user = requireAdminAccess(["admin", "super_admin", "institution_admin", "corporate_partner", "reviewer"]);
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  const rows = buildApplicationRows("Bursary");
+  const openBursaries = getAdminScopedOpportunities(user).filter((entry) => String(entry.type || "") === "Bursary" && String(entry.listingStatus || "open") === "open").length;
+  const fundedCount = rows.filter((row) => normalizeApplicationStatus(row.application?.status, "draft") === "funded").length;
+  const docsReadyCount = rows.filter((row) => row.checklist?.complete).length;
+  const shortlistedCount = rows.filter((row) => Boolean(row.meta?.shortlisted) || normalizeApplicationStatus(row.application?.status, "draft") === "shortlisted").length;
+
+  const node = el(`<div class="grid adminBursariesOverview">
+    <div class="cardHeader">
+      <h1 style="margin:0; font-size:24px;">Bursary Application Management</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Track bursary demand, document readiness, and funding progress.</p>
+    </div>
+
+    <div class="adminMetricGrid">
+      ${metricTile("Open bursaries", String(openBursaries), "Currently accepting applications")}
+      ${metricTile("Bursary applications", String(rows.length), "Applications in the current scope")}
+      ${metricTile("Docs ready", String(docsReadyCount), "Applications with required documents")}
+      ${metricTile("Funded", String(fundedCount), "Successful bursary outcomes")}
+    </div>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700;">Bursary pipeline</div>
+          <div class="mutedText" style="font-size:12px; margin-top:4px;">Shortlists, document readiness, and funding outcomes.</div>
+        </div>
+        <span class="badge badgeBlue">${shortlistedCount} shortlisted</span>
+      </div>
+      ${rows.length ? `<div style="overflow-x:auto; margin-top:12px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Bursary</th>
+              <th>Province</th>
+              <th>Docs</th>
+              <th>Score</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `<tr>
+              <td><b>${escapeHtml(getUserDisplayName(row.student))}</b><div class="mutedText" style="font-size:12px; margin-top:2px;">${escapeHtml(row.student?.profile?.educationLevel || "Education not set")}</div></td>
+              <td>${escapeHtml(row.opportunity?.title || "Bursary")}</td>
+              <td>${escapeHtml(row.student?.profile?.province || row.opportunity?.location || "National")}</td>
+              <td><span class="badge ${row.checklist?.complete ? "badgeGreen" : "badgeOrange"}">${row.checklist?.complete ? "Ready" : "Missing docs"}</span></td>
+              <td>${escapeHtml(String(row.score?.score ?? 0))}%</td>
+              <td><span class="badge ${normalizeApplicationStatus(row.application?.status, "draft") === "funded" ? "badgeGreen" : normalizeApplicationStatus(row.application?.status, "draft") === "rejected" ? "badgeOrange" : "badgeBlue"}">${escapeHtml(getApplicationStatusLabel(normalizeApplicationStatus(row.application?.status, "draft")))}</span></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : `<div class="mutedText" style="margin-top:12px;">No bursary applications found yet.</div>`}
+    </section>
+  </div>`);
+
+  return shell("admin", node);
+}
+
+function pageAdminLifecycle() {
+  const user = requireAdminAccess(["admin", "super_admin", "institution_admin", "corporate_partner", "reviewer"]);
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  const rows = buildApplicationRows("all");
+  const stageLabels = {
+    applied: "Applied",
+    under_review: "Under Review",
+    shortlisted: "Shortlisted",
+    interview: "Interview",
+    accepted: "Accepted",
+    rejected: "Rejected"
+  };
+  const stageCounts = APPLICATION_PIPELINE_STAGES.reduce((acc, stage) => {
+    acc[stage] = 0;
+    return acc;
+  }, {});
+
+  rows.forEach((row) => {
+    const stage = resolvePipelineStage(row);
+    stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+  });
+
+  const fundedRows = rows.filter((row) => normalizeApplicationStatus(row.application?.status, "draft") === "funded");
+
+  const node = el(`<div class="grid adminLifecycleOverview">
+    <div class="cardHeader">
+      <h1 style="margin:0; font-size:24px;">Funded Student Lifecycle Tracking</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Monitor movement from first application through funding and placement readiness.</p>
+    </div>
+
+    <div class="adminMetricGrid">
+      ${APPLICATION_PIPELINE_STAGES.map((stage) => metricTile(stageLabels[stage], String(stageCounts[stage] || 0), "Applications in this stage")).join("")}
+    </div>
+
+    <section class="card">
+      <div style="font-weight:700;">Funded and completed students</div>
+      ${fundedRows.length ? `<div style="overflow-x:auto; margin-top:12px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Opportunity</th>
+              <th>Funded at</th>
+              <th>Placement</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${fundedRows.map((row) => `<tr>
+              <td><b>${escapeHtml(getUserDisplayName(row.student))}</b><div class="mutedText" style="font-size:12px; margin-top:2px;">${escapeHtml(row.student?.profile?.province || "Province not set")}</div></td>
+              <td>${escapeHtml(row.opportunity?.title || "Opportunity")}</td>
+              <td>${escapeHtml(formatDate(row.application?.fundedAt || row.application?.updatedAt || ""))}</td>
+              <td>${escapeHtml(row.application?.placementStatus || "Not placed")}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>` : `<div class="mutedText" style="margin-top:12px;">No funded students yet.</div>`}
+    </section>
+  </div>`);
+
+  return shell("admin", node);
+}
+
+function pageAdminTalent() {
+  const user = requireAdminAccess(["admin", "super_admin", "institution_admin", "corporate_partner", "reviewer"]);
+  if (!user) return el(`<div class="content">Redirecting...</div>`);
+
+  const rows = buildApplicationRows("all");
+  const students = getAdminAccessibleStudents(user, rows);
+  const provinceCounts = {};
+  const educationCounts = {};
+  const interestCounts = {};
+  const applicationCounts = rows.reduce((acc, row) => {
+    const studentId = row.student?.id;
+    if (!studentId) return acc;
+    acc[studentId] = (acc[studentId] || 0) + 1;
+    return acc;
+  }, {});
+
+  students.forEach((student) => {
+    const profile = getUserProfile(student) || {};
+    const province = String(profile.province || "Unspecified");
+    const education = String(profile.educationLevel || "Unspecified");
+    provinceCounts[province] = (provinceCounts[province] || 0) + 1;
+    educationCounts[education] = (educationCounts[education] || 0) + 1;
+    (Array.isArray(profile.interests) ? profile.interests : []).forEach((interest) => {
+      const label = String(interest || "").trim();
+      if (!label) return;
+      interestCounts[label] = (interestCounts[label] || 0) + 1;
+    });
+  });
+
+  const topProvinces = Object.entries(provinceCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const topEducation = Object.entries(educationCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const topInterests = Object.entries(interestCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  const node = el(`<div class="grid adminTalentOverview">
+    <div class="cardHeader">
+      <h1 style="margin:0; font-size:24px;">Talent Pipeline & Workforce Planning</h1>
+      <p class="mutedText" style="margin:8px 0 0;">Understand who is in the pipeline, what they are studying, and where demand is concentrated.</p>
+    </div>
+
+    <div class="adminMetricGrid">
+      ${metricTile("Talent pool", String(students.length), "Visible student profiles")}
+      ${metricTile("Applications in pipeline", String(rows.length), "All accessible applications")}
+      ${metricTile("Top province", topProvinces[0] ? `${topProvinces[0][0]} (${topProvinces[0][1]})` : "No data", "Highest concentration of students")}
+      ${metricTile("Top interest", topInterests[0] ? `${topInterests[0][0]} (${topInterests[0][1]})` : "No data", "Most common student interest")}
+    </div>
+
+    <section class="card">
+      <div style="font-weight:700;">Talent signals</div>
+      <div class="dashboardNotificationStack" style="margin-top:12px;">
+        <div class="dashboardNotificationItem"><b>Top provinces</b><div class="mutedText" style="font-size:12px; margin-top:3px;">${escapeHtml(topProvinces.map(([label, count]) => `${label} (${count})`).join(" • ") || "No province data yet")}</div></div>
+        <div class="dashboardNotificationItem"><b>Education levels</b><div class="mutedText" style="font-size:12px; margin-top:3px;">${escapeHtml(topEducation.map(([label, count]) => `${label} (${count})`).join(" • ") || "No education data yet")}</div></div>
+        <div class="dashboardNotificationItem"><b>Top interests</b><div class="mutedText" style="font-size:12px; margin-top:3px;">${escapeHtml(topInterests.map(([label, count]) => `${label} (${count})`).join(" • ") || "No interest data yet")}</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div style="font-weight:700;">Talent roster</div>
+      ${students.length ? `<div style="overflow-x:auto; margin-top:12px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Province</th>
+              <th>Education</th>
+              <th>Interests</th>
+              <th>Applications</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${students.map((student) => {
+              const profile = getUserProfile(student) || {};
+              const interests = (Array.isArray(profile.interests) ? profile.interests : []).slice(0, 3).join(", ") || "Not set";
+              return `<tr>
+                <td><b>${escapeHtml(getUserDisplayName(student))}</b><div class="mutedText" style="font-size:12px; margin-top:2px;">${escapeHtml(student.email || "")}</div></td>
+                <td>${escapeHtml(profile.province || "Unspecified")}</td>
+                <td>${escapeHtml(profile.educationLevel || "Unspecified")}</td>
+                <td>${escapeHtml(interests)}</td>
+                <td>${escapeHtml(String(applicationCounts[student.id] || 0))}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>` : `<div class="mutedText" style="margin-top:12px;">No talent data is available yet.</div>`}
+    </section>
+  </div>`);
+
+  return shell("admin", node);
+}
+
+
+function inferOpportunityNqfLevel(entry) {
+  if (!entry) return "";
+  if (entry.nqfLevel) return String(entry.nqfLevel);
+  const type = String(entry.type || "").toLowerCase();
+  const sector = String(entry.sector || "").toLowerCase();
+  if (type === "bursary") return sector.includes("engineer") ? "NQF 6–7" : "NQF 5–7";
+  if (type === "learnership") return "NQF 2–4";
+  if (type === "internship") return "NQF 4–6";
+  if (type === "course") return "NQF 1–5";
+  return "";
+}
+
 function pageAdminOpportunities() {
   const user = requireAdminAccess(["admin", "super_admin", "institution_admin", "corporate_partner"]);
   if (!user) return el(`<div class="content">Redirecting...</div>`);
@@ -10125,8 +10998,8 @@ function pageAdminOpportunities() {
         <button type="button" class="btn btnPrimary" id="oppCsvImportBtn">Import CSV</button>
       </div>
 
-      <div id="oppCsvError" class="mutedText" style="color: var(--salmon-orange); margin-top:8px;"></div>
-      <div id="oppCsvNotice" class="mutedText" style="color: var(--royal-blue); margin-top:4px;"></div>
+      <div id="oppCsvError" class="mutedText" style="color: var(--color-danger); margin-top:8px;"></div>
+      <div id="oppCsvNotice" class="mutedText" style="color: var(--color-primary); margin-top:4px;"></div>
       <div id="oppCsvPreviewWrap" style="margin-top:10px;"></div>
     </section>
 
@@ -10308,7 +11181,7 @@ function pageAdminOpportunities() {
             <div class="field"><label><b>Tags</b></label><input class="input" id="oppEditorTags" value="${escapeHtml((editing?.tags || []).join(", "))}" /></div>
           </div>
 
-          <div id="oppEditorError" class="mutedText" style="color: var(--salmon-orange);">${escapeHtml(editorError)}</div>
+          <div id="oppEditorError" class="mutedText" style="color: var(--color-danger);">${escapeHtml(editorError)}</div>
           <div class="row" style="justify-content:flex-end; margin-top:8px;">
             <button class="btn btnGhost" type="button" id="oppEditorCancel">Cancel</button>
             <button class="btn btnPrimary" type="submit">${editing ? "Save changes" : "Create"}</button>
@@ -11142,7 +12015,7 @@ function pageAdminAnalytics() {
     .map((entry, index) => {
       const start = donutOffset;
       donutOffset += (entry.value / donutTotal) * 100;
-      const color = index === 0 ? "#2f6fed" : "#c7d2e8";
+      const color = index === 0 ? "#1A4731" : "#E8E2D5";
       return `${color} ${start.toFixed(2)}% ${donutOffset.toFixed(2)}%`;
     })
     .join(", ");
@@ -11232,7 +12105,7 @@ function login(email, password, role = "") {
     return { ok: false, error: "This account is currently suspended. Contact support." };
   }
 
-  if (isAdminRole(user.role) && store.adminSecurity?.twoFactorEnabled) {
+  if (isPlatformAdminRole(user.role) && store.adminSecurity?.twoFactorEnabled) {
     const code = window.prompt("Enter your admin verification code (demo code: 123456)", "");
     if (String(code || "").trim() !== "123456") {
       return { ok: false, error: "Two-factor verification failed." };
@@ -11244,6 +12117,80 @@ function login(email, password, role = "") {
   return { ok: true, user };
 }
 
+function formatDate(iso) {
+  try {
+    const date = new Date(iso);
+    return date.toLocaleString("en-ZA", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatDateLabel(value) {
+  if (!value || value === "Rolling") return "Rolling";
+  try {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return String(value);
+    return date.toLocaleDateString("en-ZA", { year: "numeric", month: "short", day: "2-digit" });
+  } catch {
+    return String(value);
+  }
+}
+
+function formatBytes(bytes) {
+  const size = Number(bytes || 0);
+  if (!Number.isFinite(size) || size <= 0) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function downloadCsv(filename, rows) {
+  if (!rows.length) {
+    alert("No rows available for export.");
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const csvLines = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const value = row[header] == null ? "" : String(row[header]);
+          return `"${value.replaceAll('"', '""')}"`;
+        })
+        .join(",")
+    )
+  ];
+
+  const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+
+  URL.revokeObjectURL(url);
+}
+
 function getSidebarItems(role) {
   if (role === "student") {
     return [
@@ -11253,6 +12200,28 @@ function getSidebarItems(role) {
       { label: "Bursaries", href: "/student/bursaries" },
       { label: "Learnerships/Internships", href: "/student/learnerships" },
       { label: "Courses", href: "/student/courses" }
+    ];
+  }
+
+  if (role === "corporate") {
+    return [
+      { label: "Overview",      href: "/corporate/dashboard", dashPage: "overview"       },
+      { label: "Opportunities", href: "/corporate/dashboard", dashPage: "opportunities"  },
+      { label: "Applicants",    href: "/corporate/dashboard", dashPage: "applicants"     },
+      { label: "Pipeline",      href: "/corporate/dashboard", dashPage: "pipeline"       },
+      { label: "Analytics",     href: "/corporate/dashboard", dashPage: "analytics"      },
+      { label: "Documents",     href: "/corporate/dashboard", dashPage: "docs"           },
+    ];
+  }
+
+  if (role === "institute") {
+    return [
+      { label: "Overview",      href: "/institute/dashboard", dashPage: "overview"       },
+      { label: "Programs",      href: "/institute/dashboard", dashPage: "programs"       },
+      { label: "Students",      href: "/institute/dashboard", dashPage: "students"       },
+      { label: "Applications",  href: "/institute/dashboard", dashPage: "applications"   },
+      { label: "Analytics",     href: "/institute/dashboard", dashPage: "analytics"      },
+      { label: "Documents",     href: "/institute/dashboard", dashPage: "docs"           },
     ];
   }
 
@@ -11281,6 +12250,8 @@ function getPageTitleForRoute(currentRoute) {
   if (currentRoute.startsWith("/student/opportunity/")) return "Opportunity Details";
   if (currentRoute.startsWith("/student/apply/")) return "Application Form";
   if (currentRoute.startsWith("/student/application/")) return "Application View";
+  if (currentRoute === "/corporate" || currentRoute === "/corporate/dashboard") return "Corporate Demo Workspace";
+  if (currentRoute === "/institute" || currentRoute === "/institute/dashboard") return "Institute Demo Workspace";
   if (currentRoute === "/admin/corporate" || currentRoute === "/admin") return "Corporate Executive Dashboard";
   if (currentRoute === "/admin/opportunities") return "Opportunity Management";
   if (currentRoute === "/admin/pipeline") return "Applicant Pipeline";
@@ -11320,8 +12291,14 @@ function render() {
       return;
     }
 
+    if (resolvedRoute === "/demos") {
+      mount(pageDemos());
+      return;
+    }
+
     if (resolvedRoute === "/home") {
-      mount(pageHome());
+      // Show the v8 landing page, not the in-app home
+      if (typeof window.showLanding === 'function') window.showLanding();
       return;
     }
 
@@ -11342,12 +12319,44 @@ function render() {
       }
 
       if (user.role !== "student") {
-        navigate("/admin/dashboard");
+        navigate(getWorkspaceHomeRoute(user));
         return;
       }
 
       if (resolvedRoute !== "/student/onboarding" && isStudentOnboardingRequired(user)) {
         navigate("/student/onboarding");
+        return;
+      }
+    }
+
+    if (resolvedRoute === "/corporate") {
+      navigate("/corporate/dashboard");
+      return;
+    }
+
+    if (resolvedRoute.startsWith("/corporate/")) {
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+      if (String(user.role || "").trim().toLowerCase() !== "corporate_partner") {
+        navigate(getWorkspaceHomeRoute(user));
+        return;
+      }
+    }
+
+    if (resolvedRoute === "/institute") {
+      navigate("/institute/dashboard");
+      return;
+    }
+
+    if (resolvedRoute.startsWith("/institute/")) {
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+      if (String(user.role || "").trim().toLowerCase() !== "institution_admin") {
+        navigate(getWorkspaceHomeRoute(user));
         return;
       }
     }
@@ -11413,6 +12422,16 @@ function render() {
       return;
     }
 
+    if (resolvedRoute === "/corporate/dashboard") {
+      mount(pageCorporateDashboard());
+      return;
+    }
+
+    if (resolvedRoute === "/institute/dashboard") {
+      mount(pageInstituteDashboard());
+      return;
+    }
+
     if (resolvedRoute === "/admin") {
       navigate("/admin/dashboard");
       return;
@@ -11423,10 +12442,11 @@ function render() {
         navigate("/login");
         return;
       }
-      if (!isAdminRole(user.role)) {
-        navigate("/student/dashboard");
+      if (!isPlatformAdminRole(user.role)) {
+        navigate(getWorkspaceHomeRoute(user));
         return;
       }
+      ensureAdminRuntimeState();
     }
 
     if (resolvedRoute === "/admin/dashboard" || resolvedRoute === "/admin/corporate") {
@@ -11480,9 +12500,7 @@ function render() {
     }
 
     if (user) {
-      if (isAdminRole(user.role)) navigate("/admin/dashboard");
-      else if (isStudentOnboardingRequired(user)) navigate("/student/onboarding");
-      else navigate("/student/dashboard");
+      navigate(getWorkspaceHomeRoute(user));
       return;
     }
 
@@ -11507,7 +12525,7 @@ function shell(role, contentNode) {
   const firstName = getUserNameParts(user || {}).firstName || (displayName || "Student").split(" ")[0] || "Student";
 
   const sidebar = el(`<aside class="sidebar">
-    <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:#555;">YOUTH DIGITAL HUB</div>
+    <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:var(--color-text-muted);">YOUTH DIGITAL HUB</div>
     <div style="margin-top:6px; font-weight:700; text-transform:uppercase;">${escapeHtml(role)} panel</div>
     ${
       user
@@ -11590,18 +12608,31 @@ function shell(role, contentNode) {
         .map(
           (item) => `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}" ${
             item.view ? `data-mobile-view="${item.view}"` : ""
-          }>
-            <span class="mobileBottomNavItemIcon">${item.icon}</span>
-            <span>${item.label}</span>
+          } ${item.active ? 'aria-current="page"' : ''}>
+            <span class="mobileBottomNavItemInner">
+              <span class="mobileBottomNavItemIcon">${renderStudentMobileNavIcon(item)}</span>
+              <span class="mobileBottomNavItemLabel">${item.label}</span>
+            </span>
           </a>`
         )
         .join("")}
     </nav>`);
 
-    bottomNav.querySelectorAll("a[data-mobile-view]").forEach((link) => {
-      link.addEventListener("click", () => {
+    bottomNav.querySelectorAll("a.mobileBottomNavItem").forEach((link) => {
+      link.addEventListener("click", (event) => {
         const view = link.getAttribute("data-mobile-view");
         setMobileDashboardView(view || "dashboard");
+
+        const href = link.getAttribute("href") || "";
+        const targetRoute = href.replace("#", "") || "/";
+        if (targetRoute === route && targetRoute === "/student/dashboard") {
+          event.preventDefault();
+          const targetId = view === "profile" ? "dashboardProfileSection" : "dashboardHeroSection";
+          const targetNode = document.getElementById(targetId);
+          if (targetNode) {
+            targetNode.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
       });
     });
 
@@ -11613,4 +12644,14 @@ function shell(role, contentNode) {
 
 
 // Re-render after override registration.
+window.ydhRender = render;
+
+// On initial load: if we're on an app route, ensure dashboard is visible
+(function() {
+  var h = (location.hash || '').replace(/^#/, '').trim();
+  if (h && h !== '/home' && h !== '/' ) {
+    if (typeof window.showApp === 'function') window.showApp();
+  }
+})();
+
 render();
