@@ -4732,266 +4732,6 @@ function getAdminMobileNavItems(currentRoute) {
   };
 }
 
-function shell(role, contentNode) {
-  const user = currentUser();
-  const sidebarItems = getSidebarItems(role);
-  const isPartner = role === 'corporate' || role === 'institute';
-  const pageTitle = getPageTitleForRoute(route);
-  const displayName = getUserDisplayName(user);
-  const profile = getUserProfile(user) || {};
-  const firstName = getUserNameParts(user || {}).firstName || (displayName || "Student").split(" ")[0] || "Student";
-
-  const sidebar = el(`<aside class="sidebar">
-    <div style="font-size:12px; letter-spacing:.08em; font-weight:700; color:var(--color-text-muted);">NATIONAL TVET & SETA MVP</div>
-    <div style="margin-top:6px; font-weight:700; text-transform:uppercase;">${role} panel</div>
-    ${
-      user
-        ? `<div class="sidebarUserCard">
-            ${renderUserAvatar(user, "avatarMd")}
-            <div style="min-width:0;">
-              <div style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(displayName)}</div>
-              <div class="mutedText" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(user.email || profile.email || "")}</div>
-            </div>
-          </div>`
-        : ""
-    }
-    <div style="margin-top:12px; display:grid; gap:8px;">
-      ${sidebarItems
-        .map((item, idx) => {
-          if (isPartner && item.dashPage) {
-            const active = idx === 0;
-            return `<button type="button" class="tab ${active ? "active" : ""}" data-dash-page="${item.dashPage}" data-partner-nav="1" style="background:none;border:none;text-align:left;cursor:pointer;font-family:inherit;font-size:inherit;width:100%;">${item.label}</button>`;
-          }
-          const active = isRouteActive(
-            role === "student" ? resolveStudentNavRoute(route) : route,
-            item.href
-          );
-          return `<a class="tab ${active ? "active" : ""}" href="#${item.href}">${item.label}</a>`;
-        })
-        .join("")}
-    </div>
-  </aside>`);
-
-  const topbar = el(`<header class="topbar">
-    <div>
-      <div class="mutedText" style="font-size:12px; text-transform:uppercase; letter-spacing:.08em;">Live workspace</div>
-      <div style="font-weight:800; font-size:24px; line-height:1.1;">Dashboard</div>
-    </div>
-    <div class="row">
-      <button class="btn btnGhost" id="btnRole">Role switch</button>
-      <button class="btn btnPrimary" id="btnLogout">Logout</button>
-    </div>
-  </header>`);
-
-  topbar.querySelector("#btnRole").onclick = () => {
-    logout();
-    navigate("/login");
-  };
-
-  topbar.querySelector("#btnLogout").onclick = () => {
-    logout();
-    navigate("/home");
-  };
-
-  const mobileHeader =
-    role === "student"
-      ? el(`<header class="mobileTopHeader">
-          <div class="row" style="gap:10px; align-items:center; flex-wrap:nowrap; width:auto;">
-            ${user ? renderUserAvatar(user, "avatarMd") : `<span class="sessionDot"></span>`}
-            <div>
-              <div class="mutedText" style="font-size:11px; text-transform:uppercase; letter-spacing:.05em;">Student</div>
-              <div style="font-size:18px; font-weight:800; line-height:1.1;">Hi ${escapeHtml(firstName || "Student")}</div>
-            </div>
-          </div>
-          <button type="button" class="mobileNotifyBtn" aria-label="Notifications">◔</button>
-        </header>`)
-      : null;
-
-  const main = document.createElement("div");
-  main.className = `mainShell ${role === "student" ? "hasMobileHeader" : ""}`.trim();
-  if (mobileHeader) {
-    main.appendChild(mobileHeader);
-  }
-  main.appendChild(topbar);
-
-  const contentWrap = el(`<main class="content"></main>`);
-  contentWrap.appendChild(contentNode);
-  main.appendChild(contentWrap);
-
-  const app = document.createElement("div");
-  app.className = "appShell" + (isPartner ? " partnerShell" : "");
-  app.appendChild(sidebar);
-  app.appendChild(main);
-
-  // Partner sidebar: wire buttons to page-switcher
-  if (isPartner) {
-    sidebar.querySelectorAll("[data-partner-nav]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const page = btn.getAttribute("data-dash-page");
-        if (window.__partnerSwitch) window.__partnerSwitch(page);
-        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        btn.classList.add("active");
-      });
-    });
-  }
-
-  if (role === "student") {
-    const mobileItems = getStudentMobileNavItems(route);
-    const bottomNav = el(`<nav class="mobileBottomNav" aria-label="Mobile navigation">
-      ${mobileItems
-        .map(
-          (item) => `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}" ${
-            item.view ? `data-mobile-view="${item.view}"` : ""
-          } ${item.active ? 'aria-current="page"' : ''}>
-            <span class="mobileBottomNavItemInner">
-              <span class="mobileBottomNavItemIcon">${renderStudentMobileNavIcon(item)}</span>
-              <span class="mobileBottomNavItemLabel">${item.label}</span>
-            </span>
-          </a>`
-        )
-        .join("")}
-    </nav>`);
-
-    bottomNav.querySelectorAll("a.mobileBottomNavItem").forEach((link) => {
-      link.addEventListener("click", (event) => {
-        const view = link.getAttribute("data-mobile-view");
-        if (view) {
-          setMobileDashboardView(view);
-        } else {
-          setMobileDashboardView("dashboard");
-        }
-
-        const href = link.getAttribute("href") || "";
-        const targetRoute = href.replace("#", "") || "/";
-        if (targetRoute === route && targetRoute === "/student/dashboard") {
-          event.preventDefault();
-          const targetId = view === "profile" ? "dashboardProfileSection" : "dashboardHeroSection";
-          const targetNode = document.getElementById(targetId);
-          if (targetNode) {
-            targetNode.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        }
-      });
-    });
-
-    app.appendChild(bottomNav);
-  }
-
-  if (role === "admin") {
-    const { primaryItems, overflowItems } = getAdminMobileNavItems(route);
-    const bottomNav = el(`<nav class="mobileBottomNav mobileBottomNavAdmin" aria-label="Admin mobile navigation">
-      ${primaryItems
-        .map((item) => {
-          if (item.isMore) {
-            return `<button type="button" class="mobileBottomNavItem ${item.active ? "active" : ""}" id="adminMobileMoreBtn">
-              <span class="mobileBottomNavItemIcon">${item.icon}</span>
-              <span>${item.label}</span>
-            </button>`;
-          }
-
-          return `<a class="mobileBottomNavItem ${item.active ? "active" : ""}" href="#${item.href}">
-            <span class="mobileBottomNavItemIcon">${item.icon}</span>
-            <span>${item.label}</span>
-          </a>`;
-        })
-        .join("")}
-    </nav>`);
-
-    app.appendChild(bottomNav);
-
-    if (overflowItems.length) {
-      const moreOverlay = el(`<div class="adminMobileMoreOverlay" id="adminMobileMoreOverlay" hidden aria-hidden="true">
-        <div class="adminMobileMoreSheet" role="dialog" aria-modal="true" aria-labelledby="adminMobileMoreTitle">
-          <div class="row" style="justify-content:space-between; align-items:center; width:auto;">
-            <b id="adminMobileMoreTitle">More sections</b>
-            <button type="button" class="btn btnGhost adminMobileMoreClose" data-admin-more-close="true">Close</button>
-          </div>
-          <div class="adminMobileMoreList">
-            ${overflowItems
-              .map(
-                (item) => `<a class="adminMobileMoreLink ${item.active ? "active" : ""}" href="#${item.href}">
-                  <span class="mobileBottomNavItemIcon">${item.icon}</span>
-                  <span>${item.label}</span>
-                </a>`
-              )
-              .join("")}
-          </div>
-        </div>
-      </div>`);
-
-      const openMore = () => {
-        moreOverlay.hidden = false;
-        moreOverlay.setAttribute("aria-hidden", "false");
-        requestAnimationFrame(() => {
-          moreOverlay.classList.add("open");
-          const closeButton = moreOverlay.querySelector("[data-admin-more-close]");
-          if (closeButton && typeof closeButton.focus === "function") closeButton.focus();
-        });
-      };
-
-      const closeMore = () => {
-        moreOverlay.classList.remove("open");
-        moreOverlay.setAttribute("aria-hidden", "true");
-        window.setTimeout(() => {
-          moreOverlay.hidden = true;
-        }, 130);
-      };
-
-      const moreButton = bottomNav.querySelector("#adminMobileMoreBtn");
-      if (moreButton) {
-        moreButton.addEventListener("click", openMore);
-      }
-
-      moreOverlay.addEventListener("click", (event) => {
-        if (event.target === moreOverlay || event.target.closest("[data-admin-more-close]")) {
-          closeMore();
-        }
-      });
-
-      moreOverlay.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closeMore();
-          if (moreButton && typeof moreButton.focus === "function") moreButton.focus();
-        }
-      });
-
-      moreOverlay.querySelectorAll("a.adminMobileMoreLink").forEach((link) => {
-        link.addEventListener("click", closeMore);
-      });
-
-      app.appendChild(moreOverlay);
-    }
-  }
-
-  // ── Partner mobile bottom nav ───────────────────────────────────────────────
-  if (isPartner) {
-    const picons = { overview:"◈", opportunities:"▥", applicants:"◎", pipeline:"◔", analytics:"◉", programs:"▣", students:"◎", applications:"▥", docs:"▤" };
-    const pbn = document.createElement("nav");
-    pbn.className = "mobileBottomNav mobileBottomNavPartner";
-    pbn.setAttribute("aria-label", "Partner navigation");
-    pbn.innerHTML = sidebarItems.map((item, idx) =>
-      `<button type="button" class="mobileBottomNavItem ${idx===0?"active":""}" data-dash-page="${item.dashPage}" data-partner-mobile-nav="1">
-        <span class="mobileBottomNavItemIcon">${picons[item.dashPage]||"•"}</span>
-        <span class="mobileBottomNavItemLabel">${item.label}</span>
-      </button>`
-    ).join("");
-    pbn.querySelectorAll("[data-partner-mobile-nav]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const page = btn.getAttribute("data-dash-page");
-        if (window.__partnerSwitch) window.__partnerSwitch(page);
-        pbn.querySelectorAll(".mobileBottomNavItem").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        sidebar.querySelector(`[data-dash-page="${page}"]`)?.classList.add("active");
-      });
-    });
-    app.appendChild(pbn);
-  }
-
-  return app;
-}
-
 
 function openPartnerModal(title, html) {
   var existing = document.getElementById('partnerDetailModal');
@@ -5109,10 +4849,10 @@ function pageCorporateDashboard() {
     node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
     const target = node.querySelector('#' + corpPageMap[name]);
     if (target) target.style.display = '';
-    // Sync sidebar + mobile nav active state
-    const shell = node.closest('.partnerShell');
-    if (shell) {
-      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(b =>
+    // Sync sidebar .partnerNavBtn and mobile bottom nav active states
+    const appShell = node.closest('.partnerShell');
+    if (appShell) {
+      appShell.querySelectorAll('.partnerNavBtn, [data-partner-mobile-nav]').forEach(b =>
         b.classList.toggle('active', b.getAttribute('data-dash-page') === name)
       );
     }
@@ -5671,9 +5411,9 @@ function pageInstituteDashboard() {
     node.querySelectorAll('.dashInnerNavBtn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
     const target = node.querySelector('#' + instPageMap[name]);
     if (target) target.style.display = '';
-    const shell = node.closest('.partnerShell');
-    if (shell) {
-      shell.querySelectorAll('[data-partner-nav],[data-partner-mobile-nav]').forEach(b =>
+    const appShell = node.closest('.partnerShell');
+    if (appShell) {
+      appShell.querySelectorAll('.partnerNavBtn, [data-partner-mobile-nav]').forEach(b =>
         b.classList.toggle('active', b.getAttribute('data-dash-page') === name)
       );
     }
@@ -12421,7 +12161,12 @@ function shell(role, contentNode) {
     }
     <div style="margin-top:12px; display:grid; gap:8px;">
       ${sidebarItems
-        .map((item) => {
+        .map((item, idx) => {
+          if (isPartner && item.dashPage) {
+            // Partner: buttons that switch inner pages without hash nav
+            const active = idx === 0;
+            return `<button type="button" class="tab partnerNavBtn ${active ? "active" : ""}" data-dash-page="${item.dashPage}">${item.label}</button>`;
+          }
           const active = isRouteActive(role === "student" ? resolveStudentNavRoute(route) : route, item.href);
           return `<a class="tab ${active ? "active" : ""}" href="#${item.href}">${item.label}</a>`;
         })
@@ -12482,16 +12227,34 @@ function shell(role, contentNode) {
   app.appendChild(sidebar);
   app.appendChild(main);
 
-  // Partner sidebar: wire buttons to page-switcher
+  // Partner sidebar: wire .partnerNavBtn buttons to page-switcher
   if (isPartner) {
-    sidebar.querySelectorAll("[data-partner-nav]").forEach(btn => {
+    sidebar.querySelectorAll(".partnerNavBtn").forEach(btn => {
       btn.addEventListener("click", () => {
         const page = btn.getAttribute("data-dash-page");
         if (window.__partnerSwitch) window.__partnerSwitch(page);
-        sidebar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        btn.classList.add("active");
+        // Active state handled by corpSwitch/instSwitch syncing back
       });
     });
+
+    // Partner mobile bottom nav
+    const picons = { overview:"◈", opportunities:"▥", applicants:"◎", pipeline:"◔", analytics:"◉", programs:"▣", students:"◎", applications:"▥", docs:"▤" };
+    const pbn = document.createElement("nav");
+    pbn.className = "mobileBottomNav mobileBottomNavPartner";
+    pbn.setAttribute("aria-label", "Partner navigation");
+    pbn.innerHTML = sidebarItems.map((item, idx) =>
+      `<button type="button" class="mobileBottomNavItem ${idx === 0 ? "active" : ""}" data-dash-page="${item.dashPage}" data-partner-mobile-nav="1">
+        <span class="mobileBottomNavItemIcon">${picons[item.dashPage] || "•"}</span>
+        <span class="mobileBottomNavItemLabel">${item.label}</span>
+      </button>`
+    ).join("");
+    pbn.querySelectorAll("[data-partner-mobile-nav]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-dash-page");
+        if (window.__partnerSwitch) window.__partnerSwitch(page);
+      });
+    });
+    app.appendChild(pbn);
   }
 
   if (role === "student") {
