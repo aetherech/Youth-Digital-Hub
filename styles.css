@@ -9215,3 +9215,149 @@ body::after {
   border-top: 1px solid var(--color-border);
   font-size: 14px; color: var(--color-text-muted); font-weight: 500;
 }
+
+/* ===================================================================
+   PARTNER SIDEBAR NAV BUTTONS — .partnerNavBtn
+   Replaces generic .tab styling for corp/institute sidebar items.
+   Only the .active one gets the highlight — never inactive items.
+   =================================================================== */
+.partnerNavBtn {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: transparent;               /* no amber on inactive */
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.partnerNavBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.partnerNavBtn.active {
+  background: var(--color-accent-light);   /* amber tint only on active */
+  border-color: rgba(217, 119, 6, 0.35);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+/* ===================================================================
+   TABLET RESPONSIVE FIXES  (768px – 1023px)
+   Goal: topbar scales down, sidebar narrows, no cards-under-text
+   =================================================================== */
+@media (min-width: 768px) and (max-width: 1023px) {
+
+  /* Narrow the sidebar so content panel gets more room */
+  .appShell {
+    grid-template-columns: 200px minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Smaller sidebar text */
+  .sidebar {
+    padding: 16px 10px !important;
+  }
+  .sidebar .partnerNavBtn,
+  .sidebar .tab {
+    font-size: 12px !important;
+    padding: 10px 10px !important;
+    min-height: 38px !important;
+  }
+  .sidebarUserCard {
+    padding: 10px 8px !important;
+  }
+  .sidebarUserCard .avatarMd {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+  }
+
+  /* Topbar: smaller text and buttons */
+  .topbar {
+    padding: 10px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  .topbar > div:first-child div:last-child {
+    font-size: 18px !important;
+  }
+  .topbar .sessionBadge {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+  }
+  .topbar .btn {
+    padding: 7px 12px !important;
+    font-size: 11px !important;
+  }
+
+  /* Metric/stat cards: 2-per-row, not stacking */
+  .adminMetricGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Dashboard overview cards stay side-by-side */
+  .grid.cols-2,
+  .grid.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Corp funnel and analytics side panels go single column */
+  .corpFunnel + .grid,
+  .grid.cols-2:has(.card:only-child) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Table overflow: keep scrollable, don't collapse */
+  .table {
+    font-size: 12px !important;
+  }
+  .table th,
+  .table td {
+    padding: 8px 10px !important;
+  }
+
+  /* Filter rows: wrap nicely */
+  .row[style*="flex-wrap:wrap"],
+  .row[style*="flex-wrap: wrap"] {
+    gap: 6px !important;
+  }
+  .input, .select {
+    font-size: 12px !important;
+    padding: 7px 10px !important;
+  }
+
+  /* Partner shell: hide dashInnerNav (sidebar drives nav on tablet too at 768+) */
+  .partnerShell .dashInnerNav {
+    display: none !important;
+  }
+
+  /* Keep sidebar visible on tablet for partner */
+  .partnerShell .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
+/* ===================================================================
+   SMALL TABLET / LARGE MOBILE  (600px – 767px)
+   =================================================================== */
+@media (min-width: 600px) and (max-width: 767px) {
+  /* 2-col metric cards on small tablet */
+  .adminMetricGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  /* Keep cards from stacking awkwardly */
+  .grid.cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
